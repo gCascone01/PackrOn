@@ -1,0 +1,145 @@
+"use client"
+
+import { useState } from "react"
+import { Chip, Field, NumberStepper, OptionCard, TextArea, TextInput } from "@/components/form-controls"
+import { StepProgress } from "@/components/step-progress"
+import { Button } from "@/components/ui/button"
+import type { GenerateTripPayload } from "@/lib/types"
+import { ArrowRight, MapPin, Sparkles } from "lucide-react"
+import { useI18n } from "@/components/locale-provider"
+import type { MessageKey } from "@/lib/i18n"
+
+const INTEREST_OPTIONS: Array<{ id: string; label: MessageKey }> = [
+  { id: "art", label: "interestArt" },
+  { id: "food", label: "interestFood" },
+  { id: "nightlife", label: "interestNightlife" },
+  { id: "shopping", label: "interestShopping" },
+  { id: "architecture", label: "interestArch" },
+  { id: "parks", label: "interestParks" },
+  { id: "views", label: "interestViews" },
+  { id: "kids", label: "interestKids" },
+]
+
+export function CityTripConfigurator({
+  onGenerate,
+  loading,
+}: {
+  onGenerate: (payload: GenerateTripPayload) => void
+  loading: boolean
+}) {
+  const { t } = useI18n()
+  const [step, setStep] = useState(0)
+  const [city, setCity] = useState("")
+  const [days, setDays] = useState(3)
+  const [interests, setInterests] = useState<string[]>(["art", "food"])
+  const [pace, setPace] = useState("balanced")
+  const [notes, setNotes] = useState("")
+
+  const steps = [t("cityStep1"), t("cityStep2")]
+  const paceOptions = [
+    { id: "chill", title: t("cityChill") },
+    { id: "balanced", title: t("cityBalanced") },
+    { id: "packed", title: t("cityPacked") },
+  ]
+
+  const toggle = (value: string) =>
+    setInterests((list) => (list.includes(value) ? list.filter((v) => v !== value) : [...list, value]))
+
+  const canGenerate = city.trim().length > 1
+
+  const submit = () => {
+    if (!canGenerate) return
+    onGenerate({
+      mode: "city",
+      city: city.trim(),
+      days,
+      pace,
+      interests: interests.map((id) => t(INTEREST_OPTIONS.find((o) => o.id === id)!.label)),
+      notes: notes.trim(),
+    })
+  }
+
+  return (
+    <div className="flex flex-col gap-6">
+      <StepProgress steps={steps} current={step} />
+
+      {step === 0 && (
+        <div className="flex flex-col gap-5">
+          <Field label={t("cityLabel")}>
+            <div className="relative">
+              <MapPin className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <TextInput
+                className="pl-9"
+                placeholder={t("cityPlaceholder")}
+                value={city}
+                onChange={(e) => setCity(e.target.value)}
+              />
+            </div>
+          </Field>
+
+          <Field label={t("howManyDays")}>
+            <NumberStepper value={days} min={1} max={10} unit={t("daysUnit")} onChange={setDays} />
+          </Field>
+
+          <Field label={t("notes")} hint={t("optional")}>
+            <TextArea
+              placeholder={t("cityNotesPlaceholder")}
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+            />
+          </Field>
+        </div>
+      )}
+
+      {step === 1 && (
+        <div className="flex flex-col gap-5">
+          <Field label={t("interests")} hint={t("multiSelect")}>
+            <div className="flex flex-wrap gap-2">
+              {INTEREST_OPTIONS.map((c) => (
+                <Chip key={c.id} active={interests.includes(c.id)} onClick={() => toggle(c.id)}>
+                  {t(c.label)}
+                </Chip>
+              ))}
+            </div>
+          </Field>
+
+          <Field label={t("dailyPace")}>
+            <div className="grid gap-2 sm:grid-cols-3">
+              {paceOptions.map((p) => (
+                <OptionCard key={p.id} active={pace === p.id} onClick={() => setPace(p.id)} title={p.title} />
+              ))}
+            </div>
+          </Field>
+        </div>
+      )}
+
+      <div className="flex items-center justify-between gap-3 border-t border-border pt-5">
+        <Button
+          type="button"
+          variant="ghost"
+          size="lg"
+          onClick={() => setStep((s) => Math.max(0, s - 1))}
+          disabled={step === 0 || loading}
+        >
+          {t("back")}
+        </Button>
+        {step < steps.length - 1 ? (
+          <Button type="button" size="lg" onClick={() => setStep((s) => s + 1)}>
+            {t("continue")}
+            <ArrowRight className="size-4" />
+          </Button>
+        ) : (
+          <div className="flex flex-col items-end gap-1">
+            <Button type="button" size="lg" onClick={submit} disabled={loading || !canGenerate}>
+              <Sparkles className="size-4" />
+              {loading ? t("generating") : t("generate")}
+            </Button>
+            {!canGenerate ? (
+              <span className="text-xs text-muted-foreground">{t("generateNeedCity")}</span>
+            ) : null}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
