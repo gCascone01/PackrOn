@@ -7,7 +7,7 @@ import { getAlternatives } from "@/lib/mock-itinerary"
 import { CategoryBadge } from "@/components/category-badge"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
-import { Clock, GripVertical, Hourglass, MapPin, ParkingSquare, RefreshCw, Ticket, Trash2, X, BedDouble } from "lucide-react"
+import { BedDouble, Clock, GripVertical, Hourglass, MapPin, ParkingSquare, RefreshCw, Search, Ticket, Trash2, X } from "lucide-react"
 import { bookingSearchUrl, getYourGuideSearchUrl, googleMapsSearchUrl } from "@/lib/affiliate-links"
 import { useI18n } from "@/components/locale-provider"
 
@@ -41,6 +41,12 @@ export function StopCard({
   const { t, locale } = useI18n()
   const [alts, setAlts] = useState<Stop[] | null>(null)
   const [loadingAlts, setLoadingAlts] = useState(false)
+  const isOvernightStop = stop.category === "notte"
+  const experienceQuery = (() => {
+    const candidate = (stop.getYourGuideQuery || stop.name || "").trim()
+    if (!candidate) return stop.name
+    return stop.name.toLowerCase().includes(candidate.toLowerCase()) ? stop.name : candidate
+  })()
 
   const openAlternatives = () => {
     if (alts) {
@@ -86,7 +92,9 @@ export function StopCard({
 
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <h4 className="font-display text-sm font-bold text-foreground">{stop.name}</h4>
+            <h4 className="font-display text-sm font-bold text-foreground">
+              {isOvernightStop ? stop.bookingQuery || stop.name : stop.name}
+            </h4>
             <CategoryBadge category={stop.category} />
           </div>
           <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{stop.description}</p>
@@ -110,7 +118,7 @@ export function StopCard({
 
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <a
-              href={googleMapsSearchUrl(stop.lat, stop.lng)}
+              href={googleMapsSearchUrl(stop.name, stop.lat, stop.lng)}
               target="_blank"
               rel="noopener noreferrer"
               onClick={(e) => e.stopPropagation()}
@@ -119,26 +127,44 @@ export function StopCard({
               <MapPin className="size-3.5" />
               {t("openInMaps")}
             </a>
-            <a
-              href={bookingSearchUrl(stop.bookingQuery || stop.name)}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={(e) => e.stopPropagation()}
-              className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg border border-border bg-background px-2.5 text-xs font-medium text-foreground transition hover:bg-muted"
-            >
-              <BedDouble className="size-3.5" />
-              {t("lodging")}
-            </a>
-            <a
-              href={getYourGuideSearchUrl(stop.getYourGuideQuery || stop.name)}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={(e) => e.stopPropagation()}
-              className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg border border-border bg-background px-2.5 text-xs font-medium text-foreground transition hover:bg-muted"
-            >
-              <Ticket className="size-3.5" />
-              {t("experiences")}
-            </a>
+            {isOvernightStop ? (
+              <>
+                <a
+                  href={bookingSearchUrl(stop.bookingQuery || stop.name)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                  className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg border border-border bg-background px-2.5 text-xs font-medium text-foreground transition hover:bg-muted"
+                >
+                  <BedDouble className="size-3.5" />
+                  {t("lodging")}
+                </a>
+                {stop.bookingCity ? (
+                  <a
+                    href={bookingSearchUrl(stop.bookingCity)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg border border-border bg-background px-2.5 text-xs font-medium text-foreground transition hover:bg-muted"
+                  >
+                    <Search className="size-3.5" />
+                    {t("otherLodgings")}
+                  </a>
+                ) : null}
+              </>
+            ) : null}
+            {!isOvernightStop ? (
+              <a
+                href={getYourGuideSearchUrl(experienceQuery)}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg border border-border bg-background px-2.5 text-xs font-medium text-foreground transition hover:bg-muted"
+              >
+                <Ticket className="size-3.5" />
+                {t("experiences")}
+              </a>
+            ) : null}
           </div>
 
           <div className="mt-3 flex items-center gap-2">

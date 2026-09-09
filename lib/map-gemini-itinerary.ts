@@ -99,7 +99,8 @@ export function mapGeminiTrip(raw: GeminiTrip, payload: GenerateTripPayload): It
         parking: payload.mode === "road" ? translate(payload.locale === "en" ? "en" : "it", "parkingHint") : undefined,
         lat: Number(stop.lat),
         lng: Number(stop.lng),
-        bookingQuery: stop.booking_query || stop.name,
+        bookingQuery: stop.booking_query?.trim() || stop.name,
+        bookingCity: payload.mode === "city" ? payload.city?.trim() : day.title.trim(),
         getYourGuideQuery: stop.getyourguide_query || stop.name,
       }
       clock += duration + 20

@@ -13,6 +13,12 @@ export function getYourGuideSearchUrl(query: string): string {
   return `https://www.getyourguide.com/s/?${params.toString()}`
 }
 
-export function googleMapsSearchUrl(lat: number, lng: number): string {
-  return `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`
+export function googleMapsSearchUrl(place: string, lat?: number, lng?: number): string {
+  const query = place?.trim() || (Number.isFinite(lat) && Number.isFinite(lng) ? `${lat},${lng}` : "")
+  if (!query) {
+    return "https://www.google.com/maps"
+  }
+
+  const center = Number.isFinite(lat) && Number.isFinite(lng) ? `&center=${lat},${lng}&zoom=17` : ""
+  return `https://www.google.com/maps?q=${encodeURIComponent(query)}${center}`
 }

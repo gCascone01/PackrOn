@@ -48,7 +48,8 @@ export function buildTripPrompt(payload: GenerateTripPayload): string {
       "- 3-5 stops per day, including a meal and an overnight (type notte) when it makes sense.",
       '- total_km_estimated = 0, estimated_fuel_cost_range = "0€", toll_and_vignette_alerts = [].',
       "- driving_time_minutes = 0 for each day (short urban moves).",
-      "- booking_query: neighbourhood or city name for hotels.",
+      "- For every type=notte stop, name must be the exact hotel or B&B shown to the user.",
+      "- booking_query: exact hotel or B&B name followed by the city; never use a city/area-only search.",
       "- getyourguide_query: attraction or experience search query.",
       `- ${languageLine}`,
     ]
@@ -76,10 +77,11 @@ export function buildTripPrompt(payload: GenerateTripPayload): string {
     "- Real, precise lat/lng.",
     "- Each day: 3-5 stops, mix of panoramica / pasto / museo / notte.",
     "- Include at least one type=notte stop (lodging) each day, except the last day if it is only the return.",
+    "- For every type=notte stop, name must be the exact hotel or B&B shown to the user.",
     "- driving_time_minutes must match the chosen pace.",
     '- Estimate total_km_estimated and estimated_fuel_cost_range in euro (e.g. "120€ - 150€").',
     "- In toll_and_vignette_alerts list vignettes and tolls for countries crossed.",
-    "- booking_query: city or area for that stop's hotel.",
+    "- booking_query: exact hotel or B&B name followed by the city; never use a generic city or area-only search.",
     "- getyourguide_query: attraction or activity name.",
     `- ${languageLine}`,
   ]

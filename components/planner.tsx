@@ -60,7 +60,7 @@ export function Planner() {
   return (
     <div className="min-h-screen bg-background">
       <SiteHeader />
-      <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:h-[calc(100vh-5rem)] lg:overflow-hidden lg:py-8">
+      <main className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:h-[calc(100vh-5rem)] lg:overflow-hidden lg:py-8">
         <div className="grid h-full items-start gap-10 lg:grid-cols-[1fr_1.05fr] lg:gap-14">
           <div className="relative flex flex-col gap-8 lg:sticky lg:top-24 lg:max-h-[calc(100vh-8rem)] lg:overflow-hidden">
             <div className="relative z-10 flex flex-col gap-5">
@@ -81,7 +81,7 @@ export function Planner() {
                   />
                 </span>
                 <br />
-                <span className="text-brand">{t("heroAccent")}</span>
+                <span className="whitespace-nowrap text-brand">{t("heroAccent")}</span>
               </h1>
               <p className="max-w-md text-base leading-relaxed text-muted-foreground text-pretty">
                 {t("heroBody")}

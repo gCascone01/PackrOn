@@ -90,7 +90,7 @@ export const GEMINI_TRIP_SCHEMA: Schema = {
                 short_description: { type: Type.STRING },
                 booking_query: {
                   type: Type.STRING,
-                  description: "Query di ricerca alloggio (città o zona)",
+                  description: "Nome esatto dell'hotel o B&B seguito dalla città; non usare una ricerca composta solo da città o zona",
                 },
                 getyourguide_query: {
                   type: Type.STRING,

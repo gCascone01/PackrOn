@@ -14,7 +14,7 @@ export const messages = {
     aiPlanner: "AI planner",
     langAria: "Cambia lingua",
     badge: "Itinerari generati su misura",
-    heroTitle: "Pianifica il viaggio.",
+    heroTitle: "Enjoy the trip.",
     heroAccent: "Guida, non organizzare.",
     heroBody:
       "PackrOn costruisce road trip e city trip completi: tappe, orari, parcheggi, mappa interattiva e stima costi. Modifichi tutto con un tocco, senza rigenerare da capo.",
@@ -174,6 +174,7 @@ export const messages = {
     driving: "guida",
     openInMaps: "Apri tappa in Google Maps",
     lodging: "Alloggio",
+    otherLodgings: "Altre strutture",
     experiences: "Esperienze",
     changeStop: "Cambia sosta",
     remove: "Rimuovi",
@@ -207,7 +208,7 @@ export const messages = {
     aiPlanner: "AI planner",
     langAria: "Change language",
     badge: "Itineraries tailored to you",
-    heroTitle: "Plan the trip.",
+    heroTitle: "Enjoy the trip.",
     heroAccent: "Drive, don’t organise.",
     heroBody:
       "PackrOn builds complete road trips and city trips: stops, timings, parking, an interactive map and cost estimates. Tweak anything with a tap, without starting over.",
@@ -367,6 +368,7 @@ export const messages = {
     driving: "driving",
     openInMaps: "Open stop in Google Maps",
     lodging: "Stay",
+    otherLodgings: "Other accommodations",
     experiences: "Experiences",
     changeStop: "Change stop",
     remove: "Remove",
