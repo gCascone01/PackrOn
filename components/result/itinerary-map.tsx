@@ -6,7 +6,6 @@ import type { Map as LeafletMap, LayerGroup } from "leaflet"
 import type { Stop, TripMode } from "@/lib/types"
 
 export interface MapStop extends Stop {
-  /** Global sequence number across the trip */
   seq: number
   dayNumber: number
 }
@@ -70,9 +69,15 @@ export function ItineraryMap({
     const layer = layerRef.current
     if (!L || !map || !layer) return
     layer.clearLayers()
-    if (stops.length === 0) return
+    if (!stops || stops.length === 0) return
 
-    const latlngs = stops.map((s) => [s.lat, s.lng] as [number, number])
+    // Filtra solo le tappe con coordinate valide per evitare crash (NaN)
+    const validStops = stops.filter(
+      (s) => s && typeof s.lat === "number" && typeof s.lng === "number" && !isNaN(s.lat) && !isNaN(s.lng)
+    )
+    if (validStops.length === 0) return
+
+    const latlngs = validStops.map((s) => [s.lat, s.lng] as [number, number])
 
     L.polyline(latlngs, {
       color: "oklch(0.55 0.216 264)",
@@ -82,7 +87,7 @@ export function ItineraryMap({
       lineCap: "round",
     }).addTo(layer)
 
-    stops.forEach((s) => {
+    validStops.forEach((s) => {
       const active = s.id === selectedId
       const icon = L.divIcon({
         className: "packron-marker",
@@ -94,17 +99,33 @@ export function ItineraryMap({
       })
       const marker = L.marker([s.lat, s.lng], { icon }).addTo(layer)
       marker.bindTooltip(`${s.seq}. ${s.name}`, { direction: "top", offset: [0, -28] })
+      
+      // I pin rimangono sempre cliccabili su qualsiasi dispositivo
       marker.on("click", () => selectRef.current(s.id))
     })
 
-    const selected = stops.find((s) => s.id === selectedId)
+    // Controlla se il container della mappa ha dimensioni (visibile a schermo)
+    const container = containerRef.current
+    if (!container || container.offsetWidth === 0 || container.offsetHeight === 0) {
+      return // Evita calcoli di flyTo/fitBounds se la mappa è nascosta (es. tab mobile chiuso)
+    }
+
+    const selected = validStops.find((s) => s.id === selectedId)
     if (selected) {
-      map.flyTo([selected.lat, selected.lng], Math.max(map.getZoom(), 11), { duration: 0.6 })
+      try {
+        map.flyTo([selected.lat, selected.lng], Math.max(map.getZoom(), 11), { duration: 0.6 })
+      } catch (e) {
+        // Ignora eventuali errori di animazione
+      }
     } else {
-      map.fitBounds(L.latLngBounds(latlngs).pad(mode === "city" ? 0.08 : 0.2), {
-        animate: false,
-        maxZoom: mode === "city" ? 15 : undefined,
-      })
+      try {
+        map.fitBounds(L.latLngBounds(latlngs).pad(mode === "city" ? 0.08 : 0.2), {
+          animate: false,
+          maxZoom: mode === "city" ? 15 : undefined,
+        })
+      } catch (e) {
+        // Ignora errori di bounds
+      }
     }
   }
 
