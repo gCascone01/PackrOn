@@ -4,9 +4,9 @@ import type { Locale } from "./i18n"
 let idCounter = 0
 const uid = (prefix: string) => `${prefix}-${(idCounter++).toString(36)}`
 
-export function buildRoadTripItinerary(): Itinerary {
+export function buildRoadTripItinerary(locale: Locale = "it"): Itinerary {
   idCounter = 0
-  return {
+  const itinerary: Itinerary = {
     mode: "road",
     title: "Anello dell'Europa Centrale",
     subtitle: "Vienna · Wachau · Bratislava · Moravia meridionale",
@@ -77,11 +77,12 @@ export function buildRoadTripItinerary(): Itinerary {
       },
     ],
   }
+  return locale === "en" ? localizeMockItinerary(itinerary) : itinerary
 }
 
-export function buildCityTripItinerary(): Itinerary {
+export function buildCityTripItinerary(locale: Locale = "it"): Itinerary {
   idCounter = 0
-  return {
+  const itinerary: Itinerary = {
     mode: "city",
     title: "Siviglia in 3 giorni",
     subtitle: "Barrio Santa Cruz · Triana · Guadalquivir",
@@ -124,6 +125,115 @@ export function buildCityTripItinerary(): Itinerary {
         ],
       },
     ],
+  }
+  return locale === "en" ? localizeMockItinerary(itinerary) : itinerary
+}
+
+const MOCK_TEXT_EN: Record<string, string> = {
+  "Anello dell'Europa Centrale": "Central Europe loop",
+  "Vienna · Wachau · Bratislava · Moravia meridionale": "Vienna · Wachau · Bratislava · South Moravia",
+  "Vienna, Austria": "Vienna, Austria",
+  "Siviglia, Spagna": "Seville, Spain",
+  "Austria": "Austria",
+  "Slovacchia": "Slovakia",
+  "Rep. Ceca": "Czechia",
+  "Vignetta Austria 10 giorni (obbligatoria)": "Austria 10-day vignette (mandatory)",
+  "Vignetta Slovacchia 10 giorni": "Slovakia 10-day vignette",
+  "Vignetta digitale Cechia 10 giorni": "Czechia 10-day digital vignette",
+  "Pedaggio tunnel / tratte speciali (stima)": "Tunnel / special road toll (estimate)",
+  "Vienna imperiale": "Imperial Vienna",
+  "Palazzo di Schönbrunn": "Schönbrunn Palace",
+  "Reggia asburgica con giardini barocchi.": "Habsburg palace with baroque gardens.",
+  "Parcheggio P1 a pagamento, 3,60 €/h": "Paid P1 parking, €3.60/hour",
+  "Centro storico & Duomo di Santo Stefano": "Old Town & St. Stephen's Cathedral",
+  "Passeggiata tra Graben, Kärntner e la cattedrale gotica.": "Walk through Graben and Kärntner Straße to the Gothic cathedral.",
+  "Garage Am Hof (interrato)": "Am Hof underground garage",
+  "Prater al tramonto": "Prater at sunset",
+  "Ruota panoramica storica e viale alberato.": "Historic Ferris wheel and tree-lined avenue.",
+  "Riesenradplatz, parcheggio gratuito serale": "Riesenradplatz, free evening parking",
+  "Parcheggio gratuito serale": "Free evening parking",
+  "Valle della Wachau": "Wachau Valley",
+  "Abbazia di Melk": "Melk Abbey",
+  "Monastero benedettino affacciato sul Danubio.": "Benedictine abbey overlooking the Danube.",
+  "Parcheggio bus/auto ai piedi dell'abbazia": "Bus and car parking below the abbey",
+  "Vigneti di Spitz": "Spitz vineyards",
+  "Strada del vino tra terrazzamenti sul fiume.": "Wine road through river terraces.",
+  "Aree di sosta panoramiche B3": "Scenic B3 pull-offs",
+  "Dürnstein": "Dürnstein",
+  "Borgo con rovine del castello di Riccardo Cuor di Leone.": "Village with the ruins of Richard the Lionheart's castle.",
+  "Parcheggio P2 fuori dal borgo pedonale": "P2 parking outside the pedestrian village",
+  "Bratislava, capitale sul Danubio": "Bratislava, capital on the Danube",
+  "Castello di Devín": "Devín Castle",
+  "Rovine a strapiombo sulla confluenza Danubio-Morava.": "Clifftop ruins above the Danube-Morava confluence.",
+  "Parcheggio ai piedi della rocca": "Parking below the fortress",
+  "Castello di Bratislava": "Bratislava Castle",
+  "Fortezza bianca con vista sulla città vecchia.": "White fortress overlooking the old town.",
+  "Garage sotto il castello": "Garage below the castle",
+  "Città vecchia & Michael's Gate": "Old Town & Michael's Gate",
+  "Vicoli, caffè storici e la porta medievale.": "Laneways, historic cafés and the medieval gate.",
+  "Parcheggio Eurovea": "Eurovea parking",
+  "Moravia meridionale": "South Moravia",
+  "Cittadina barocca tra le colline dei vigneti.": "Baroque town among vineyard hills.",
+  "Parcheggio Náměstí (centrale)": "Náměstí central parking",
+  "Residenza neogotica e parco patrimonio UNESCO.": "Neo-Gothic residence and UNESCO-listed park.",
+  "Castello di Lednice": "Lednice Chateau",
+  "Ampio parcheggio del parco": "Large park car park",
+  "Palava — riserva naturale": "Pálava nature reserve",
+  "Sentiero panoramico tra rocce calcaree e steppa.": "Scenic trail through limestone rocks and steppe.",
+  "Area sosta trailhead Klentnice": "Klentnice trailhead parking",
+  "Rientro panoramico a Vienna": "Scenic return to Vienna",
+  "Terme e caffè di confine per una pausa lenta.": "Spa and border cafés for a slow break.",
+  "Parcheggio terme gratuito": "Free spa parking",
+  "Cantina di Poysdorf": "Poysdorf winery",
+  "Degustazione veloce lungo la Weinstrasse.": "Quick tasting along the Weinstrasse.",
+  "Cortile della cantina": "Winery courtyard",
+  "Vienna — rientro": "Vienna — return",
+  "Chiusura dell'anello nel punto di partenza.": "Close the loop at the starting point.",
+  "Deposito auto / hotel": "Car rental return / hotel",
+  "Siviglia in 3 giorni": "Seville in 3 days",
+  "Barrio Santa Cruz · Triana · Guadalquivir": "Santa Cruz · Triana · Guadalquivir",
+  "Cuore monumentale": "Monumental heart",
+  "Cattedrale & Giralda": "Cathedral & Giralda",
+  "La più grande cattedrale gotica al mondo.": "The world's largest Gothic cathedral.",
+  "Real Alcázar": "Royal Alcázar",
+  "Palazzo mudéjar con giardini incantati.": "Mudéjar palace with enchanting gardens.",
+  "Barrio Santa Cruz": "Santa Cruz district",
+  "Vicoli imbiancati dell'antica giudecca.": "Whitewashed lanes of the old Jewish quarter.",
+  "Plaza & Triana": "Plaza & Triana",
+  "Emiciclo monumentale con ceramiche azulejos.": "Monumental semicircle decorated with azulejos.",
+  "Terrazza panoramica in legno sul centro.": "Wooden panoramic terrace above the city centre.",
+  "Quartiere di Triana": "Triana district",
+  "Ceramiche, tapas e flamenco sul fiume.": "Ceramics, tapas and flamenco by the river.",
+  "Lungo il Guadalquivir": "Along the Guadalquivir",
+  "Torre difensiva albarrana sul fiume.": "Albarrana defensive tower by the river.",
+  "Parco di María Luisa": "María Luisa Park",
+  "Giardini ombreggiati per una pausa lenta.": "Shaded gardens for a slow break.",
+  "Mercado Lonja del Barranco": "Lonja del Barranco Market",
+  "Street food gourmet prima della partenza.": "Gourmet street food before departure.",
+}
+
+function localizeMockItinerary(itinerary: Itinerary): Itinerary {
+  const text = (value: string | undefined) => (value ? MOCK_TEXT_EN[value] ?? value : value)
+  return {
+    ...itinerary,
+    title: text(itinerary.title) ?? itinerary.title,
+    subtitle: text(itinerary.subtitle) ?? itinerary.subtitle,
+    origin: text(itinerary.origin) ?? itinerary.origin,
+    tollNotices: itinerary.tollNotices.map((notice) => ({
+      ...notice,
+      country: text(notice.country) ?? notice.country,
+      label: text(notice.label) ?? notice.label,
+    })),
+    days: itinerary.days.map((day) => ({
+      ...day,
+      title: text(day.title) ?? day.title,
+      stops: day.stops.map((stopItem) => ({
+        ...stopItem,
+        name: text(stopItem.name) ?? stopItem.name,
+        description: text(stopItem.description) ?? stopItem.description,
+        parking: text(stopItem.parking),
+      })),
+    })),
   }
 }
 

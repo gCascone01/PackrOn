@@ -1,24 +1,27 @@
 "use client"
 
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import { MarketingShell } from "@/components/marketing-shell"
 import { SiteHeader } from "@/components/site-header"
 import { ResultView } from "@/components/result/result-view"
 import { Button } from "@/components/ui/button"
 import { useI18n } from "@/components/locale-provider"
 import { buildCityTripItinerary, buildRoadTripItinerary } from "@/lib/mock-itinerary"
-import type { Itinerary } from "@/lib/types"
 import { ArrowRight, Building2, Route } from "lucide-react"
 
 export function ExamplesPage() {
-  const { t } = useI18n()
-  const [open, setOpen] = useState<Itinerary | null>(null)
+  const { t, locale } = useI18n()
+  const [open, setOpen] = useState<"road" | "city" | null>(null)
+  const openItinerary = useMemo(
+    () => (open === "road" ? buildRoadTripItinerary(locale) : open === "city" ? buildCityTripItinerary(locale) : null),
+    [locale, open],
+  )
 
-  if (open) {
+  if (openItinerary) {
     return (
       <div className="min-h-screen bg-background">
         <SiteHeader onBrandClick={() => setOpen(null)} />
-        <ResultView initial={open} onBack={() => setOpen(null)} />
+        <ResultView key={`${open}-${locale}`} initial={openItinerary} onBack={() => setOpen(null)} />
       </div>
     )
   }
@@ -31,7 +34,7 @@ export function ExamplesPage() {
           title={t("exampleRoadTitle")}
           body={t("exampleRoadBody")}
           icon={Route}
-          onOpen={() => setOpen(buildRoadTripItinerary())}
+          onOpen={() => setOpen("road")}
           cta={t("exampleOpen")}
         />
         <ExampleCard
@@ -39,7 +42,7 @@ export function ExamplesPage() {
           title={t("exampleCityTitle")}
           body={t("exampleCityBody")}
           icon={Building2}
-          onOpen={() => setOpen(buildCityTripItinerary())}
+          onOpen={() => setOpen("city")}
           cta={t("exampleOpen")}
         />
       </div>

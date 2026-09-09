@@ -26,11 +26,15 @@ function parseJsonPayload(text: string): unknown {
   return JSON.parse(raw)
 }
 
-async function generateJson(ai: GoogleGenAI, model: string, prompt: string) {
+async function generateJson(ai: GoogleGenAI, model: string, prompt: string, locale: Locale) {
   return ai.models.generateContent({
     model,
     contents: prompt,
     config: {
+      systemInstruction:
+        locale === "en"
+          ? "The requested output language is English. Every user-facing natural-language field in the JSON must be written in English. Preserve only official local proper names."
+          : "La lingua richiesta per l'output è l'italiano. Ogni campo testuale destinato all'utente deve essere scritto in italiano.",
       temperature: 0.7,
       responseMimeType: "application/json",
       responseSchema: GEMINI_TRIP_SCHEMA,
@@ -74,10 +78,10 @@ export async function POST(request: Request) {
     const ai = new GoogleGenAI({ apiKey })
     let response
     try {
-      response = await generateJson(ai, MODEL_PRIMARY, buildTripPrompt(payload))
+      response = await generateJson(ai, MODEL_PRIMARY, buildTripPrompt(payload), locale)
     } catch (primaryError) {
       if (MODEL_PRIMARY === MODEL_FALLBACK) throw primaryError
-      response = await generateJson(ai, MODEL_FALLBACK, buildTripPrompt(payload))
+      response = await generateJson(ai, MODEL_FALLBACK, buildTripPrompt(payload), locale)
     }
 
     const text = response.text

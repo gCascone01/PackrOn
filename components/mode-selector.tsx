@@ -45,10 +45,10 @@ export function ModeSelector({
             onClick={() => onChange(m.id)}
             aria-pressed={active}
             className={cn(
-              "group relative flex items-start gap-4 rounded-2xl border p-5 text-left transition-all",
+              "group relative flex items-start gap-4 rounded-2xl border p-5 text-left outline-none transition-all duration-200 ease-out hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.99] focus-visible:border-brand focus-visible:ring-3 focus-visible:ring-brand/20",
               active
                 ? "border-brand bg-card shadow-md ring-1 ring-brand/20"
-                : "border-border bg-card hover:border-ring/40 hover:shadow-sm",
+                : "border-border bg-card hover:border-brand/45 hover:shadow-md",
             )}
           >
             <span

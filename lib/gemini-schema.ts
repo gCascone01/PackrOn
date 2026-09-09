@@ -21,23 +21,23 @@ export const GEMINI_TRIP_SCHEMA: Schema = {
   properties: {
     trip_title: {
       type: Type.STRING,
-      description: "Titolo accattivante e breve dell'itinerario",
+      description: "Short, appealing itinerary title in the requested output language",
     },
     summary: {
       type: Type.STRING,
-      description: "Riassunto in 1-2 frasi del viaggio",
+      description: "One or two sentence trip summary in the requested output language",
     },
     total_km_estimated: {
       type: Type.NUMBER,
-      description: "Chilometri totali stimati (0 per city trip a piedi)",
+      description: "Estimated total kilometres; use 0 for a walking city trip",
     },
     estimated_fuel_cost_range: {
       type: Type.STRING,
-      description: 'Fascia di costo carburante, es. "120€ - 150€" oppure "0€" per city trip',
+      description: 'Estimated fuel cost range, for example "120€ - 150€", or "0€" for a city trip',
     },
     toll_and_vignette_alerts: {
       type: Type.ARRAY,
-      description: "Avvisi su bollini autostradali, vignette o pedaggi. Array vuoto se non applicabile.",
+      description: "Toll, vignette, or road-charge alerts in the requested output language; use an empty array when not applicable",
       items: { type: Type.STRING },
     },
     days: {
@@ -50,7 +50,7 @@ export const GEMINI_TRIP_SCHEMA: Schema = {
           day_number: { type: Type.INTEGER },
           title: {
             type: Type.STRING,
-            description: "Titolo della giornata che identifica chiaramente area o città e il suo focus principale",
+            description: "Day title clearly identifying the area or city and its main focus, in the requested output language",
           },
           driving_time_minutes: {
             type: Type.INTEGER,
@@ -85,25 +85,25 @@ export const GEMINI_TRIP_SCHEMA: Schema = {
                 type: {
                   type: Type.STRING,
                   enum: ["panoramica", "pasto", "museo", "notte"],
-                  description: "Tipo sosta: panoramica, pasto, museo o notte",
+                  description: "Stop type: panoramica, pasto, museo, or notte",
                 },
                 lat: { type: Type.NUMBER },
                 lng: { type: Type.NUMBER },
                 duration_minutes: {
                   type: Type.INTEGER,
-                  description: "Durata realistica della sosta in minuti, senza sovrapposizioni; includere tempo sufficiente per pasti, check-in e attività serali",
+                  description: "Realistic stop duration in minutes with no overlaps; allow enough time for meals, check-in, and evening activities",
                 },
                 short_description: {
                   type: Type.STRING,
-                  description: "Descrizione concreta con punti di interesse specifici; per pasti indicare piatti tipici locali; includere parcheggio o prenotazione quando rilevante",
+                  description: "Concrete description with specific points of interest; for meals mention local dishes; include parking or booking guidance when relevant, in the requested output language",
                 },
                 booking_query: {
                   type: Type.STRING,
-                  description: "Nome esatto dell'hotel o B&B seguito dalla città; non usare una ricerca composta solo da città o zona",
+                  description: "Exact hotel or B&B name followed by the city; never use a city-only or area-only search",
                 },
                 getyourguide_query: {
                   type: Type.STRING,
-                  description: "Query di ricerca esperienze/attività",
+                  description: "Search query for the experience or activity",
                 },
               },
             },

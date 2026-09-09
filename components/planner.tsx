@@ -9,6 +9,7 @@ import { RoadTripConfigurator } from "./road-trip-configurator"
 import { CityTripConfigurator } from "./city-trip-configurator"
 import { ResultView } from "./result/result-view"
 import { GeneratingSkeleton } from "./generating-skeleton"
+import { MouseDistanceCounter } from "./mouse-distance-counter"
 import { Fuel, MapPinned, Route } from "lucide-react"
 import { useI18n } from "@/components/locale-provider"
 import type { MessageKey } from "@/lib/i18n"
@@ -16,7 +17,9 @@ import type { MessageKey } from "@/lib/i18n"
 export function Planner() {
   const { t, locale } = useI18n()
   const [mode, setMode] = useState<TripMode>("road")
+  const [wizardStep, setWizardStep] = useState(0)
   const [loading, setLoading] = useState(false)
+  const [generationKey, setGenerationKey] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<Itinerary | null>(null)
 
@@ -28,6 +31,7 @@ export function Planner() {
 
   const generate = async (payload: GenerateTripPayload) => {
     setLoading(true)
+    setGenerationKey((key) => key + 1)
     setError(null)
     try {
       const res = await fetch("/api/generate-trip", {
@@ -60,16 +64,24 @@ export function Planner() {
   return (
     <div className="min-h-screen bg-background">
       <SiteHeader />
-      <main className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:h-[calc(100vh-5rem)] lg:overflow-hidden lg:py-8">
-        <div className="grid h-full items-start gap-10 lg:grid-cols-[1fr_1.05fr] lg:gap-14">
-          <div className="relative flex flex-col gap-8 lg:sticky lg:top-24 lg:max-h-[calc(100vh-8rem)] lg:overflow-hidden">
+      <main className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:h-[calc(100vh-5rem)] lg:overflow-hidden lg:py-10">
+        <div className="grid h-full items-start gap-12 lg:grid-cols-[1fr_1.05fr] lg:gap-16">
+          <div className="hero-stage relative flex min-w-0 flex-col gap-6 p-4 sm:p-5 lg:sticky lg:top-24 lg:max-h-[calc(100vh-8rem)] lg:overflow-hidden lg:p-6 lg:pb-8">
             <div className="relative z-10 flex flex-col gap-5">
-              <div className="h-8" aria-hidden="true" />
-              <div className="h-8" aria-hidden="true" />
-
-              <h1 className="font-display text-[2.375rem] font-extrabold leading-[1.05] tracking-tight text-foreground text-balance sm:text-[3.125rem]">
-                <span className="relative inline-block">
-                  {t("heroTitle")}
+              <div className="grid items-center gap-5 lg:grid-cols-[minmax(0,1fr)_8rem]">
+                <div className="min-w-0 flex flex-col gap-4">
+                  <h1 className="animate-hero-reveal font-display text-[2.375rem] font-extrabold leading-[1.02] tracking-tight text-foreground text-balance sm:text-[3.125rem]">
+                    {t("heroTitle")}
+                    <br />
+                    <span className="text-brand">{t("heroAccent")}</span>
+                  </h1>
+                  <p className="max-w-md text-base leading-relaxed text-muted-foreground text-pretty">
+                    {t("heroBody")}
+                  </p>
+                  <MouseDistanceCounter className="max-w-md" />
+                </div>
+                <div className="animate-hero-float relative mx-auto flex h-24 w-32 shrink-0 translate-y-4 items-center justify-center rounded-[1.75rem] border border-brand/15 bg-card/70 p-2.5 shadow-xl shadow-brand/10 sm:h-28 sm:w-40 lg:mx-0 lg:translate-y-8">
+                  <span className="absolute inset-2 rounded-[1.4rem] border border-dashed border-brand/20" aria-hidden="true" />
                   <Image
                     src="/logo.png"
                     alt=""
@@ -77,48 +89,51 @@ export function Planner() {
                     height={220}
                     priority
                     aria-hidden="true"
-                    className="pointer-events-none absolute left-full top-1/2 ml-6 hidden h-36 w-auto -translate-y-3/4 object-contain opacity-100 lg:block sm:h-40"
+                    className="relative h-auto w-full object-contain"
                   />
-                </span>
-                <br />
-                <span className="whitespace-nowrap text-brand">{t("heroAccent")}</span>
-              </h1>
-              <p className="max-w-md text-base leading-relaxed text-muted-foreground text-pretty">
-                {t("heroBody")}
-              </p>
+                </div>
+              </div>
             </div>
 
-            <ul className="flex flex-col gap-3">
+            <ul className="relative z-10 grid gap-2 sm:grid-cols-3 lg:grid-cols-3">
               {features.map((f) => (
-                <li key={f.title} className="flex items-start gap-3">
-                  <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-brand-muted text-brand">
-                    <f.icon className="size-4.5" />
+                <li key={f.title} className="group flex min-w-0 flex-col gap-2 rounded-2xl border border-transparent p-2 transition-colors duration-200 hover:border-brand/15 hover:bg-card/70">
+                  <span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-brand-muted text-brand transition-transform duration-200 group-hover:scale-105">
+                    <f.icon className="size-4" />
                   </span>
                   <div>
-                    <div className="text-sm font-semibold text-foreground">{t(f.title)}</div>
-                    <div className="text-sm leading-relaxed text-muted-foreground">{t(f.text)}</div>
+                    <div className="text-xs font-semibold leading-snug text-foreground">{t(f.title)}</div>
+                    <div className="text-xs leading-relaxed text-muted-foreground">{t(f.text)}</div>
                   </div>
                 </li>
               ))}
             </ul>
           </div>
 
-          <div className="relative max-h-[calc(100vh-8rem)] overflow-y-auto rounded-3xl border border-border bg-card p-6 shadow-lg shadow-black/[0.03] [scrollbar-width:none] sm:p-8 [&::-webkit-scrollbar]:hidden">
+          <div className="relative max-h-[calc(100vh-8rem)] overflow-y-auto rounded-3xl border border-white/60 bg-card/70 p-7 shadow-2xl shadow-black/[0.12] ring-1 ring-brand/10 backdrop-blur-xl backdrop-saturate-150 [scrollbar-width:none] sm:p-9 [&::-webkit-scrollbar]:hidden">
             {loading ? (
-              <div className="absolute inset-0 z-10 overflow-auto rounded-3xl bg-card p-6 sm:p-8">
-                <GeneratingSkeleton />
+              <div className="absolute inset-0 z-10 overflow-auto rounded-3xl bg-card/85 p-6 backdrop-blur-xl sm:p-8">
+                <GeneratingSkeleton trigger={generationKey} />
               </div>
             ) : null}
 
             <div className={loading ? "invisible" : undefined}>
-              <div className="mb-6 flex flex-col gap-1">
-                <h2 className="font-display text-xl font-bold text-foreground">{t("configTitle")}</h2>
-                <p className="text-sm text-muted-foreground">{t("configSubtitle")}</p>
+              <div className="mb-8 flex flex-col gap-2">
+                <h2 className="font-display text-xl font-bold tracking-tight text-foreground">{t("configTitle")}</h2>
+                <p className="max-w-lg text-sm leading-relaxed text-muted-foreground">{t("configSubtitle")}</p>
               </div>
 
-              <div className="mb-7">
-                <ModeSelector mode={mode} onChange={setMode} />
-              </div>
+              {wizardStep === 0 ? (
+                <div className="mb-8">
+                  <ModeSelector
+                    mode={mode}
+                    onChange={(nextMode) => {
+                      setMode(nextMode)
+                      setWizardStep(0)
+                    }}
+                  />
+                </div>
+              ) : null}
 
               {error ? (
                 <div
@@ -130,9 +145,9 @@ export function Planner() {
               ) : null}
 
               {mode === "road" ? (
-                <RoadTripConfigurator onGenerate={generate} loading={loading} />
+                <RoadTripConfigurator onGenerate={generate} loading={loading} onStepChange={setWizardStep} />
               ) : (
-                <CityTripConfigurator onGenerate={generate} loading={loading} />
+                <CityTripConfigurator onGenerate={generate} loading={loading} onStepChange={setWizardStep} />
               )}
             </div>
           </div>

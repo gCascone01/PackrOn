@@ -12,17 +12,28 @@ import {
   Toggle,
 } from "@/components/form-controls"
 import { StepProgress } from "@/components/step-progress"
+import { TravelThought } from "@/components/travel-thought"
+import { WizardPreview } from "@/components/wizard-preview"
 import { Button } from "@/components/ui/button"
 import type { GenerateTripPayload, VehicleType } from "@/lib/types"
 import {
   ArrowRight,
+  BedDouble,
+  CalendarDays,
+  CarFront,
   Coffee,
+  FileText,
+  Fuel,
   Gauge,
+  Map,
   MapPin,
   Navigation,
+  ReceiptText,
   Repeat,
+  Route,
   Scale,
   Sparkles,
+  Users,
 } from "lucide-react"
 import { useI18n } from "@/components/locale-provider"
 import type { MessageKey } from "@/lib/i18n"
@@ -46,9 +57,11 @@ const VEHICLE_OPTIONS: Array<{ id: VehicleType; label: MessageKey }> = [
 export function RoadTripConfigurator({
   onGenerate,
   loading,
+  onStepChange,
 }: {
   onGenerate: (payload: GenerateTripPayload) => void
   loading: boolean
+  onStepChange?: (step: number) => void
 }) {
   const { t, locale } = useI18n()
   const [step, setStep] = useState(0)
@@ -78,6 +91,11 @@ export function RoadTripConfigurator({
 
   const canGenerate = origin.trim().length > 1 && destination.trim().length > 1
 
+  const changeStep = (nextStep: number) => {
+    setStep(nextStep)
+    onStepChange?.(nextStep)
+  }
+
   const submit = () => {
     if (!canGenerate) return
     onGenerate({
@@ -98,12 +116,21 @@ export function RoadTripConfigurator({
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-7">
       <StepProgress steps={steps} current={step} />
 
+      <WizardPreview
+        mode="road"
+        label={t("previewLabel")}
+        title={origin.trim() || t("previewOrigin")}
+        detail={destination.trim() || t("previewDestination")}
+        meta={vehicle === "elettrica" ? "EV" : vehicle}
+        accent={pace === "relax" ? "green" : pace === "fast" ? "amber" : "brand"}
+      />
+
       {step === 0 && (
-        <div className="flex flex-col gap-5">
-          <Field label={t("origin")}>
+        <div key="road-step-0" className="animate-step-transition flex flex-col gap-6">
+          <Field label={t("origin")} icon={<MapPin className="size-4" />}>
             <div className="flex flex-col gap-2 sm:flex-row">
               <div className="relative flex-1">
                 <MapPin className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -144,7 +171,7 @@ export function RoadTripConfigurator({
             ) : null}
           </Field>
 
-          <Field label={t("destination")}>
+          <Field label={t("destination")} icon={<Map className="size-4" />}>
             <TextArea
               placeholder={t("destinationPlaceholder")}
               value={destination}
@@ -153,13 +180,13 @@ export function RoadTripConfigurator({
           </Field>
 
           <div className="grid gap-5 sm:grid-cols-2">
-            <Field label={t("itineraryType")}>
+            <Field label={t("itineraryType")} icon={<Route className="size-4" />}>
               <div className="grid grid-cols-2 gap-2">
                 <OptionCard active={loop} onClick={() => setLoop(true)} title={t("loop")} icon={<Repeat className="size-4" />} />
                 <OptionCard active={!loop} onClick={() => setLoop(false)} title={t("oneWay")} icon={<ArrowRight className="size-4" />} />
               </div>
             </Field>
-            <Field label={t("duration")}>
+            <Field label={t("duration")} icon={<CalendarDays className="size-4" />}>
               <NumberStepper value={days} min={2} max={30} unit={t("daysUnit")} onChange={setDays} />
             </Field>
           </div>
@@ -167,8 +194,8 @@ export function RoadTripConfigurator({
       )}
 
       {step === 1 && (
-        <div className="flex flex-col gap-5">
-          <Field label={t("drivingPace")}>
+        <div key="road-step-1" className="animate-step-transition flex flex-col gap-6">
+          <Field label={t("drivingPace")} icon={<Gauge className="size-4" />}>
             <div className="grid gap-2 sm:grid-cols-3">
               {paceOptions.map((p) => (
                 <OptionCard
@@ -183,14 +210,14 @@ export function RoadTripConfigurator({
             </div>
           </Field>
 
-          <Field label={t("stays")}>
+          <Field label={t("stays")} icon={<BedDouble className="size-4" />}>
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               <OptionCard active={!basecamp} onClick={() => setBasecamp(false)} title={t("stayMove")} description={t("stayMoveDesc")} />
               <OptionCard active={basecamp} onClick={() => setBasecamp(true)} title={t("stayBase")} description={t("stayBaseDesc")} />
             </div>
           </Field>
 
-          <Field label={t("onboard")} hint={t("multiSelect")}>
+          <Field label={t("onboard")} hint={t("multiSelect")} icon={<Users className="size-4" />}>
             <div className="flex flex-wrap gap-2">
               {CREW_OPTIONS.map((c) => (
                 <Chip key={c.id} active={crew.includes(c.id)} onClick={() => toggle(crew, c.id, setCrew)}>
@@ -203,8 +230,8 @@ export function RoadTripConfigurator({
       )}
 
       {step === 2 && (
-        <div className="flex flex-col gap-5">
-          <Field label={t("vehicle")}>
+        <div key="road-step-2" className="animate-step-transition flex flex-col gap-6">
+          <Field label={t("vehicle")} icon={<CarFront className="size-4" />}>
             <div className="flex flex-wrap gap-2">
               {VEHICLE_OPTIONS.map((v) => (
                 <Chip key={v.id} active={vehicle === v.id} onClick={() => setVehicle(v.id)}>
@@ -214,7 +241,7 @@ export function RoadTripConfigurator({
             </div>
           </Field>
 
-          <Field label={t("consumption")} hint={t("consumptionHint")}>
+          <Field label={t("consumption")} hint={t("consumptionHint")} icon={<Fuel className="size-4" />}>
             <div className="flex items-center gap-2">
               <TextInput
                 type="number"
@@ -227,11 +254,11 @@ export function RoadTripConfigurator({
             </div>
           </Field>
 
-          <Field label={t("tolls")}>
+          <Field label={t("tolls")} icon={<ReceiptText className="size-4" />}>
             <Toggle checked={avoidTolls} onChange={setAvoidTolls} label={t("avoidTolls")} />
           </Field>
 
-          <Field label={t("notes")} hint={t("optional")}>
+          <Field label={t("notes")} hint={t("optional")} icon={<FileText className="size-4" />}>
             <TextArea
               placeholder={t("notesPlaceholder")}
               value={notes}
@@ -241,24 +268,24 @@ export function RoadTripConfigurator({
         </div>
       )}
 
-      <div className="flex items-center justify-between gap-3 border-t border-border pt-5">
+      <div className="flex items-center justify-between gap-3 border-t border-border pt-6">
         <Button
           type="button"
           variant="ghost"
           size="lg"
-          onClick={() => setStep((s) => Math.max(0, s - 1))}
+          onClick={() => changeStep(Math.max(0, step - 1))}
           disabled={step === 0 || loading}
         >
           {t("back")}
         </Button>
         {step < steps.length - 1 ? (
-          <Button type="button" size="lg" onClick={() => setStep((s) => s + 1)}>
+          <Button type="button" size="lg" className="animate-hero-reveal [animation-delay:160ms]" onClick={() => changeStep(step + 1)}>
             {t("continue")}
             <ArrowRight className="size-4" />
           </Button>
         ) : (
           <div className="flex flex-col items-end gap-1">
-            <Button type="button" size="lg" onClick={submit} disabled={loading || !canGenerate}>
+            <Button type="button" size="lg" className="animate-hero-reveal [animation-delay:160ms]" onClick={submit} disabled={loading || !canGenerate}>
               <Sparkles className="size-4" />
               {loading ? t("generating") : t("generate")}
             </Button>
@@ -268,6 +295,7 @@ export function RoadTripConfigurator({
           </div>
         )}
       </div>
+      <TravelThought trigger={step} className="pb-1" />
     </div>
   )
 }

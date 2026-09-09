@@ -178,6 +178,98 @@
   font-family: var(--font-display);
 }
 
+.hero-stage {
+  isolation: isolate;
+  overflow: hidden;
+  border-radius: 2rem;
+  background-image:
+    radial-gradient(circle at 12% 8%, oklch(0.68 0.08 190 / 0.11), transparent 34%),
+    linear-gradient(to right, oklch(0.32 0.05 220 / 0.055) 1px, transparent 1px),
+    linear-gradient(to bottom, oklch(0.32 0.05 220 / 0.055) 1px, transparent 1px);
+  background-size: auto, 36px 36px, 36px 36px;
+}
+
+.hero-stage::after {
+  position: absolute;
+  top: -7rem;
+  right: -5rem;
+  z-index: -1;
+  width: 22rem;
+  height: 22rem;
+  content: "";
+  border-radius: 999px;
+  background: radial-gradient(circle, oklch(0.67 0.09 38 / 0.14), transparent 68%);
+  filter: blur(18px);
+  animation: hero-glow 12s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+
+@keyframes hero-glow {
+  from {
+    transform: translate3d(-10px, 8px, 0) scale(0.96);
+    opacity: 0.6;
+  }
+  to {
+    transform: translate3d(14px, -8px, 0) scale(1.04);
+    opacity: 1;
+  }
+}
+
+@keyframes hero-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@utility animate-hero-reveal {
+  animation: hero-reveal 650ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes step-transition {
+  from {
+    opacity: 0;
+    transform: translateX(12px);
+    filter: blur(2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+    filter: blur(0);
+  }
+}
+
+@utility animate-step-transition {
+  animation: step-transition 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes hero-float {
+  0%,
+  100% {
+    transform: translateY(0) rotate(1deg);
+  }
+  50% {
+    transform: translateY(-6px) rotate(-1deg);
+  }
+}
+
+@utility animate-hero-float {
+  animation: hero-float 7s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-hero-float,
+  .animate-step-transition,
+  .animate-hero-reveal,
+  .hero-stage::after {
+    animation: none;
+  }
+}
+
 /* Numbered map markers */
 .packron-marker {
   background: transparent;

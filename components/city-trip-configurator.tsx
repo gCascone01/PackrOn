@@ -3,9 +3,11 @@
 import { useState } from "react"
 import { Chip, Field, NumberStepper, OptionCard, TextArea, TextInput } from "@/components/form-controls"
 import { StepProgress } from "@/components/step-progress"
+import { TravelThought } from "@/components/travel-thought"
+import { WizardPreview } from "@/components/wizard-preview"
 import { Button } from "@/components/ui/button"
 import type { GenerateTripPayload } from "@/lib/types"
-import { ArrowRight, MapPin, Sparkles } from "lucide-react"
+import { ArrowRight, CalendarDays, Compass, FileText, Gauge, MapPin, Sparkles } from "lucide-react"
 import { useI18n } from "@/components/locale-provider"
 import type { MessageKey } from "@/lib/i18n"
 
@@ -23,9 +25,11 @@ const INTEREST_OPTIONS: Array<{ id: string; label: MessageKey }> = [
 export function CityTripConfigurator({
   onGenerate,
   loading,
+  onStepChange,
 }: {
   onGenerate: (payload: GenerateTripPayload) => void
   loading: boolean
+  onStepChange?: (step: number) => void
 }) {
   const { t } = useI18n()
   const [step, setStep] = useState(0)
@@ -47,6 +51,11 @@ export function CityTripConfigurator({
 
   const canGenerate = city.trim().length > 1
 
+  const changeStep = (nextStep: number) => {
+    setStep(nextStep)
+    onStepChange?.(nextStep)
+  }
+
   const submit = () => {
     if (!canGenerate) return
     onGenerate({
@@ -60,12 +69,28 @@ export function CityTripConfigurator({
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-7">
       <StepProgress steps={steps} current={step} />
 
+      <WizardPreview
+        mode="city"
+        label={t("previewLabel")}
+        title={city.trim() || t("previewCity")}
+        detail={
+          interests.length > 0
+            ? interests
+                .slice(0, 2)
+                .map((id) => t(INTEREST_OPTIONS.find((option) => option.id === id)?.label ?? "interests"))
+                .join(" · ")
+            : t("previewInterests")
+        }
+          meta={`${days} ${t("daysShort")}`}
+        accent={pace === "chill" ? "green" : pace === "packed" ? "amber" : "brand"}
+      />
+
       {step === 0 && (
-        <div className="flex flex-col gap-5">
-          <Field label={t("cityLabel")}>
+        <div key="city-step-0" className="animate-step-transition flex flex-col gap-6">
+          <Field label={t("cityLabel")} icon={<MapPin className="size-4" />}>
             <div className="relative">
               <MapPin className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
               <TextInput
@@ -77,11 +102,11 @@ export function CityTripConfigurator({
             </div>
           </Field>
 
-          <Field label={t("howManyDays")}>
+          <Field label={t("howManyDays")} icon={<CalendarDays className="size-4" />}>
             <NumberStepper value={days} min={1} max={10} unit={t("daysUnit")} onChange={setDays} />
           </Field>
 
-          <Field label={t("notes")} hint={t("optional")}>
+          <Field label={t("notes")} hint={t("optional")} icon={<FileText className="size-4" />}>
             <TextArea
               placeholder={t("cityNotesPlaceholder")}
               value={notes}
@@ -92,8 +117,8 @@ export function CityTripConfigurator({
       )}
 
       {step === 1 && (
-        <div className="flex flex-col gap-5">
-          <Field label={t("interests")} hint={t("multiSelect")}>
+        <div key="city-step-1" className="animate-step-transition flex flex-col gap-6">
+          <Field label={t("interests")} hint={t("multiSelect")} icon={<Compass className="size-4" />}>
             <div className="flex flex-wrap gap-2">
               {INTEREST_OPTIONS.map((c) => (
                 <Chip key={c.id} active={interests.includes(c.id)} onClick={() => toggle(c.id)}>
@@ -103,7 +128,7 @@ export function CityTripConfigurator({
             </div>
           </Field>
 
-          <Field label={t("dailyPace")}>
+          <Field label={t("dailyPace")} icon={<Gauge className="size-4" />}>
             <div className="grid gap-2 sm:grid-cols-3">
               {paceOptions.map((p) => (
                 <OptionCard key={p.id} active={pace === p.id} onClick={() => setPace(p.id)} title={p.title} />
@@ -113,24 +138,24 @@ export function CityTripConfigurator({
         </div>
       )}
 
-      <div className="flex items-center justify-between gap-3 border-t border-border pt-5">
+      <div className="flex items-center justify-between gap-3 border-t border-border pt-6">
         <Button
           type="button"
           variant="ghost"
           size="lg"
-          onClick={() => setStep((s) => Math.max(0, s - 1))}
+          onClick={() => changeStep(Math.max(0, step - 1))}
           disabled={step === 0 || loading}
         >
           {t("back")}
         </Button>
         {step < steps.length - 1 ? (
-          <Button type="button" size="lg" onClick={() => setStep((s) => s + 1)}>
+          <Button type="button" size="lg" className="animate-hero-reveal [animation-delay:160ms]" onClick={() => changeStep(step + 1)}>
             {t("continue")}
             <ArrowRight className="size-4" />
           </Button>
         ) : (
           <div className="flex flex-col items-end gap-1">
-            <Button type="button" size="lg" onClick={submit} disabled={loading || !canGenerate}>
+            <Button type="button" size="lg" className="animate-hero-reveal [animation-delay:160ms]" onClick={submit} disabled={loading || !canGenerate}>
               <Sparkles className="size-4" />
               {loading ? t("generating") : t("generate")}
             </Button>
@@ -140,6 +165,7 @@ export function CityTripConfigurator({
           </div>
         )}
       </div>
+      <TravelThought trigger={step} className="pb-1" />
     </div>
   )
 }

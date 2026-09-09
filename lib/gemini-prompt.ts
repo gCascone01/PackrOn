@@ -30,7 +30,7 @@ export function buildTripPrompt(payload: GenerateTripPayload): string {
   const locale = localeOf(payload)
   const languageLine =
     locale === "en"
-      ? "Write all user-facing text in English: titles, summaries, stop names can stay local, short_description, booking_query, getyourguide_query, and alerts must be English. No markdown."
+      ? "IMPORTANT LANGUAGE RULE: write every user-facing text field in English. This includes trip_title, summary, day titles, stop names when a translated name exists, short_description, booking_query, getyourguide_query, and toll alerts. Keep only official local proper names unchanged. Do not write Italian. No markdown."
       : "Testi in italiano, concreti, senza markdown."
 
   if (payload.mode === "city") {

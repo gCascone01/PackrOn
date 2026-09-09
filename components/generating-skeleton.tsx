@@ -2,8 +2,9 @@
 
 import { Sparkles } from "lucide-react"
 import { useI18n } from "@/components/locale-provider"
+import { TravelThought } from "@/components/travel-thought"
 
-export function GeneratingSkeleton() {
+export function GeneratingSkeleton({ trigger = 0 }: { trigger?: string | number }) {
   const { t } = useI18n()
   return (
     <div className="flex flex-col gap-6" role="status" aria-live="polite">
@@ -18,6 +19,8 @@ export function GeneratingSkeleton() {
       </div>
 
       <div className="h-24 animate-pulse rounded-2xl bg-muted" />
+
+      <TravelThought trigger={trigger} />
 
       <div className="flex flex-col gap-3">
         {[0, 1, 2].map((i) => (
