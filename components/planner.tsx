@@ -1,5 +1,6 @@
 "use client"
 
+import Image from "next/image"
 import { useState } from "react"
 import type { GenerateTripPayload, Itinerary, TripMode } from "@/lib/types"
 import { SiteHeader } from "./site-header"
@@ -8,7 +9,7 @@ import { RoadTripConfigurator } from "./road-trip-configurator"
 import { CityTripConfigurator } from "./city-trip-configurator"
 import { ResultView } from "./result/result-view"
 import { GeneratingSkeleton } from "./generating-skeleton"
-import { Fuel, MapPinned, Route, Sparkles } from "lucide-react"
+import { Fuel, MapPinned, Route } from "lucide-react"
 import { useI18n } from "@/components/locale-provider"
 import type { MessageKey } from "@/lib/i18n"
 
@@ -59,16 +60,26 @@ export function Planner() {
   return (
     <div className="min-h-screen bg-background">
       <SiteHeader />
-      <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:py-16">
-        <div className="grid items-start gap-10 lg:grid-cols-[1fr_1.05fr] lg:gap-14">
-          <div className="flex flex-col gap-8 lg:sticky lg:top-24">
-            <div className="flex flex-col gap-5">
-              <span className="inline-flex w-fit items-center gap-2 rounded-full border border-border bg-card px-3.5 py-1.5 text-xs font-medium text-muted-foreground">
-                <Sparkles className="size-3.5 text-brand" />
-                {t("badge")}
-              </span>
-              <h1 className="font-display text-4xl font-extrabold leading-[1.05] tracking-tight text-foreground text-balance sm:text-5xl">
-                {t("heroTitle")}
+      <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:h-[calc(100vh-5rem)] lg:overflow-hidden lg:py-8">
+        <div className="grid h-full items-start gap-10 lg:grid-cols-[1fr_1.05fr] lg:gap-14">
+          <div className="relative flex flex-col gap-8 lg:sticky lg:top-24 lg:max-h-[calc(100vh-8rem)] lg:overflow-hidden">
+            <div className="relative z-10 flex flex-col gap-5">
+              <div className="h-8" aria-hidden="true" />
+              <div className="h-8" aria-hidden="true" />
+
+              <h1 className="font-display text-[2.375rem] font-extrabold leading-[1.05] tracking-tight text-foreground text-balance sm:text-[3.125rem]">
+                <span className="relative inline-block">
+                  {t("heroTitle")}
+                  <Image
+                    src="/logo.png"
+                    alt=""
+                    width={620}
+                    height={220}
+                    priority
+                    aria-hidden="true"
+                    className="pointer-events-none absolute left-full top-1/2 ml-6 hidden h-36 w-auto -translate-y-3/4 object-contain opacity-100 lg:block sm:h-40"
+                  />
+                </span>
                 <br />
                 <span className="text-brand">{t("heroAccent")}</span>
               </h1>
@@ -92,7 +103,7 @@ export function Planner() {
             </ul>
           </div>
 
-          <div className="relative rounded-3xl border border-border bg-card p-6 shadow-lg shadow-black/[0.03] sm:p-8">
+          <div className="relative max-h-[calc(100vh-8rem)] overflow-y-auto rounded-3xl border border-border bg-card p-6 shadow-lg shadow-black/[0.03] [scrollbar-width:none] sm:p-8 [&::-webkit-scrollbar]:hidden">
             {loading ? (
               <div className="absolute inset-0 z-10 overflow-auto rounded-3xl bg-card p-6 sm:p-8">
                 <GeneratingSkeleton />

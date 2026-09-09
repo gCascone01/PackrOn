@@ -1,9 +1,9 @@
 "use client"
 
+import Image from "next/image"
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Compass } from "lucide-react"
 import { LanguageSwitcher } from "@/components/language-switcher"
 import { useI18n } from "@/components/locale-provider"
 import { cn } from "@/lib/utils"
@@ -17,6 +17,7 @@ export function SiteHeader({ onBrandClick }: { onBrandClick?: () => void }) {
   const { t } = useI18n()
   const pathname = usePathname()
   const [ready, setReady] = useState(false)
+  const isHome = pathname === "/"
 
   useEffect(() => {
     setReady(true)
@@ -28,13 +29,20 @@ export function SiteHeader({ onBrandClick }: { onBrandClick?: () => void }) {
         <Link
           href="/"
           onClick={onBrandClick}
-          className="flex items-center gap-2.5"
+          className={cn("flex items-center gap-3", isHome && "pointer-events-none")}
           aria-label="PackrOn home"
         >
-          <span className="flex size-9 items-center justify-center rounded-xl bg-brand text-brand-foreground shadow-sm">
-            <Compass className="size-5" />
-          </span>
-          <span className="font-display text-lg font-extrabold tracking-tight text-foreground">
+          {!isHome ? (
+            <Image
+              src="/logo.png"
+              alt="PackrOn logo"
+              width={180}
+              height={60}
+              priority
+              className="h-10 w-auto object-contain"
+            />
+          ) : null}
+          <span className="font-display text-2xl font-extrabold tracking-tight text-foreground sm:text-[2rem]">
             Packr<span className="text-brand">On</span>
           </span>
         </Link>
@@ -57,10 +65,6 @@ export function SiteHeader({ onBrandClick }: { onBrandClick?: () => void }) {
         </nav>
         <div className="flex items-center gap-2">
           <LanguageSwitcher />
-          <span className="hidden items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-muted-foreground sm:inline-flex">
-            <span className="size-1.5 rounded-full bg-brand" />
-            {t("aiPlanner")}
-          </span>
         </div>
       </div>
     </header>
