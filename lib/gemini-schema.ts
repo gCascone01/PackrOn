@@ -48,7 +48,10 @@ export const GEMINI_TRIP_SCHEMA: Schema = {
         required: ["day_number", "title", "driving_time_minutes", "stops"],
         properties: {
           day_number: { type: Type.INTEGER },
-          title: { type: Type.STRING },
+          title: {
+            type: Type.STRING,
+            description: "Titolo della giornata che identifica chiaramente area o città e il suo focus principale",
+          },
           driving_time_minutes: {
             type: Type.INTEGER,
             description: "Minuti di guida stimati per la giornata (0 per city trip)",
@@ -86,8 +89,14 @@ export const GEMINI_TRIP_SCHEMA: Schema = {
                 },
                 lat: { type: Type.NUMBER },
                 lng: { type: Type.NUMBER },
-                duration_minutes: { type: Type.INTEGER },
-                short_description: { type: Type.STRING },
+                duration_minutes: {
+                  type: Type.INTEGER,
+                  description: "Durata realistica della sosta in minuti, senza sovrapposizioni; includere tempo sufficiente per pasti, check-in e attività serali",
+                },
+                short_description: {
+                  type: Type.STRING,
+                  description: "Descrizione concreta con punti di interesse specifici; per pasti indicare piatti tipici locali; includere parcheggio o prenotazione quando rilevante",
+                },
                 booking_query: {
                   type: Type.STRING,
                   description: "Nome esatto dell'hotel o B&B seguito dalla città; non usare una ricerca composta solo da città o zona",
