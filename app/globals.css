@@ -261,11 +261,36 @@
   animation: hero-float 7s ease-in-out infinite;
 }
 
+@keyframes route-radar-sweep {
+  from { transform: rotate(0deg); opacity: 0.35; }
+  to { transform: rotate(360deg); opacity: 0.9; }
+}
+
+@keyframes route-radar-ping {
+  0%, 100% { opacity: 0.35; transform: scale(0.75); }
+  40% { opacity: 1; transform: scale(1.35); }
+}
+
+.route-radar-sweep {
+  background: conic-gradient(
+    from 0deg at 0% 0%,
+    transparent 0deg,
+    color-mix(in oklch, var(--brand) 18%, transparent) 34deg,
+    transparent 54deg
+  );
+  animation: route-radar-sweep 4.8s linear infinite;
+}
+.route-radar-ping { animation: route-radar-ping 2.8s ease-in-out infinite; }
+
 @media (prefers-reduced-motion: reduce) {
   .animate-hero-float,
   .animate-step-transition,
   .animate-hero-reveal,
   .hero-stage::after {
+    animation: none;
+  }
+  .route-radar-sweep,
+  .route-radar-ping {
     animation: none;
   }
 }

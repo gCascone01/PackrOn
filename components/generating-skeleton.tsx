@@ -3,6 +3,7 @@
 import { Sparkles } from "lucide-react"
 import { useI18n } from "@/components/locale-provider"
 import { TravelThought } from "@/components/travel-thought"
+import { RouteRadar } from "@/components/route-radar"
 
 export function GeneratingSkeleton({ trigger = 0 }: { trigger?: string | number }) {
   const { t } = useI18n()
@@ -18,7 +19,7 @@ export function GeneratingSkeleton({ trigger = 0 }: { trigger?: string | number 
         </div>
       </div>
 
-      <div className="h-24 animate-pulse rounded-2xl bg-muted" />
+      <RouteRadar />
 
       <TravelThought trigger={trigger} />
 

@@ -1,7 +1,7 @@
 "use client"
 
 import Image from "next/image"
-import { useState } from "react"
+import { useRef, useState } from "react"
 import type { GenerateTripPayload, Itinerary, TripMode } from "@/lib/types"
 import { SiteHeader } from "./site-header"
 import { ModeSelector } from "./mode-selector"
@@ -22,6 +22,7 @@ export function Planner() {
   const [generationKey, setGenerationKey] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<Itinerary | null>(null)
+  const wizardCardRef = useRef<HTMLDivElement>(null)
 
   const features: Array<{ icon: typeof Route; title: MessageKey; text: MessageKey }> = [
     { icon: Route, title: "featureRouteTitle", text: "featureRouteText" },
@@ -30,6 +31,7 @@ export function Planner() {
   ]
 
   const generate = async (payload: GenerateTripPayload) => {
+    if (wizardCardRef.current) wizardCardRef.current.scrollTop = 0
     setLoading(true)
     setGenerationKey((key) => key + 1)
     setError(null)
@@ -110,7 +112,7 @@ export function Planner() {
             </ul>
           </div>
 
-          <div className="relative max-h-[calc(100vh-8rem)] overflow-y-auto rounded-3xl border border-white/60 bg-card/70 p-7 shadow-2xl shadow-black/[0.12] ring-1 ring-brand/10 backdrop-blur-xl backdrop-saturate-150 [scrollbar-width:none] sm:p-9 [&::-webkit-scrollbar]:hidden">
+          <div ref={wizardCardRef} className="relative max-h-[calc(100vh-8rem)] overflow-y-auto rounded-3xl border border-white/60 bg-card/70 p-7 shadow-2xl shadow-black/[0.12] ring-1 ring-brand/10 backdrop-blur-xl backdrop-saturate-150 [scrollbar-width:none] sm:p-9 [&::-webkit-scrollbar]:hidden">
             {loading ? (
               <div className="absolute inset-0 z-10 overflow-auto rounded-3xl bg-card/85 p-6 backdrop-blur-xl sm:p-8">
                 <GeneratingSkeleton trigger={generationKey} />
