@@ -149,6 +149,7 @@ export function ResultView({
         onReorder={reorder}
         onRemove={removeStop}
         onReplace={replaceStop}
+        vehicle={liveItinerary.vehicle}
       />
     </div>
   )
@@ -156,7 +157,7 @@ export function ResultView({
   const mapColumn = (
     <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
       <div className="relative min-h-0 flex-1">
-        <ItineraryMap stops={mapStops} selectedId={selectedId} onSelect={setSelectedId} />
+        <ItineraryMap stops={mapStops} selectedId={selectedId} onSelect={setSelectedId} mode={liveItinerary.mode} />
       </div>
       <NavLauncher stop={selectedStop} />
     </div>

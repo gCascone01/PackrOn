@@ -11,6 +11,17 @@ import { BedDouble, Clock, GripVertical, Hourglass, MapPin, ParkingSquare, Refre
 import { bookingSearchUrl, getYourGuideSearchUrl, googleMapsSearchUrl } from "@/lib/affiliate-links"
 import { useI18n } from "@/components/locale-provider"
 
+function estimatedEndTime(start: string, duration: string): string | null {
+  const match = duration.match(/(?:(\d+)h)?\s*(?:(\d+)m)?/)
+  if (!match || (!match[1] && !match[2])) return null
+  const [hours, minutes] = start.split(":").map(Number)
+  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return null
+  const total = hours * 60 + minutes + Number(match[1] || 0) * 60 + Number(match[2] || 0)
+  const endHours = Math.floor((total % 1440) / 60)
+  const endMinutes = total % 60
+  return `${String(endHours).padStart(2, "0")}:${String(endMinutes).padStart(2, "0")}`
+}
+
 export function StopCard({
   stop,
   seq,
@@ -42,6 +53,7 @@ export function StopCard({
   const [alts, setAlts] = useState<Stop[] | null>(null)
   const [loadingAlts, setLoadingAlts] = useState(false)
   const isOvernightStop = stop.category === "notte"
+  const endTime = estimatedEndTime(stop.time, stop.duration)
   const experienceQuery = (() => {
     const candidate = (stop.getYourGuideQuery || stop.name || "").trim()
     if (!candidate) return stop.name
@@ -63,6 +75,7 @@ export function StopCard({
 
   return (
     <li
+      id={`stop-card-${stop.id}`}
       draggable
       onDragStart={onDragStart}
       onDragEnter={onDragEnter}
@@ -102,7 +115,9 @@ export function StopCard({
           <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-muted-foreground">
             <span className="inline-flex items-center gap-1.5">
               <Clock className="size-3.5 text-brand" />
-              {stop.time}
+              <span aria-label={endTime ? `${stop.time} - ${endTime}` : stop.time}>
+                {endTime ? `${stop.time}–${endTime}` : stop.time}
+              </span>
             </span>
             <span className="inline-flex items-center gap-1.5">
               <Hourglass className="size-3.5 text-brand" />

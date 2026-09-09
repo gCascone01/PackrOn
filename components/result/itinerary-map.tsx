@@ -3,7 +3,7 @@
 import "leaflet/dist/leaflet.css"
 import { useEffect, useRef } from "react"
 import type { Map as LeafletMap, LayerGroup } from "leaflet"
-import type { Stop } from "@/lib/types"
+import type { Stop, TripMode } from "@/lib/types"
 
 export interface MapStop extends Stop {
   /** Global sequence number across the trip */
@@ -15,10 +15,12 @@ export function ItineraryMap({
   stops,
   selectedId,
   onSelect,
+  mode = "city",
 }: {
   stops: MapStop[]
   selectedId: string | null
   onSelect: (id: string) => void
+  mode?: TripMode
 }) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<LeafletMap | null>(null)
@@ -38,7 +40,7 @@ export function ItineraryMap({
         zoomControl: false,
         scrollWheelZoom: true,
         attributionControl: true,
-      }).setView([48.2, 16.37], 7)
+      }).setView(mode === "city" ? [37.39, -5.99] : [48.2, 16.37], mode === "city" ? 13 : 7)
       L.control.zoom({ position: "bottomright" }).addTo(map)
       L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
         attribution: '&copy; OpenStreetMap contributors',
@@ -74,9 +76,9 @@ export function ItineraryMap({
 
     L.polyline(latlngs, {
       color: "oklch(0.55 0.216 264)",
-      weight: 3,
-      opacity: 0.75,
-      dashArray: "1 8",
+      weight: mode === "road" ? 4 : 3,
+      opacity: mode === "road" ? 0.9 : 0.75,
+      dashArray: mode === "road" ? undefined : "1 8",
       lineCap: "round",
     }).addTo(layer)
 
@@ -99,7 +101,10 @@ export function ItineraryMap({
     if (selected) {
       map.flyTo([selected.lat, selected.lng], Math.max(map.getZoom(), 11), { duration: 0.6 })
     } else {
-      map.fitBounds(L.latLngBounds(latlngs).pad(0.2), { animate: false })
+      map.fitBounds(L.latLngBounds(latlngs).pad(mode === "city" ? 0.08 : 0.2), {
+        animate: false,
+        maxZoom: mode === "city" ? 15 : undefined,
+      })
     }
   }
 
