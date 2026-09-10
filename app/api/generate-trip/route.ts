@@ -5,8 +5,12 @@ import { buildTripPrompt } from "@/lib/gemini-prompt"
 import { isGeminiTrip, mapGeminiTrip } from "@/lib/map-gemini-itinerary"
 import type { GenerateTripPayload } from "@/lib/types"
 import { translate, type Locale, type MessageKey } from "@/lib/i18n"
+import { geocodeLocation, validateLocations } from "@/lib/geocode"
+import { haversineKm } from "@/lib/geo"
 
 export const maxDuration = 60
+
+const MAX_ROAD_TRIP_KM = 5000
 
 function localeOf(payload?: GenerateTripPayload): Locale {
   return payload?.locale === "it" ? "it" : "en"
@@ -14,6 +18,11 @@ function localeOf(payload?: GenerateTripPayload): Locale {
 
 function apiError(locale: Locale, key: MessageKey, status: number) {
   return NextResponse.json({ error: translate(locale, key) }, { status })
+}
+
+function isIntercontinental(lat1: number, lng1: number, lat2: number, lng2: number): boolean {
+  const distance = haversineKm({ lat: lat1, lng: lng1 } as any, { lat: lat2, lng: lng2 } as any)
+  return distance > MAX_ROAD_TRIP_KM
 }
 
 export async function POST(request: Request) {
@@ -44,6 +53,17 @@ export async function POST(request: Request) {
 
   if (payload.mode === "road" && (!payload.origin?.trim() || !payload.destination?.trim())) {
     return apiError(locale, "apiNeedRoute", 400)
+  }
+
+  const validation = await validateLocations(payload, locale)
+  if (!validation.valid) {
+    return apiError(locale, validation.errorKey!, 400)
+  }
+
+  if (payload.mode === "road" && validation.coords?.originLat && validation.coords?.originLng && validation.coords?.destLat && validation.coords?.destLng) {
+    if (isIntercontinental(validation.coords.originLat, validation.coords.originLng, validation.coords.destLat, validation.coords.destLng)) {
+      return apiError(locale, "apiImpossibleTrip", 400)
+    }
   }
 
   try {

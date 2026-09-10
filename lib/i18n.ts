@@ -221,6 +221,11 @@ export const messages = {
     apiBadSchema: "Lo schema JSON restituito da Gemini non è valido.",
     apiGeneric: "Errore durante la generazione.",
     apiAltsFail: "Non sono riuscito a trovare alternative per questa tappa.",
+    apiInvalidOrigin: "Impossibile trovare la località di partenza. Controlla il nome e riprova.",
+    apiInvalidDestination: "Impossibile trovare la destinazione. Controlla il nome e riprova.",
+    apiInvalidCity: "Impossibile trovare la città. Controlla il nome e riprova.",
+    apiImpossibleTrip: "Questo viaggio richiederebbe un volo (es. intercontinentale). PackrOn genera solo viaggi in auto o a piedi/mezzi urbani.",
+    apiTooFar: "La distanza tra partenza e destinazione è troppo grande per un viaggio in auto. Prova una rotta più breve o usa un city trip.",
   },
   en: {
     navHow: "How it works",
@@ -431,6 +436,11 @@ export const messages = {
     apiBadSchema: "Gemini returned an invalid JSON schema.",
     apiGeneric: "Error while generating.",
     apiAltsFail: "I couldn’t find alternatives for this stop.",
+    apiInvalidOrigin: "Could not find the origin location. Please check the name and try again.",
+    apiInvalidDestination: "Could not find the destination. Please check the name and try again.",
+    apiInvalidCity: "Could not find the city. Please check the name and try again.",
+    apiImpossibleTrip: "This trip would require a flight (e.g. intercontinental). PackrOn only generates road trips or city trips by foot/public transport.",
+    apiTooFar: "The distance between origin and destination is too great for a road trip. Try a shorter route or use a city trip.",
   },
 } as const
 
