@@ -1,10 +1,14 @@
-export type Locale = "it" | "en"
+export type Locale = "en" | "it"
 
-export const LOCALES: Locale[] = ["it", "en"]
+export const LOCALES: Locale[] = ["en", "it"]
+
+export function isLocale(value: unknown): value is Locale {
+  return value === "en" || value === "it"
+}
 
 export const LOCALE_LABEL: Record<Locale, string> = {
-  it: "IT",
   en: "EN",
+  it: "IT",
 }
 
 export const messages = {
@@ -216,6 +220,7 @@ export const messages = {
     apiEmpty: "Gemini non ha restituito alcun contenuto.",
     apiBadSchema: "Lo schema JSON restituito da Gemini non è valido.",
     apiGeneric: "Errore durante la generazione.",
+    apiAltsFail: "Non sono riuscito a trovare alternative per questa tappa.",
   },
   en: {
     navHow: "How it works",
@@ -366,7 +371,7 @@ export const messages = {
     examplesIntro:
       "Two ready-made trips so you can see the result: open them, explore map and timeline, then use Share to copy a complete link.",
     exampleRoadKicker: "Road trip · 5 days",
-    exampleRoadTitle: "Central Europe loop",
+    exampleRoadTitle: "Central Europe Loop",
     exampleRoadBody:
       "Vienna, Wachau, Bratislava and Moravia: a 5-day road trip with stops, parking and cost estimates.",
     exampleCityKicker: "City trip · 3 days",
@@ -425,6 +430,7 @@ export const messages = {
     apiEmpty: "Gemini returned no content.",
     apiBadSchema: "Gemini returned an invalid JSON schema.",
     apiGeneric: "Error while generating.",
+    apiAltsFail: "I couldn’t find alternatives for this stop.",
   },
 } as const
 

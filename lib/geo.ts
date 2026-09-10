@@ -14,8 +14,11 @@ export function haversineKm(a: Stop, b: Stop): number {
 }
 
 /** Deterministic intra-day driving distance from the current stop order. */
-export function intraDayKm(stops: Stop[]): number {
+export function intraDayKm(stops: Stop[], previousStop?: Stop): number {
   let sum = 0
+  if (previousStop && stops.length > 0) {
+    sum += haversineKm(previousStop, stops[0]) * ROAD_FACTOR
+  }
   for (let i = 0; i < stops.length - 1; i++) {
     sum += haversineKm(stops[i], stops[i + 1]) * ROAD_FACTOR
   }
@@ -23,13 +26,18 @@ export function intraDayKm(stops: Stop[]): number {
 }
 
 /**
- * Recomputes each day's total km deterministically: the fixed transfer leg
- * (stored in distanceKm) plus the live intra-day distance derived from the
- * current stop order — so removing/reordering updates km without any AI call.
+ * Recomputes each day's total km deterministically: the live distance from the
+ * previous day's last stop plus intra-day stops, combined with any base offset —
+ * so removing/reordering stops updates total distance dynamically without AI calls.
  */
 export function withLiveDistances(days: ItineraryDay[]): ItineraryDay[] {
-  return days.map((d) => ({
-    ...d,
-    distanceKm: Math.round(d.distanceKm + intraDayKm(d.stops)),
-  }))
+  return days.map((d, index) => {
+    const prevDay = days[index - 1]
+    const prevStop = prevDay && prevDay.stops.length > 0 ? prevDay.stops[prevDay.stops.length - 1] : undefined
+    const computedKm = intraDayKm(d.stops, prevStop)
+    return {
+      ...d,
+      distanceKm: computedKm > 0 ? Math.round(computedKm) : d.distanceKm,
+    }
+  })
 }

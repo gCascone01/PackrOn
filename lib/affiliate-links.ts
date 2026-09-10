@@ -1,15 +1,19 @@
-const BOOKING_AID = process.env.NEXT_PUBLIC_BOOKING_AFFILIATE_ID || "YOUR_ID"
+const BOOKING_AID = process.env.NEXT_PUBLIC_BOOKING_AFFILIATE_ID
+const GETYOURGUIDE_PARTNER = process.env.NEXT_PUBLIC_GETYOURGUIDE_PARTNER_ID
 
 export function bookingSearchUrl(query: string): string {
-  const params = new URLSearchParams({
-    ss: query,
-    aid: BOOKING_AID,
-  })
+  const params = new URLSearchParams({ ss: query })
+  if (BOOKING_AID && BOOKING_AID !== "YOUR_ID") {
+    params.set("aid", BOOKING_AID)
+  }
   return `https://www.booking.com/searchresults.html?${params.toString()}`
 }
 
 export function getYourGuideSearchUrl(query: string): string {
   const params = new URLSearchParams({ q: query })
+  if (GETYOURGUIDE_PARTNER) {
+    params.set("partner_id", GETYOURGUIDE_PARTNER)
+  }
   return `https://www.getyourguide.com/s/?${params.toString()}`
 }
 

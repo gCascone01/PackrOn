@@ -1,4 +1,6 @@
+import type { Locale } from "./i18n"
 import type { Itinerary } from "./types"
+import { localizedPath } from "./paths"
 
 const PREFIX = "v1."
 const QUERY_SAFE_LENGTH = 6000
@@ -71,11 +73,12 @@ export function readShareTokenFromLocation(): string | null {
   return hash.startsWith("d=") ? hash.slice(2) : hash
 }
 
-export function buildShareUrl(origin: string, token: string): string {
+export function buildShareUrl(origin: string, token: string, locale: Locale = "en"): string {
+  const base = `${origin}${localizedPath(locale, "/i")}`
   if (token.length <= QUERY_SAFE_LENGTH) {
-    return `${origin}/i?d=${encodeURIComponent(token)}`
+    return `${base}?d=${encodeURIComponent(token)}`
   }
-  return `${origin}/i#${token}`
+  return `${base}#${token}`
 }
 
 export async function copyText(text: string) {

@@ -23,7 +23,7 @@ const PACE_CITY: Record<string, { it: string; en: string }> = {
 }
 
 function localeOf(payload: GenerateTripPayload): Locale {
-  return payload.locale === "en" ? "en" : "it"
+  return payload.locale === "it" ? "it" : "en"
 }
 
 export function buildTripPrompt(payload: GenerateTripPayload): string {

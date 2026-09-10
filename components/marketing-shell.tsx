@@ -5,6 +5,7 @@ import type { ReactNode } from "react"
 import { SiteHeader } from "@/components/site-header"
 import { useI18n } from "@/components/locale-provider"
 import type { MessageKey } from "@/lib/i18n"
+import { localizedPath } from "@/lib/paths"
 
 export function MarketingShell({
   eyebrow,
@@ -37,10 +38,10 @@ export function MarketingShell({
 }
 
 export function HomeCta({ label }: { label: MessageKey }) {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
   return (
     <Link
-      href="/"
+      href={localizedPath(locale, "/")}
       className="inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition hover:bg-primary/80"
     >
       {t(label)}

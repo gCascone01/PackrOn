@@ -6,6 +6,7 @@ import type { Itinerary, Stop } from "@/lib/types"
 import { withLiveDistances } from "@/lib/geo"
 import { formatKm, totalDistanceKm } from "@/lib/costs"
 import { buildShareUrl, copyText, encodeItinerary } from "@/lib/share"
+import { localizedPath } from "@/lib/paths"
 import { Button } from "@/components/ui/button"
 import { Timeline } from "./timeline"
 import { CostSummary } from "./cost-summary"
@@ -38,18 +39,35 @@ export function ResultView({
 
   useEffect(() => {
     let cancelled = false
-    encodeItinerary(itinerary)
-      .then((token) => {
-        if (cancelled) return
-        setShareUrl(buildShareUrl(window.location.origin, token))
-      })
-      .catch(() => {
+    const prepare = async () => {
+      try {
+        const res = await fetch("/api/share", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(itinerary),
+        })
+        if (res.ok) {
+          const data = (await res.json()) as { id?: string }
+          if (!cancelled && data.id) {
+            setShareUrl(`${window.location.origin}${localizedPath(locale, `/i/${data.id}`)}`)
+            return
+          }
+        }
+      } catch {
+        // Fall back to embedding the itinerary in the URL.
+      }
+      try {
+        const token = await encodeItinerary(itinerary)
+        if (!cancelled) setShareUrl(buildShareUrl(window.location.origin, token, locale))
+      } catch {
         if (!cancelled) setShareUrl(null)
-      })
+      }
+    }
+    void prepare()
     return () => {
       cancelled = true
     }
-  }, [itinerary])
+  }, [itinerary, locale])
 
   useEffect(() => {
     if (!shareOpen) return

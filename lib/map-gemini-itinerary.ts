@@ -12,7 +12,7 @@ import type {
 import { formatDurationMinutes } from "./costs"
 import { translate } from "./i18n"
 
-const STOP_TYPE_TO_CATEGORY: Record<GeminiStopType, StopCategory> = {
+export const STOP_TYPE_TO_CATEGORY: Record<GeminiStopType, StopCategory> = {
   panoramica: "panorama",
   pasto: "food",
   museo: "cultura",
@@ -96,7 +96,7 @@ export function mapGeminiTrip(raw: GeminiTrip, payload: GenerateTripPayload): It
         category: STOP_TYPE_TO_CATEGORY[type],
         time: padTime(clock),
         duration: formatDurationMinutes(duration),
-        parking: payload.mode === "road" ? translate(payload.locale === "en" ? "en" : "it", "parkingHint") : undefined,
+        parking: payload.mode === "road" ? translate(payload.locale === "it" ? "it" : "en", "parkingHint") : undefined,
         lat: Number(stop.lat),
         lng: Number(stop.lng),
         bookingQuery: stop.booking_query?.trim() || stop.name,
@@ -127,7 +127,7 @@ export function mapGeminiTrip(raw: GeminiTrip, payload: GenerateTripPayload): It
     days,
     tollNotices: (raw.toll_and_vignette_alerts ?? []).map((label, i) => ({
       id: `toll-${i}`,
-      country: translate(payload.locale === "en" ? "en" : "it", "notice"),
+      country: translate(payload.locale === "it" ? "it" : "en", "notice"),
       label,
       cost: 0,
       kind: /vignett|bollin/i.test(label) ? "vignette" : "toll",
