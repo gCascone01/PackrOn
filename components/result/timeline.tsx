@@ -6,7 +6,7 @@ import type { ItineraryDay, Stop, TripMode } from "@/lib/types"
 import { formatDurationMinutes, formatEur, formatKm } from "@/lib/costs"
 import { haversineKm } from "@/lib/geo"
 import { StopCard } from "./stop-card"
-import { Bus, CalendarDays, Car, Clock, Footprints } from "lucide-react"
+import { Bus, CalendarDays, Car, Clock, Footprints, User } from "lucide-react"
 import { useI18n } from "@/components/locale-provider"
 
 export function Timeline({
@@ -69,7 +69,7 @@ export function Timeline({
                 ) : null}
                 {day.distanceKm > 0 ? (
                   <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-muted-foreground">
-                    <Car className="size-3.5 text-brand" />
+                    {day.distanceKm < 50 ? <User className="size-3.5 text-brand" /> : <Car className="size-3.5 text-brand" />}
                     {formatKm(day.distanceKm, locale)}
                   </span>
                 ) : null}
@@ -80,7 +80,7 @@ export function Timeline({
           {mode === "road" && day.distanceKm > 0 && vehicle ? (
             <div className="flex items-center gap-3 rounded-xl border border-brand/20 bg-brand-muted/35 px-3 py-2.5 text-xs text-foreground shadow-sm">
               <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-brand text-brand-foreground">
-                <Car className="size-4" />
+                {day.distanceKm < 50 ? <User className="size-4" /> : <Car className="size-4" />}
               </span>
               <div className="min-w-0 flex-1">
                 <div className="font-semibold">

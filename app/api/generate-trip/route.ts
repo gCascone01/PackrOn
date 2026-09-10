@@ -74,6 +74,13 @@ export async function POST(request: Request) {
     }
 
     const parsed = parseJsonPayload(text)
+    
+    // Check if Gemini detected an impossible trip
+    if (parsed && typeof parsed === "object" && "impossible_trip" in parsed && (parsed as Record<string, unknown>).impossible_trip === true) {
+      const reason = ((parsed as Record<string, unknown>).reason as string) || (locale === "it" ? "Viaggio non fattibile in auto" : "Trip not feasible by car")
+      return NextResponse.json({ error: reason }, { status: 400 })
+    }
+    
     if (!isGeminiTrip(parsed)) {
       return apiError(locale, "apiBadSchema", 502)
     }

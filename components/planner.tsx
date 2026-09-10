@@ -10,9 +10,115 @@ import { CityTripConfigurator } from "./city-trip-configurator"
 import { ResultView } from "./result/result-view"
 import { GeneratingSkeleton } from "./generating-skeleton"
 import { MouseDistanceCounter } from "./mouse-distance-counter"
-import { Fuel, MapPinned, Route } from "lucide-react"
+import { Fuel, MapPinned, Route, AlertCircle, MapPin, Plane, HelpCircle } from "lucide-react"
 import { useI18n } from "@/components/locale-provider"
 import type { MessageKey } from "@/lib/i18n"
+
+function ErrorExplanation({ error, t }: { error: string; t: (key: MessageKey, vars?: Record<string, string | number>) => string }) {
+  const isImpossibleTrip = error.includes("flight") || error.includes("intercontinental") || error.includes("volo")
+  const isInvalidOrigin = error.includes("origin") || error.includes("partenza")
+  const isInvalidDestination = error.includes("destination") || error.includes("destinazione")
+  const isInvalidCity = error.includes("city") || error.includes("città")
+  const isTooFar = error.includes("too great") || error.includes("troppo grande")
+
+  const getIcon = () => {
+    if (isImpossibleTrip) return <Plane className="size-4" />
+    if (isInvalidOrigin || isInvalidDestination || isInvalidCity) return <MapPin className="size-4" />
+    if (isTooFar) return <AlertCircle className="size-4" />
+    return <AlertCircle className="size-4" />
+  }
+
+  const getExplanation = () => {
+    const tk = (k: string) => t(k as MessageKey)
+    if (isImpossibleTrip) {
+      return (
+        <>
+          <p className="text-sm leading-relaxed">
+            {tk("errorImpossibleTripExplanation")}
+          </p>
+          <ul className="mt-3 space-y-2 text-sm">
+            <li className="flex items-start gap-2"><span className="flex size-1.5 shrink-0 mt-1.5 rounded-full bg-destructive" />{tk("errorImpossibleTripTip1")}</li>
+            <li className="flex items-start gap-2"><span className="flex size-1.5 shrink-0 mt-1.5 rounded-full bg-destructive" />{tk("errorImpossibleTripTip2")}</li>
+            <li className="flex items-start gap-2"><span className="flex size-1.5 shrink-0 mt-1.5 rounded-full bg-destructive" />{tk("errorImpossibleTripTip3")}</li>
+          </ul>
+        </>
+      )
+    }
+    if (isInvalidOrigin) {
+      return (
+        <>
+          <p className="text-sm leading-relaxed">
+            {tk("errorInvalidOriginExplanation")}
+          </p>
+          <ul className="mt-3 space-y-2 text-sm">
+            <li className="flex items-start gap-2"><span className="flex size-1.5 shrink-0 mt-1.5 rounded-full bg-destructive" />{tk("errorInvalidOriginTip1")}</li>
+            <li className="flex items-start gap-2"><span className="flex size-1.5 shrink-0 mt-1.5 rounded-full bg-destructive" />{tk("errorInvalidOriginTip2")}</li>
+            <li className="flex items-start gap-2"><span className="flex size-1.5 shrink-0 mt-1.5 rounded-full bg-destructive" />{tk("errorInvalidOriginTip3")}</li>
+          </ul>
+        </>
+      )
+    }
+    if (isInvalidDestination) {
+      return (
+        <>
+          <p className="text-sm leading-relaxed">
+            {tk("errorInvalidDestinationExplanation")}
+          </p>
+          <ul className="mt-3 space-y-2 text-sm">
+            <li className="flex items-start gap-2"><span className="flex size-1.5 shrink-0 mt-1.5 rounded-full bg-destructive" />{tk("errorInvalidDestinationTip1")}</li>
+            <li className="flex items-start gap-2"><span className="flex size-1.5 shrink-0 mt-1.5 rounded-full bg-destructive" />{tk("errorInvalidDestinationTip2")}</li>
+            <li className="flex items-start gap-2"><span className="flex size-1.5 shrink-0 mt-1.5 rounded-full bg-destructive" />{tk("errorInvalidDestinationTip3")}</li>
+          </ul>
+        </>
+      )
+    }
+    if (isInvalidCity) {
+      return (
+        <>
+          <p className="text-sm leading-relaxed">
+            {tk("errorInvalidCityExplanation")}
+          </p>
+          <ul className="mt-3 space-y-2 text-sm">
+            <li className="flex items-start gap-2"><span className="flex size-1.5 shrink-0 mt-1.5 rounded-full bg-destructive" />{tk("errorInvalidCityTip1")}</li>
+            <li className="flex items-start gap-2"><span className="flex size-1.5 shrink-0 mt-1.5 rounded-full bg-destructive" />{tk("errorInvalidCityTip2")}</li>
+            <li className="flex items-start gap-2"><span className="flex size-1.5 shrink-0 mt-1.5 rounded-full bg-destructive" />{tk("errorInvalidCityTip3")}</li>
+          </ul>
+        </>
+      )
+    }
+    if (isTooFar) {
+      return (
+        <>
+          <p className="text-sm leading-relaxed">
+            {tk("errorTooFarExplanation")}
+          </p>
+          <ul className="mt-3 space-y-2 text-sm">
+            <li className="flex items-start gap-2"><span className="flex size-1.5 shrink-0 mt-1.5 rounded-full bg-destructive" />{tk("errorTooFarTip1")}</li>
+            <li className="flex items-start gap-2"><span className="flex size-1.5 shrink-0 mt-1.5 rounded-full bg-destructive" />{tk("errorTooFarTip2")}</li>
+            <li className="flex items-start gap-2"><span className="flex size-1.5 shrink-0 mt-1.5 rounded-full bg-destructive" />{tk("errorTooFarTip3")}</li>
+          </ul>
+        </>
+      )
+    }
+    return (
+      <p className="text-sm leading-relaxed">{error}</p>
+    )
+  }
+
+  return (
+    <div role="alert" className="mb-5 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-4 text-destructive">
+      <div className="flex items-start gap-3">
+        <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-destructive/20 text-destructive">
+          {getIcon()}
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="font-medium text-sm">{error}</p>
+          <div className="mt-3">{getExplanation()}</div>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 export function Planner() {
   const { t, locale } = useI18n()
@@ -138,12 +244,7 @@ export function Planner() {
               ) : null}
 
               {error ? (
-                <div
-                  role="alert"
-                  className="mb-5 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm leading-relaxed text-destructive"
-                >
-                  {error}
-                </div>
+                <ErrorExplanation error={error} t={t} />
               ) : null}
 
               {mode === "road" ? (
