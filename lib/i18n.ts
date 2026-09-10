@@ -2,6 +2,10 @@ export type Locale = "it" | "en"
 
 export const LOCALES: Locale[] = ["it", "en"]
 
+export function isLocale(value: unknown): value is Locale {
+  return value === "it" || value === "en"
+}
+
 export const LOCALE_LABEL: Record<Locale, string> = {
   it: "IT",
   en: "EN",
@@ -216,6 +220,7 @@ export const messages = {
     apiEmpty: "Gemini non ha restituito alcun contenuto.",
     apiBadSchema: "Lo schema JSON restituito da Gemini non è valido.",
     apiGeneric: "Errore durante la generazione.",
+    apiAltsFail: "Non sono riuscito a trovare alternative per questa tappa.",
   },
   en: {
     navHow: "How it works",
@@ -425,6 +430,7 @@ export const messages = {
     apiEmpty: "Gemini returned no content.",
     apiBadSchema: "Gemini returned an invalid JSON schema.",
     apiGeneric: "Error while generating.",
+    apiAltsFail: "I couldn’t find alternatives for this stop.",
   },
 } as const
 

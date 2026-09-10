@@ -6,6 +6,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { LanguageSwitcher } from "@/components/language-switcher"
 import { useI18n } from "@/components/locale-provider"
+import { localizedPath } from "@/lib/paths"
 import { cn } from "@/lib/utils"
 
 const NAV = [
@@ -14,10 +15,11 @@ const NAV = [
 ]
 
 export function SiteHeader({ onBrandClick }: { onBrandClick?: () => void }) {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
   const pathname = usePathname()
   const [ready, setReady] = useState(false)
-  const isHome = pathname === "/"
+  const homeHref = localizedPath(locale, "/")
+  const isHome = pathname === homeHref || pathname === `/${locale}`
 
   useEffect(() => {
     setReady(true)
@@ -27,7 +29,7 @@ export function SiteHeader({ onBrandClick }: { onBrandClick?: () => void }) {
     <header className="sticky top-0 z-30 border-b border-border/70 bg-background/80 backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6">
         <Link
-          href="/"
+          href={homeHref}
           onClick={onBrandClick}
           className={cn("flex items-center gap-3", isHome && "pointer-events-none")}
           aria-label="PackrOn home"
@@ -48,11 +50,12 @@ export function SiteHeader({ onBrandClick }: { onBrandClick?: () => void }) {
         </Link>
         <nav className="hidden items-center gap-6 text-sm font-medium sm:flex">
           {NAV.map((item) => {
-            const active = ready && pathname === item.href
+            const href = localizedPath(locale, item.href)
+            const active = ready && pathname === href
             return (
               <Link
                 key={item.href}
-                href={item.href}
+                href={href}
                 className={cn(
                   "transition hover:text-foreground",
                   active ? "text-foreground" : "text-muted-foreground",

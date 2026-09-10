@@ -3,7 +3,6 @@
 import { useState } from "react"
 import type { DragEvent } from "react"
 import type { Stop } from "@/lib/types"
-import { getAlternatives } from "@/lib/mock-itinerary"
 import { CategoryBadge } from "@/components/category-badge"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -60,17 +59,28 @@ export function StopCard({
     return stop.name.toLowerCase().includes(candidate.toLowerCase()) ? stop.name : candidate
   })()
 
-  const openAlternatives = () => {
+  const openAlternatives = async () => {
     if (alts) {
       setAlts(null)
       return
     }
     setLoadingAlts(true)
-    // Simulates a targeted route API returning 3 alternatives without touching the rest of the day.
-    setTimeout(() => {
-      setAlts(getAlternatives(stop, locale))
+    try {
+      const res = await fetch("/api/suggest-stops", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ stop, locale }),
+      })
+      const data = (await res.json()) as { alternatives?: Stop[]; error?: string }
+      if (!res.ok || !data.alternatives?.length) {
+        throw new Error(data.error || t("apiAltsFail"))
+      }
+      setAlts(data.alternatives)
+    } catch {
+      setAlts(null)
+    } finally {
       setLoadingAlts(false)
-    }, 650)
+    }
   }
 
   return (

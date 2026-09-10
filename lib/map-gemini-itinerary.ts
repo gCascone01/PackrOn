@@ -12,7 +12,7 @@ import type {
 import { formatDurationMinutes } from "./costs"
 import { translate } from "./i18n"
 
-const STOP_TYPE_TO_CATEGORY: Record<GeminiStopType, StopCategory> = {
+export const STOP_TYPE_TO_CATEGORY: Record<GeminiStopType, StopCategory> = {
   panoramica: "panorama",
   pasto: "food",
   museo: "cultura",

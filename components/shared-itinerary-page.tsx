@@ -6,23 +6,45 @@ import { SiteHeader } from "@/components/site-header"
 import { ResultView } from "@/components/result/result-view"
 import { HomeCta } from "@/components/marketing-shell"
 import { useI18n } from "@/components/locale-provider"
-import { decodeItinerary, readShareTokenFromLocation } from "@/lib/share"
+import { decodeItinerary, isItinerary, readShareTokenFromLocation } from "@/lib/share"
+import { localizedPath } from "@/lib/paths"
 import type { Itinerary } from "@/lib/types"
 
-export function SharedItineraryPage() {
-  const { t } = useI18n()
+export function SharedItineraryPage({ shareId }: { shareId?: string }) {
+  const { t, locale } = useI18n()
   const router = useRouter()
+  const homeHref = localizedPath(locale, "/")
   const [itinerary, setItinerary] = useState<Itinerary | null>(null)
   const [status, setStatus] = useState<"loading" | "ready" | "invalid">("loading")
 
   useEffect(() => {
     let cancelled = false
-    const token = readShareTokenFromLocation()
-    if (!token) {
-      setStatus("invalid")
-      return
-    }
-    decodeItinerary(token).then((decoded) => {
+
+    const load = async () => {
+      if (shareId) {
+        try {
+          const res = await fetch(`/api/share/${encodeURIComponent(shareId)}`)
+          const data = (await res.json()) as { itinerary?: Itinerary }
+          if (cancelled) return
+          if (!res.ok || !isItinerary(data.itinerary)) {
+            setStatus("invalid")
+            return
+          }
+          setItinerary(data.itinerary)
+          setStatus("ready")
+          return
+        } catch {
+          if (!cancelled) setStatus("invalid")
+          return
+        }
+      }
+
+      const token = readShareTokenFromLocation()
+      if (!token) {
+        setStatus("invalid")
+        return
+      }
+      const decoded = await decodeItinerary(token)
       if (cancelled) return
       if (!decoded) {
         setStatus("invalid")
@@ -30,11 +52,13 @@ export function SharedItineraryPage() {
       }
       setItinerary(decoded)
       setStatus("ready")
-    })
+    }
+
+    void load()
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [shareId])
 
   if (status === "loading") {
     return (
@@ -61,8 +85,8 @@ export function SharedItineraryPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <SiteHeader onBrandClick={() => router.push("/")} />
-      <ResultView initial={itinerary} onBack={() => router.push("/")} />
+      <SiteHeader onBrandClick={() => router.push(homeHref)} />
+      <ResultView initial={itinerary} onBack={() => router.push(homeHref)} />
     </div>
   )
 }

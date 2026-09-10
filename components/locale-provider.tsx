@@ -1,12 +1,9 @@
 "use client"
 
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react"
-import {
-  interpolate,
-  messages,
-  type Locale,
-  type MessageKey,
-} from "@/lib/i18n"
+import { createContext, useContext, useEffect, useMemo, type ReactNode } from "react"
+import { useParams, usePathname, useRouter } from "next/navigation"
+import { interpolate, isLocale, messages, type Locale, type MessageKey } from "@/lib/i18n"
+import { swapLocaleInPath } from "@/lib/paths"
 
 const STORAGE_KEY = "packron-locale"
 
@@ -18,33 +15,35 @@ type I18nContextValue = {
 
 const I18nContext = createContext<I18nContextValue | null>(null)
 
-function isLocale(value: string | null): value is Locale {
-  return value === "it" || value === "en"
-}
-
 export function LocaleProvider({ children }: { children: ReactNode }) {
-  const [locale, setLocaleState] = useState<Locale>("it")
-  const [hydrated, setHydrated] = useState(false)
+  const params = useParams()
+  const pathname = usePathname()
+  const router = useRouter()
+  const rawLocale = params?.locale
+  const locale: Locale = isLocale(rawLocale)
+    ? rawLocale
+    : Array.isArray(rawLocale) && isLocale(rawLocale[0])
+      ? rawLocale[0]
+      : "it"
 
   useEffect(() => {
-    const stored = window.localStorage.getItem(STORAGE_KEY)
-    if (isLocale(stored)) setLocaleState(stored)
-    setHydrated(true)
-  }, [])
-
-  useEffect(() => {
-    if (!hydrated) return
     document.documentElement.lang = locale
     window.localStorage.setItem(STORAGE_KEY, locale)
-  }, [locale, hydrated])
+    document.cookie = `${STORAGE_KEY}=${locale}; path=/; max-age=31536000`
+  }, [locale])
 
   const value = useMemo<I18nContextValue>(
     () => ({
       locale,
-      setLocale: setLocaleState,
+      setLocale: (next) => {
+        if (next === locale) return
+        window.localStorage.setItem(STORAGE_KEY, next)
+        document.cookie = `${STORAGE_KEY}=${next}; path=/; max-age=31536000`
+        router.push(swapLocaleInPath(pathname, next))
+      },
       t: (key, vars) => interpolate(messages[locale][key], vars),
     }),
-    [locale],
+    [locale, pathname, router],
   )
 
   return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>
