@@ -69,6 +69,7 @@ export function RoadTripConfigurator({
   const [destination, setDestination] = useState("")
   const [locating, setLocating] = useState(false)
   const [locationError, setLocationError] = useState<string | null>(null)
+  const [stepError, setStepError] = useState<string | null>(null)
   const [loop, setLoop] = useState(true)
   const [days, setDays] = useState(5)
   const [pace, setPace] = useState("balanced")
@@ -92,6 +93,19 @@ export function RoadTripConfigurator({
   const canGenerate = origin.trim().length > 1 && destination.trim().length > 1
 
   const changeStep = (nextStep: number) => {
+    if (nextStep > step) {
+      if (step === 0) {
+        if (!origin.trim()) {
+          setStepError(t("originRequired"))
+          return
+        }
+        if (!destination.trim()) {
+          setStepError(t("destinationRequired"))
+          return
+        }
+      }
+      setStepError(null)
+    }
     setStep(nextStep)
     onStepChange?.(nextStep)
   }
@@ -130,6 +144,11 @@ export function RoadTripConfigurator({
 
       {step === 0 && (
         <div key="road-step-0" className="animate-step-transition flex flex-col gap-6">
+          {stepError && (
+            <div role="alert" className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm leading-relaxed text-destructive">
+              {stepError}
+            </div>
+          )}
           <Field label={t("origin")} icon={<MapPin className="size-4" />}>
             <div className="flex flex-col gap-2 sm:flex-row">
               <div className="relative flex-1">
