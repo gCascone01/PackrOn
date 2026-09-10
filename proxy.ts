@@ -5,7 +5,7 @@ function preferredLocale(request: NextRequest): Locale {
   const cookie = request.cookies.get("packron-locale")?.value
   if (isLocale(cookie)) return cookie
   const header = request.headers.get("accept-language")?.toLowerCase() ?? ""
-  return header.startsWith("en") ? "en" : "it"
+  return header.startsWith("it") ? "it" : "en"
 }
 
 export function proxy(request: NextRequest) {
@@ -13,6 +13,18 @@ export function proxy(request: NextRequest) {
 
   if (pathname.startsWith("/api") || pathname.startsWith("/_next") || pathname.includes(".")) {
     return NextResponse.next()
+  }
+
+  // Legacy route redirects
+  if (pathname.includes("/come-funziona")) {
+    const url = request.nextUrl.clone()
+    url.pathname = pathname.replace("/come-funziona", "/how-it-works")
+    return NextResponse.redirect(url)
+  }
+  if (pathname.includes("/esempi")) {
+    const url = request.nextUrl.clone()
+    url.pathname = pathname.replace("/esempi", "/examples")
+    return NextResponse.redirect(url)
   }
 
   const first = pathname.split("/")[1]

@@ -34,7 +34,7 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const lat = searchParams.get("lat")
   const lng = searchParams.get("lng")
-  const locale = searchParams.get("locale") === "en" ? "en" : "it"
+  const locale = searchParams.get("locale") === "it" ? "it" : "en"
 
   const latNum = Number(lat)
   const lngNum = Number(lng)

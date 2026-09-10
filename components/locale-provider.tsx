@@ -24,7 +24,7 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
     ? rawLocale
     : Array.isArray(rawLocale) && isLocale(rawLocale[0])
       ? rawLocale[0]
-      : "it"
+      : "en"
 
   useEffect(() => {
     document.documentElement.lang = locale

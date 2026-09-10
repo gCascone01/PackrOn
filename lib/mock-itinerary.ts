@@ -4,7 +4,7 @@ import type { Locale } from "./i18n"
 let idCounter = 0
 const uid = (prefix: string) => `${prefix}-${(idCounter++).toString(36)}`
 
-export function buildRoadTripItinerary(locale: Locale = "it"): Itinerary {
+export function buildRoadTripItinerary(locale: Locale = "en"): Itinerary {
   idCounter = 0
   const itinerary: Itinerary = {
     mode: "road",
@@ -80,7 +80,7 @@ export function buildRoadTripItinerary(locale: Locale = "it"): Itinerary {
   return locale === "en" ? localizeMockItinerary(itinerary) : itinerary
 }
 
-export function buildCityTripItinerary(locale: Locale = "it"): Itinerary {
+export function buildCityTripItinerary(locale: Locale = "en"): Itinerary {
   idCounter = 0
   const itinerary: Itinerary = {
     mode: "city",
@@ -130,7 +130,7 @@ export function buildCityTripItinerary(locale: Locale = "it"): Itinerary {
 }
 
 const MOCK_TEXT_EN: Record<string, string> = {
-  "Anello dell'Europa Centrale": "Central Europe loop",
+  "Anello dell'Europa Centrale": "Central Europe Loop",
   "Vienna · Wachau · Bratislava · Moravia meridionale": "Vienna · Wachau · Bratislava · South Moravia",
   "Vienna, Austria": "Vienna, Austria",
   "Siviglia, Spagna": "Seville, Spain",
@@ -265,7 +265,7 @@ const ALT_POOL_EN: Array<Omit<Stop, "id" | "lat" | "lng">> = [
 ]
 
 /** Deterministic-ish mock of a targeted "change stop" API returning 3 alternatives. */
-export function getAlternatives(stop: Stop, locale: Locale = "it"): Stop[] {
+export function getAlternatives(stop: Stop, locale: Locale = "en"): Stop[] {
   const pool = locale === "en" ? ALT_POOL_EN : ALT_POOL_IT
   return pool.slice(0, 3).map((alt, i) => ({
     ...alt,

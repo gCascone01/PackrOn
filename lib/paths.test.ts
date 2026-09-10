@@ -3,12 +3,12 @@ import { localizedPath, swapLocaleInPath } from "./paths"
 
 describe("paths", () => {
   it("prefixes locale onto app paths", () => {
-    expect(localizedPath("it", "/")).toBe("/it")
-    expect(localizedPath("en", "/come-funziona")).toBe("/en/come-funziona")
+    expect(localizedPath("en", "/")).toBe("/en")
+    expect(localizedPath("it", "/how-it-works")).toBe("/it/how-it-works")
   })
 
   it("swaps the locale segment in place", () => {
-    expect(swapLocaleInPath("/it/esempi", "en")).toBe("/en/esempi")
-    expect(swapLocaleInPath("/come-funziona", "en")).toBe("/en/come-funziona")
+    expect(swapLocaleInPath("/it/examples", "en")).toBe("/en/examples")
+    expect(swapLocaleInPath("/how-it-works", "en")).toBe("/en/how-it-works")
   })
 })

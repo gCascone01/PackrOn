@@ -10,8 +10,8 @@ import { localizedPath } from "@/lib/paths"
 import { cn } from "@/lib/utils"
 
 const NAV = [
-  { href: "/come-funziona", key: "navHow" as const },
-  { href: "/esempi", key: "navExamples" as const },
+  { href: "/how-it-works", key: "navHow" as const },
+  { href: "/examples", key: "navExamples" as const },
 ]
 
 export function SiteHeader({ onBrandClick }: { onBrandClick?: () => void }) {

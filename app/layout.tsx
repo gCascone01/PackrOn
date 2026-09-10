@@ -17,9 +17,9 @@ const jakarta = Plus_Jakarta_Sans({
 })
 
 export const metadata: Metadata = {
-  title: 'PackrOn — Planner di viaggi assistito da AI',
+  title: 'PackrOn — AI-powered Travel Planner',
   description:
-    'Pianifica road trip e city trip con itinerari intelligenti, mappe interattive, timeline modificabili e stima costi carburante e pedaggi.',
+    'Plan road trips and city trips with smart itineraries, interactive maps, editable timelines, and fuel/toll cost estimates.',
   generator: 'v0.app',
   icons: {
     icon: '/logo.png',
@@ -38,7 +38,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="it" className={`light bg-background ${inter.variable} ${jakarta.variable}`}>
+    <html lang="en" className={`light bg-background ${inter.variable} ${jakarta.variable}`}>
       <body className="font-sans antialiased">
         <Providers>
           {children}

@@ -1,7 +1,7 @@
 import type { Itinerary } from "./types"
 import type { Locale } from "./i18n"
 
-function bcp47(locale: Locale = "it") {
+function bcp47(locale: Locale = "en") {
   return locale === "en" ? "en-GB" : "it-IT"
 }
 
@@ -30,7 +30,7 @@ export function totalCost(itinerary: Itinerary): number {
   return fuelCost(itinerary) + tollsCost(itinerary)
 }
 
-export function formatEur(value: number, locale: Locale = "it"): string {
+export function formatEur(value: number, locale: Locale = "en"): string {
   return new Intl.NumberFormat(bcp47(locale), {
     style: "currency",
     currency: "EUR",
@@ -38,7 +38,7 @@ export function formatEur(value: number, locale: Locale = "it"): string {
   }).format(value)
 }
 
-export function formatKm(value: number, locale: Locale = "it"): string {
+export function formatKm(value: number, locale: Locale = "en"): string {
   return `${new Intl.NumberFormat(bcp47(locale)).format(Math.round(value))} km`
 }
 

@@ -73,7 +73,7 @@ export function readShareTokenFromLocation(): string | null {
   return hash.startsWith("d=") ? hash.slice(2) : hash
 }
 
-export function buildShareUrl(origin: string, token: string, locale: Locale = "it"): string {
+export function buildShareUrl(origin: string, token: string, locale: Locale = "en"): string {
   const base = `${origin}${localizedPath(locale, "/i")}`
   if (token.length <= QUERY_SAFE_LENGTH) {
     return `${base}?d=${encodeURIComponent(token)}`

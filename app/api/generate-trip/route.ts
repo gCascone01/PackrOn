@@ -9,7 +9,7 @@ import { translate, type Locale, type MessageKey } from "@/lib/i18n"
 export const maxDuration = 60
 
 function localeOf(payload?: GenerateTripPayload): Locale {
-  return payload?.locale === "en" ? "en" : "it"
+  return payload?.locale === "it" ? "it" : "en"
 }
 
 function apiError(locale: Locale, key: MessageKey, status: number) {
@@ -21,7 +21,7 @@ export async function POST(request: Request) {
   try {
     payload = (await request.json()) as GenerateTripPayload
   } catch {
-    return apiError("it", "apiBadBody", 400)
+    return apiError("en", "apiBadBody", 400)
   }
 
   const locale = localeOf(payload)

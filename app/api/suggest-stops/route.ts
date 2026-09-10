@@ -23,10 +23,10 @@ export async function POST(request: Request) {
   try {
     body = (await request.json()) as { stop?: unknown; locale?: unknown }
   } catch {
-    return NextResponse.json({ error: translate("it", "apiBadBody") }, { status: 400 })
+    return NextResponse.json({ error: translate("en", "apiBadBody") }, { status: 400 })
   }
 
-  const locale: Locale = isLocale(body.locale) ? body.locale : "it"
+  const locale: Locale = isLocale(body.locale) ? body.locale : "en"
   if (!isStop(body.stop)) {
     return NextResponse.json({ error: translate(locale, "apiBadBody") }, { status: 400 })
   }
