@@ -6,6 +6,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { LanguageSwitcher } from "@/components/language-switcher"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { UserMenu } from "@/components/auth/user-menu"
 import { useI18n } from "@/components/locale-provider"
 import { localizedPath } from "@/lib/paths"
 import { cn } from "@/lib/utils"
@@ -70,6 +71,7 @@ export function SiteHeader({ onBrandClick }: { onBrandClick?: () => void }) {
         <div className="flex items-center gap-2">
           <ThemeToggle />
           <LanguageSwitcher />
+          <UserMenu />
         </div>
       </div>
     </header>

@@ -159,3 +159,55 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - CSS custom properties avoid Tailwind's `dark:` variant limitations with custom design tokens
 - SSR-safe pattern prevents hydration errors in Next.js App Router
 - Theme toggle in header next to language switcher follows standard UI conventions
+
+## Auth & Saved Trips (Supabase-native)
+
+### Decision: no custom password/crypto code — Supabase Auth + RLS is the wheel
+- **Auth**: Supabase Auth (GoTrue) via `@supabase/ssr` + `@supabase/supabase-js`. Passwords go over TLS straight to Supabase (bcrypt-hashed server-side); the app never sees, hashes, or stores passwords — so no `bcrypt`/`jose`/custom JWT code in this repo.
+- **Sessions**: httpOnly (`sb-*-auth-token`), Secure in production, SameSite=Lax cookies managed by `@supabase/ssr`; PKCE flow; no tokens in localStorage (XSS-proof). `proxy.ts` calls `updateSession()` on every request to refresh cookies.
+- **Encryption**: TLS 1.2+ in transit, AES-256 at rest (Supabase-managed). Only `NEXT_PUBLIC_SUPABASE_URL` + the public key (`NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, with legacy `NEXT_PUBLIC_SUPABASE_ANON_KEY` fallback via `getSupabasePublishableKey()`) are exposed (public by design — RLS enforces access). No secret/service-role key anywhere in the app.
+- **Authorization**: `saved_trips` table with RLS `auth.uid() = user_id` on SELECT/INSERT/UPDATE/DELETE (`supabase/migrations/20260911000000_create_saved_trips.sql`). API routes (`app/api/trips/route.ts`, `app/api/trips/[id]/route.ts`) take `user_id` from the server-side session only — never from client input (prevents IDOR). Payloads re-validated server-side with `isItinerary()` + 500KB cap + 160-char title cap (`lib/trips.ts`, tested in `lib/trips.test.ts`).
+- **Graceful pre-Supabase state**: until env vars are set, `isSupabaseConfigured()` / `AuthProvider.configured` degrade (auth UI explains setup, trip saving returns 503) while the rest of the app builds and runs. No dead imports, no crashes. Setup = create project → run migration → set the two env vars → enable email confirmation redirect to `/auth/callback`.
+- Rationale: anything hand-rolled (password hashing, JWT issuance, session cookies, per-user DB filtering) would duplicate — and likely weaken — what Supabase already provides audited and maintained.
+
+### Key files
+- `lib/supabase/config.ts` — env helpers + `isSupabaseConfigured()`
+- `lib/supabase/client.ts` — browser client (`createBrowserClient`)
+- `lib/supabase/server.ts` — server client (Route Handlers/Server Components, cookie-aware)
+- `lib/supabase/middleware.ts` — `updateSession()` used by `proxy.ts`
+- `lib/trips.ts` — `SavedTrip` types, `validateSaveTripPayload`, `toSavedTripSummary`
+- `supabase/migrations/20260911000000_create_saved_trips.sql` — table + RLS + `updated_at` trigger
+- `app/auth/callback/route.ts` — PKCE code exchange (not locale-prefixed)
+- `app/api/trips/route.ts` — GET list (summaries), POST save (201 + `{id}`)
+- `app/api/trips/[id]/route.ts` — GET one, PUT overwrite (re-saving an edited trip updates the same record, no duplicates), DELETE (401 logged-out / 404 foreign-or-missing, no existence leak)
+- `components/auth/auth-provider.tsx` — session context (`AuthProvider` in `components/providers.tsx`)
+- `components/auth/auth-form.tsx` — login/signup tabs, client validation (email regex, min 8 chars), friendly Supabase error mapping
+- `components/auth/auth-dialog.tsx` — modal used by header/save button (Esc + backdrop close, focus-safe). Rendered via `createPortal` to `document.body`: callers live inside filtered ancestors (sticky blurred header) that would otherwise trap `position: fixed` and break viewport centering; `min-h-full` flex wrapper keeps it centered and scrollable on small screens.
+- `components/auth/user-menu.tsx` — header: login button → dialog when logged out; email dropdown (My trips + logout) when logged in
+- `components/auth/save-trip-button.tsx` — tristate: never-saved → POST; saved+unedited → checked "Saved", click confirms + DELETEs (back to list when opened from one); saved+edited (snapshot mismatch on any reorder/remove/replace) → unchecked, click PUTs over the same id (POST fallback on 404). `ResultView` takes `savedId`/`onDeleted`; `SavedTripView` passes the trip id, `key={tripId}` remount, and resets state on id change.
+- `app/[locale]/login/page.tsx`, `app/[locale]/signup/page.tsx` — full-page auth (`components/auth/auth-page.tsx`)
+- `app/[locale]/trips/page.tsx` + `components/trips/my-trips-page.tsx` — saved-trip grid with delete (confirm dialog)
+- `app/[locale]/trips/[id]/page.tsx` + `components/trips/saved-trip-view.tsx` — reopen a saved itinerary in `ResultView`
+
+### i18n keys added
+- `authTitle`, `authSubtitle`, `authLogin`, `authSignup`, `authLoginAction`, `authSignupAction`, `authEmail`, `authPassword`, `authPasswordHint`, `authWorking`, `authClose`, `authInvalidEmail`, `authPasswordShort`, `authNotConfigured`, `authGenericError`, `authWrongCredentials`, `authAlreadyRegistered`, `authRateLimited`, `authCheckEmail`, `authSecurityNote`, `authLogout`, `authAccount`, `authMyTrips`, `authLoginRequired`, `tripSave`, `tripSaving`, `tripSaved`, `tripSaveFail`, `tripsTitle`, `tripsSubtitle`, `tripsEmpty`, `tripsEmptyAction`, `tripsOpen`, `tripsDelete`, `tripsDeleting`, `tripsDeleteFail`, `tripsLoadFail`, `tripsDeleteConfirm`, `tripsSignInPrompt`, `tripsSetupRequired`, `accountTitle`, `accountSubtitle`, `accountEmail`, `accountUsername`, `accountUsernameHint`, `accountNewPassword`, `accountNewPasswordHint`, `accountConfirmPassword`, `accountSave`, `accountSaving`, `accountSaved`, `accountSaveFail`, `accountPasswordMismatch`, `accountInvalidUsername` (both locales)
+
+### Missing-table diagnosis (2026-09: live debug)
+- Both "Couldn't load saved trips" and "Couldn't save the trip" traced to `PGRST205` — the `saved_trips` migration was never run in the Supabase project (verified via anon REST probe: table absent from schema cache).
+- Fix: `lib/trips.ts#isMissingTableError()` detects PGRST205/42P01; routes return 503 `{error: "setup_required"}` + `console.error` server-side; UI maps it to `tripsSetupRequired` (tells the user to run the migration file in the SQL editor). Tested in `lib/trips.test.ts`. Actual data fix still requires running the migration once in the dashboard.
+
+### SEO
+- `/login`, `/signup` (all locales) ARE in `app/sitemap.ts` (priority 0.5, public auth entry points) and allowed in `app/robots.ts`.
+- `/trips`, `/trips/[id]`, `/account` (all locales) + `/auth/*` + `/api/` + `/*/i/` are `disallow`ed in `app/robots.ts` and excluded from `app/sitemap.ts` — private/auth routes must never be indexed.
+
+### Username & account page
+- Username lives in Supabase Auth `user_metadata.username` (no extra table — avoids a second source of truth and extra RLS surface).
+- `lib/username.ts`: `defaultUsername(email)` (prefix before `@`, sanitized to `[a-zA-Z0-9._-]`, ≤30 chars, `traveler` fallback), `isValidUsername()` (3–30 same charset), `displayName(user)` (stored → derived → email → "Account"). Tested in `lib/username.test.ts`.
+- Signup (`auth-form.tsx`) seeds `options.data.username`; existing users without metadata get the derived fallback automatically.
+- `app/[locale]/account/page.tsx` + `components/auth/account-page.tsx`: read-only email, editable username, optional new-password + confirm (min 8, match check), single `auth.updateUser()` call. Header `UserMenu` shows `displayName()` + links to Account and My trips.
+- **Delete account**: danger zone at the bottom of the account page with an explicit cannot-be-undone notice; deletion requires typing the current username, then `DELETE /api/account` calls the `delete_own_account()` SECURITY DEFINER function (`supabase/migrations/20260912000000_delete_own_account.sql`, EXECUTE granted to `authenticated` only), which deletes only the caller's `auth.users` row (saved trips cascade). No service-role key used. Missing function maps to `setup_required` (PGRST202).
+
+### Testing
+- `lib/trips.test.ts`: save-payload validation + `isMissingTableError()` (PGRST205/42P01 detected, other errors ignored) + summary derivation (no `data`/`user_id` leak)
+- `lib/username.test.ts`: email-prefix derivation, sanitization, validation rules, `displayName()` fallback chain
+- `npm run typecheck`, `npm test` (26 tests), `npm run build` all green
