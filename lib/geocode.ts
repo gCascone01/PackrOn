@@ -1,5 +1,6 @@
 import type { Locale, MessageKey } from "./i18n"
 import type { GenerateTripPayload } from "./types"
+import { haversineKmCoords } from "./geo"
 
 export interface GeocodeResult {
   lat: number
@@ -50,17 +51,60 @@ export async function geocodeLocation(
   }
 }
 
+/**
+ * Best-effort geocode that never throws: a network failure, a Nominatim gap,
+ * or free-form text ("explore rural areas, then Slovakia...") all mean
+ * "unknown" — never "invalid". Only Gemini judges plannability from there.
+ */
+async function safeGeocode(query: string, locale: Locale): Promise<GeocodeResult | null> {
+  try {
+    return await geocodeLocation(query, locale)
+  } catch {
+    return null
+  }
+}
+
 export async function validateLocations(
   payload: GenerateTripPayload,
   locale: Locale
 ): Promise<{ valid: boolean; errorKey?: MessageKey; coords?: { originLat?: number; originLng?: number; destLat?: number; destLng?: number; cityLat?: number; cityLng?: number } }> {
+  // Principle: reject if and only if the trip is confidently impossible.
+  // A geocode miss proves nothing (free text, typos, obscure places,
+  // Nominatim gaps) — in that case Gemini decides via the impossible_trip flag.
   if (payload.mode === "city") {
     if (!payload.city?.trim()) return { valid: false, errorKey: "apiNeedCity" }
+    const city = await safeGeocode(payload.city, locale)
+    if (city) return { valid: true, coords: { cityLat: city.lat, cityLng: city.lng } }
     return { valid: true }
   }
 
   if (!payload.origin?.trim()) return { valid: false, errorKey: "apiNeedRoute" }
   if (!payload.destination?.trim()) return { valid: false, errorKey: "apiNeedRoute" }
+
+  const [origin, destination] = await Promise.all([
+    safeGeocode(payload.origin, locale),
+    safeGeocode(payload.destination, locale),
+  ])
+
+  // Confident fast path only: both ends resolved to real points more than
+  // 5000 km apart (great-circle; driving distance can only be longer),
+  // so the road trip is impossible regardless of wording.
+  if (origin && destination) {
+    const distance = haversineKmCoords(
+      { lat: origin.lat, lng: origin.lng },
+      { lat: destination.lat, lng: destination.lng }
+    )
+    if (distance > 5000) return { valid: false, errorKey: "apiTooFar" }
+    return {
+      valid: true,
+      coords: {
+        originLat: origin.lat,
+        originLng: origin.lng,
+        destLat: destination.lat,
+        destLng: destination.lng,
+      },
+    }
+  }
 
   return { valid: true }
 }
