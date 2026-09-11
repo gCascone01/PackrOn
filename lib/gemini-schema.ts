@@ -5,6 +5,8 @@ export const GEMINI_TRIP_SCHEMA: Schema = {
   propertyOrdering: [
     "trip_title",
     "summary",
+    "origin_lat",
+    "origin_lng",
     "total_km_estimated",
     "estimated_fuel_cost_range",
     "toll_and_vignette_alerts",
@@ -13,6 +15,8 @@ export const GEMINI_TRIP_SCHEMA: Schema = {
   required: [
     "trip_title",
     "summary",
+    "origin_lat",
+    "origin_lng",
     "total_km_estimated",
     "estimated_fuel_cost_range",
     "toll_and_vignette_alerts",
@@ -26,6 +30,14 @@ export const GEMINI_TRIP_SCHEMA: Schema = {
     summary: {
       type: Type.STRING,
       description: "One or two sentence trip summary in the requested output language",
+    },
+    origin_lat: {
+      type: Type.NUMBER,
+      description: "Latitude of the trip origin (starting point)",
+    },
+    origin_lng: {
+      type: Type.NUMBER,
+      description: "Longitude of the trip origin (starting point)",
     },
     total_km_estimated: {
       type: Type.NUMBER,
@@ -135,6 +147,8 @@ export interface GeminiDay {
 export interface GeminiTrip {
   trip_title: string
   summary: string
+  origin_lat: number
+  origin_lng: number
   total_km_estimated: number
   estimated_fuel_cost_range: string
   toll_and_vignette_alerts: string[]

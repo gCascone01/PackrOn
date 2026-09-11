@@ -8,6 +8,7 @@ type ThemeContextValue = {
   theme: Theme
   resolvedTheme: "light" | "dark"
   setTheme: (theme: Theme) => void
+  mounted: boolean
 }
 
 const ThemeContext = createContext<ThemeContextValue | null>(null)
@@ -32,8 +33,10 @@ function resolveTheme(theme: Theme): "light" | "dark" {
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<Theme>(() => getInitialTheme())
   const [resolvedTheme, setResolvedTheme] = useState<"light" | "dark">("light")
+  const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
+    setMounted(true)
     const stored = window.localStorage.getItem(STORAGE_KEY) as Theme | null
     const initial = stored ?? "system"
     setThemeState(initial)
@@ -70,8 +73,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       theme,
       resolvedTheme,
       setTheme,
+      mounted,
     }),
-    [theme, resolvedTheme]
+    [theme, resolvedTheme, mounted]
   )
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>

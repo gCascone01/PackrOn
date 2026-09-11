@@ -55,6 +55,8 @@ export function buildTripPrompt(payload: GenerateTripPayload): string {
       "- For every type=notte stop, name must be the exact hotel or B&B shown to the user.",
       "- booking_query: exact hotel or B&B name followed by the city; never use a city/area-only search.",
       "- getyourguide_query: attraction or experience search query.",
+      "Location validation:",
+      "- If the city cannot be geolocated as a real place: respond with a JSON object containing only {\"impossible_trip\": true, \"reason\": \"...\"} explaining which location is invalid (e.g. \"City 'Xyz' not found\").",
       `- ${languageLine}`,
     ]
       .filter(Boolean)
@@ -91,9 +93,10 @@ export function buildTripPrompt(payload: GenerateTripPayload): string {
     "- In toll_and_vignette_alerts list vignettes and tolls for countries crossed.",
     "- booking_query: exact hotel or B&B name followed by the city; never use a generic city or area-only search.",
     "- getyourguide_query: attraction or activity name.",
+    "Location validation:",
+    "- If the origin or destination cannot be geolocated as a real place: respond with a JSON object containing only {\"impossible_trip\": true, \"reason\": \"...\"} explaining which location is invalid (e.g. \"Origin 'Xyz' not found\" or \"Destination 'Xyz' not found\").",
     "Impossible trip detection:",
     "- If the origin and destination are on different continents, or require an ocean crossing, or the driving distance would exceed ~5000 km: respond with a JSON object containing only {\"impossible_trip\": true, \"reason\": \"...\"} explaining why (e.g. intercontinental, requires flight, too far).",
-    "- If the origin or destination cannot be geolocated as a real place: respond with {\"impossible_trip\": true, \"reason\": \"...\"} explaining which location is invalid.",
     `- ${languageLine}`,
   ]
     .filter(Boolean)

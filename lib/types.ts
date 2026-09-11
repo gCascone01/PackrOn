@@ -64,6 +64,8 @@ export interface Itinerary {
   title: string
   subtitle: string
   origin: string
+  originLat?: number
+  originLng?: number
   loop: boolean
   vehicle: Vehicle
   days: ItineraryDay[]

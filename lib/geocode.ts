@@ -56,21 +56,11 @@ export async function validateLocations(
 ): Promise<{ valid: boolean; errorKey?: MessageKey; coords?: { originLat?: number; originLng?: number; destLat?: number; destLng?: number; cityLat?: number; cityLng?: number } }> {
   if (payload.mode === "city") {
     if (!payload.city?.trim()) return { valid: false, errorKey: "apiNeedCity" }
-    const cityResult = await geocodeLocation(payload.city.trim(), locale)
-    if (!cityResult) return { valid: false, errorKey: "apiInvalidCity" }
-    return { valid: true, coords: { cityLat: cityResult.lat, cityLng: cityResult.lng } }
+    return { valid: true }
   }
 
   if (!payload.origin?.trim()) return { valid: false, errorKey: "apiNeedRoute" }
   if (!payload.destination?.trim()) return { valid: false, errorKey: "apiNeedRoute" }
 
-  const [originResult, destResult] = await Promise.all([
-    geocodeLocation(payload.origin.trim(), locale),
-    geocodeLocation(payload.destination.trim(), locale),
-  ])
-
-  if (!originResult) return { valid: false, errorKey: "apiInvalidOrigin" }
-  if (!destResult) return { valid: false, errorKey: "apiInvalidDestination" }
-
-  return { valid: true, coords: { originLat: originResult.lat, originLng: originResult.lng, destLat: destResult.lat, destLng: destResult.lng } }
+  return { valid: true }
 }

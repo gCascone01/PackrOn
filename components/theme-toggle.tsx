@@ -6,8 +6,11 @@ import { cn } from "@/lib/utils"
 import { useI18n } from "@/components/locale-provider"
 
 export function ThemeToggle() {
-  const { theme, setTheme } = useTheme()
+  const { theme, setTheme, mounted } = useTheme()
   const { t } = useI18n()
+
+  if (!mounted) return null
+
   const themes: Array<{ value: "light" | "dark" | "system"; icon: typeof Sun; label: string }> = [
     { value: "light", icon: Sun, label: t("themeLight") },
     { value: "dark", icon: Moon, label: t("themeDark") },
@@ -20,14 +23,14 @@ export function ThemeToggle() {
       aria-label={t("themeAria")}
       className="inline-flex items-center rounded-full border border-border bg-card p-0.5"
     >
-      {themes.map((t) => {
-        const active = theme === t.value
-        const Icon = t.icon
+{themes.map((themeOption) => {
+        const active = theme === themeOption.value
+        const Icon = themeOption.icon
         return (
           <button
-            key={t.value}
+            key={themeOption.value}
             type="button"
-            onClick={() => setTheme(t.value)}
+            onClick={() => setTheme(themeOption.value)}
             aria-pressed={active}
             className={cn(
               "flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-xs font-semibold transition",
@@ -37,7 +40,7 @@ export function ThemeToggle() {
             )}
           >
             <Icon className="size-4" aria-hidden="true" />
-            <span className="hidden sm:inline">{t.label}</span>
+            <span className="hidden sm:inline">{themeOption.label}</span>
           </button>
         )
       })}
