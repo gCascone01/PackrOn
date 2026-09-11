@@ -11,6 +11,8 @@ export function buildRoadTripItinerary(locale: Locale = "en"): Itinerary {
     title: "Anello dell'Europa Centrale",
     subtitle: "Vienna · Wachau · Bratislava · Moravia meridionale",
     origin: "Vienna, Austria",
+    originLat: 48.2082,
+    originLng: 16.3738,
     loop: true,
     vehicle: { type: "diesel", consumption: 6.5, fuelPrice: 1.72 },
     tollNotices: [
@@ -87,6 +89,8 @@ export function buildCityTripItinerary(locale: Locale = "en"): Itinerary {
     title: "Siviglia in 3 giorni",
     subtitle: "Barrio Santa Cruz · Triana · Guadalquivir",
     origin: "Siviglia, Spagna",
+    originLat: 37.3826,
+    originLng: -5.9964,
     loop: false,
     vehicle: { type: "benzina", consumption: 0, fuelPrice: 0 },
     tollNotices: [],

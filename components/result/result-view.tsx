@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button"
 import { Timeline } from "./timeline"
 import { CostSummary } from "./cost-summary"
 import { NavLauncher } from "./nav-launcher"
-import type { MapStop } from "./itinerary-map"
+import type { MapStop, OriginPoint } from "./itinerary-map"
 import { ArrowLeft, CalendarDays, Check, Copy, List, Map as MapIcon, Share2 } from "lucide-react"
 import { useI18n } from "@/components/locale-provider"
 
@@ -96,7 +96,10 @@ export function ResultView({
   }
 
   const liveItinerary = useMemo<Itinerary>(
-    () => ({ ...itinerary, days: withLiveDistances(itinerary.days) }),
+    () => ({
+      ...itinerary,
+      days: withLiveDistances(itinerary.days, itinerary.originLat && itinerary.originLng ? { lat: itinerary.originLat, lng: itinerary.originLng } : undefined),
+    }),
     [itinerary],
   )
 
@@ -117,6 +120,13 @@ export function ResultView({
   const selectedStop = mapStops.find((s) => s.id === selectedId) ?? null
   const totalStops = mapStops.length
   const totalKm = totalDistanceKm(liveItinerary)
+
+  const originPoint = useMemo<OriginPoint | undefined>(() => {
+    if (liveItinerary.originLat && liveItinerary.originLng) {
+      return { lat: liveItinerary.originLat, lng: liveItinerary.originLng, name: liveItinerary.origin }
+    }
+    return undefined
+  }, [liveItinerary])
 
   const reorder = (dayId: string, fromId: string, toId: string) => {
     setItinerary((prev) => ({
@@ -175,7 +185,7 @@ export function ResultView({
   const mapColumn = (
     <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
       <div className="relative min-h-0 flex-1">
-        <ItineraryMap stops={mapStops} selectedId={selectedId} onSelect={setSelectedId} mode={liveItinerary.mode} />
+        <ItineraryMap stops={mapStops} selectedId={selectedId} onSelect={setSelectedId} mode={liveItinerary.mode} origin={originPoint} />
       </div>
       <NavLauncher stop={selectedStop} />
     </div>

@@ -5,6 +5,7 @@ import { useEffect, useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { LanguageSwitcher } from "@/components/language-switcher"
+import { ThemeToggle } from "@/components/theme-toggle"
 import { useI18n } from "@/components/locale-provider"
 import { localizedPath } from "@/lib/paths"
 import { cn } from "@/lib/utils"
@@ -67,6 +68,7 @@ export function SiteHeader({ onBrandClick }: { onBrandClick?: () => void }) {
           })}
         </nav>
         <div className="flex items-center gap-2">
+          <ThemeToggle />
           <LanguageSwitcher />
         </div>
       </div>

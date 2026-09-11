@@ -122,6 +122,8 @@ export function mapGeminiTrip(raw: GeminiTrip, payload: GenerateTripPayload): It
     title: raw.trip_title,
     subtitle: raw.summary,
     origin,
+    originLat: raw.origin_lat,
+    originLng: raw.origin_lng,
     loop: payload.loop ?? false,
     vehicle: vehicleFromPayload(payload),
     days,

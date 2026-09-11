@@ -38,6 +38,7 @@ export function CityTripConfigurator({
   const [interests, setInterests] = useState<string[]>(["art", "food"])
   const [pace, setPace] = useState("balanced")
   const [notes, setNotes] = useState("")
+  const [stepError, setStepError] = useState<string | null>(null)
 
   const steps = [t("cityStep1"), t("cityStep2")]
   const paceOptions = [
@@ -52,6 +53,15 @@ export function CityTripConfigurator({
   const canGenerate = city.trim().length > 1
 
   const changeStep = (nextStep: number) => {
+    if (nextStep > step) {
+      if (step === 0) {
+        if (!city.trim()) {
+          setStepError(t("cityRequired"))
+          return
+        }
+      }
+      setStepError(null)
+    }
     setStep(nextStep)
     onStepChange?.(nextStep)
   }
@@ -90,6 +100,11 @@ export function CityTripConfigurator({
 
       {step === 0 && (
         <div key="city-step-0" className="animate-step-transition flex flex-col gap-6">
+          {stepError && (
+            <div role="alert" className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm leading-relaxed text-destructive">
+              {stepError}
+            </div>
+          )}
           <Field label={t("cityLabel")} icon={<MapPin className="size-4" />}>
             <div className="relative">
               <MapPin className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />

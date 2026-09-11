@@ -5,6 +5,7 @@ import { buildTripPrompt } from "@/lib/gemini-prompt"
 import { isGeminiTrip, mapGeminiTrip } from "@/lib/map-gemini-itinerary"
 import type { GenerateTripPayload } from "@/lib/types"
 import { translate, type Locale, type MessageKey } from "@/lib/i18n"
+import { validateLocations } from "@/lib/geocode"
 
 export const maxDuration = 60
 
@@ -46,6 +47,11 @@ export async function POST(request: Request) {
     return apiError(locale, "apiNeedRoute", 400)
   }
 
+  const validation = await validateLocations(payload, locale)
+  if (!validation.valid) {
+    return apiError(locale, validation.errorKey!, 400)
+  }
+
   try {
     const response = await generateJsonWithFallback(buildTripPrompt(payload), locale, GEMINI_TRIP_SCHEMA)
     const text = response.text
@@ -54,6 +60,13 @@ export async function POST(request: Request) {
     }
 
     const parsed = parseJsonPayload(text)
+    
+    // Check if Gemini detected an impossible trip
+    if (parsed && typeof parsed === "object" && "impossible_trip" in parsed && (parsed as Record<string, unknown>).impossible_trip === true) {
+      const reason = ((parsed as Record<string, unknown>).reason as string) || (locale === "it" ? "Viaggio non fattibile in auto" : "Trip not feasible by car")
+      return NextResponse.json({ error: reason }, { status: 400 })
+    }
+    
     if (!isGeminiTrip(parsed)) {
       return apiError(locale, "apiBadSchema", 502)
     }

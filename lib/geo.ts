@@ -25,16 +25,27 @@ export function intraDayKm(stops: Stop[], previousStop?: Stop): number {
   return sum
 }
 
+/** Distance from origin to first stop of the first day */
+export function originToFirstStopKm(origin: { lat: number; lng: number } | undefined, stops: Stop[]): number {
+  if (!origin || stops.length === 0) return 0
+  const firstStop = stops[0]
+  return haversineKm({ lat: origin.lat, lng: origin.lng } as Stop, firstStop) * ROAD_FACTOR
+}
+
 /**
  * Recomputes each day's total km deterministically: the live distance from the
  * previous day's last stop plus intra-day stops, combined with any base offset —
  * so removing/reordering stops updates total distance dynamically without AI calls.
  */
-export function withLiveDistances(days: ItineraryDay[]): ItineraryDay[] {
+export function withLiveDistances(days: ItineraryDay[], origin?: { lat: number; lng: number }): ItineraryDay[] {
   return days.map((d, index) => {
     const prevDay = days[index - 1]
     const prevStop = prevDay && prevDay.stops.length > 0 ? prevDay.stops[prevDay.stops.length - 1] : undefined
-    const computedKm = intraDayKm(d.stops, prevStop)
+    let computedKm = intraDayKm(d.stops, prevStop)
+    // Add origin to first stop distance for the first day
+    if (index === 0 && origin) {
+      computedKm += originToFirstStopKm(origin, d.stops)
+    }
     return {
       ...d,
       distanceKm: computedKm > 0 ? Math.round(computedKm) : d.distanceKm,

@@ -10,16 +10,23 @@ export function TravelThought({ trigger = 0, className }: { trigger?: string | n
   const { locale } = useI18n()
   const [index, setIndex] = useState(0)
   const [visible, setVisible] = useState(true)
+  const [mounted, setMounted] = useState(false)
   const thoughts = TRAVEL_THOUGHTS[locale]
 
   useEffect(() => {
+    setMounted(true)
+    setIndex(Math.floor(Math.random() * thoughts.length))
+  }, [])
+
+  useEffect(() => {
+    if (!mounted) return
     setVisible(false)
     const timeout = window.setTimeout(() => {
       setIndex(Math.floor(Math.random() * thoughts.length))
       setVisible(true)
     }, 120)
     return () => window.clearTimeout(timeout)
-  }, [locale, trigger, thoughts.length])
+  }, [locale, trigger, thoughts.length, mounted])
 
   return (
     <p

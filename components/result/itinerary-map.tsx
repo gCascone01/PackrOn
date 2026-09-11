@@ -10,16 +10,24 @@ export interface MapStop extends Stop {
   dayNumber: number
 }
 
+export interface OriginPoint {
+  lat: number
+  lng: number
+  name: string
+}
+
 export function ItineraryMap({
   stops,
   selectedId,
   onSelect,
   mode = "city",
+  origin,
 }: {
   stops: MapStop[]
   selectedId: string | null
   onSelect: (id: string) => void
   mode?: TripMode
+  origin?: OriginPoint
 }) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<LeafletMap | null>(null)
@@ -78,6 +86,30 @@ export function ItineraryMap({
     if (validStops.length === 0) return
 
     const latlngs = validStops.map((s) => [s.lat, s.lng] as [number, number])
+
+    // Add origin point and line from origin to first stop
+    if (origin && typeof origin.lat === "number" && typeof origin.lng === "number" && !isNaN(origin.lat) && !isNaN(origin.lng)) {
+      const originLatLng: [number, number] = [origin.lat, origin.lng]
+      
+      // Draw line from origin to first stop
+      L.polyline([originLatLng, latlngs[0]], {
+        color: "oklch(0.55 0.216 264)",
+        weight: mode === "road" ? 4 : 3,
+        opacity: mode === "road" ? 0.9 : 0.75,
+        dashArray: mode === "road" ? undefined : "1 8",
+        lineCap: "round",
+      }).addTo(layer)
+
+      // Add origin marker
+      const originIcon = L.divIcon({
+        className: "packron-marker",
+        html: `<div class="packron-marker-pin" style="background:oklch(0.55 0.216 264);transform:rotate(-45deg);"><span class="text-xs font-bold">🏠</span></div>`,
+        iconSize: [30, 30],
+        iconAnchor: [15, 30],
+      })
+      L.marker(originLatLng, { icon: originIcon }).addTo(layer)
+        .bindTooltip(`${origin.name || "Start"}`, { direction: "top", offset: [0, -28] })
+    }
 
     L.polyline(latlngs, {
       color: "oklch(0.55 0.216 264)",
