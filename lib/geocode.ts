@@ -87,14 +87,14 @@ export async function validateLocations(
   ])
 
   // Confident fast path only: both ends resolved to real points more than
-  // 5000 km apart (great-circle; driving distance can only be longer),
+  // 10000 km apart (great-circle; driving distance can only be longer),
   // so the road trip is impossible regardless of wording.
   if (origin && destination) {
     const distance = haversineKmCoords(
       { lat: origin.lat, lng: origin.lng },
       { lat: destination.lat, lng: destination.lng }
     )
-    if (distance > 5000) return { valid: false, errorKey: "apiTooFar" }
+    if (distance > 10000) return { valid: false, errorKey: "apiTooFar" }
     return {
       valid: true,
       coords: {

@@ -28,7 +28,7 @@ export const GEMINI_TRIP_SCHEMA: Schema = {
     impossible_trip: {
       type: Type.BOOLEAN,
       description:
-        "Set to true when the trip is impossible (ungeocodable location, intercontinental, ocean crossing, >~5000 km). Always fill the remaining required fields with minimal values and explain why in 'reason'. Omit or set to false for a normal trip.",
+        "Set to true only when the trip is impossible after best-effort interpretation of place names (tolerate typos, transliterations, alternative names): ungeocodable gibberish/fictional place, intercontinental, ocean crossing, >~10000 km. Always fill the remaining required fields with minimal values and explain why in 'reason'. Omit or set to false for a normal trip.",
     },
     reason: {
       type: Type.STRING,
