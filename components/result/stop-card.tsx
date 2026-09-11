@@ -6,7 +6,7 @@ import type { Stop } from "@/lib/types"
 import { CategoryBadge } from "@/components/category-badge"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
-import { BedDouble, Clock, GripVertical, Hourglass, MapPin, ParkingSquare, RefreshCw, Search, Ticket, Trash2, X } from "lucide-react"
+import { BedDouble, Clock, FileText, GripVertical, Hourglass, MapPin, ParkingSquare, RefreshCw, Search, Ticket, Trash2, X } from "lucide-react"
 import { bookingSearchUrl, getYourGuideSearchUrl, googleMapsSearchUrl } from "@/lib/affiliate-links"
 import { useI18n } from "@/components/locale-provider"
 
@@ -51,6 +51,9 @@ export function StopCard({
   const { t, locale } = useI18n()
   const [alts, setAlts] = useState<Stop[] | null>(null)
   const [loadingAlts, setLoadingAlts] = useState(false)
+  const [description, setDescription] = useState<string | null>(null)
+  const [loadingDescription, setLoadingDescription] = useState(false)
+  const [showDescription, setShowDescription] = useState(false)
   const isOvernightStop = stop.category === "notte"
   const endTime = estimatedEndTime(stop.time, stop.duration)
   const experienceQuery = (() => {
@@ -80,6 +83,32 @@ export function StopCard({
       setAlts(null)
     } finally {
       setLoadingAlts(false)
+    }
+  }
+
+  const fetchDescription = async () => {
+    if (description) {
+      setShowDescription(true)
+      return
+    }
+    setLoadingDescription(true)
+    try {
+      const res = await fetch("/api/describe-stop", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ stop, locale }),
+      })
+      const data = (await res.json()) as { description?: string; error?: string }
+      if (!res.ok || !data.description) {
+        throw new Error(data.error || t("descriptionUnavailable"))
+      }
+      setDescription(data.description)
+      setShowDescription(true)
+    } catch {
+      setDescription(t("descriptionUnavailable"))
+      setShowDescription(true)
+    } finally {
+      setLoadingDescription(false)
     }
   }
 
@@ -190,6 +219,18 @@ export function StopCard({
                 {t("experiences")}
               </a>
             ) : null}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation()
+                fetchDescription()
+              }}
+            >
+              <FileText className={cn("size-3.5", loadingDescription && "animate-spin")} />
+              {t("description")}
+            </Button>
           </div>
 
           <div className="mt-3 flex items-center gap-2">
@@ -273,6 +314,38 @@ export function StopCard({
                   ))}
                 </ul>
               )}
+            </div>
+          )}
+
+          {showDescription && description && (
+            <div
+              className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
+              onClick={() => setShowDescription(false)}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="description-title"
+            >
+              <div
+                className="relative w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-xl"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="mb-3 flex items-center justify-between">
+                  <h3 id="description-title" className="font-semibold text-foreground">
+                    {t("description")} - {stop.name}
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={() => setShowDescription(false)}
+                    className="rounded-lg p-1 text-muted-foreground hover:bg-muted transition"
+                    aria-label="Close"
+                  >
+                    <X className="size-5" />
+                  </button>
+                </div>
+                <div className="prose prose-sm max-w-none text-foreground">
+                  <p className="whitespace-pre-wrap">{description}</p>
+                </div>
+              </div>
             </div>
           )}
         </div>

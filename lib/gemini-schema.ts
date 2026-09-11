@@ -19,14 +19,6 @@ export const GEMINI_TRIP_SCHEMA: Schema = {
     "days",
   ],
   properties: {
-    origin_lat: {
-      type: Type.NUMBER,
-      description: "Exact latitude of the trip's starting point / departure city",
-    },
-    origin_lng: {
-      type: Type.NUMBER,
-      description: "Exact longitude of the trip's starting point / departure city",
-    },
     trip_title: {
       type: Type.STRING,
       description: "Short, appealing itinerary title in the requested output language",
@@ -143,8 +135,6 @@ export interface GeminiDay {
 export interface GeminiTrip {
   trip_title: string
   summary: string
-  origin_lat?: number
-  origin_lng?: number
   total_km_estimated: number
   estimated_fuel_cost_range: string
   toll_and_vignette_alerts: string[]

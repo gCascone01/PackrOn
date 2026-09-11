@@ -1,5 +1,3 @@
-"use client"
-
 import { createContext, useContext, useEffect, useMemo, type ReactNode } from "react"
 import { useParams, usePathname, useRouter } from "next/navigation"
 import { interpolate, isLocale, messages, type Locale, type MessageKey } from "@/lib/i18n"
@@ -41,7 +39,7 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
         document.cookie = `${STORAGE_KEY}=${next}; path=/; max-age=31536000`
         router.push(swapLocaleInPath(pathname, next))
       },
-      t: (key, vars) => interpolate(messages[locale][key], vars),
+      t: (key, vars) => interpolate((messages[locale] as Record<MessageKey, string>)[key], vars),
     }),
     [locale, pathname, router],
   )
