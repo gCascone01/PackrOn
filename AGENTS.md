@@ -117,6 +117,13 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - Build with `npm run build` (includes TypeScript check)
 - No test framework configured; manual verification via dev server
 
+## SEO (`app/sitemap.ts`, `app/robots.ts`)
+- Sitemap lists the 6 canonical locale URLs: `/{en,it}`, `/{en,it}/how-it-works`, `/{en,it}/examples` — derived from `LOCALES` in `lib/i18n.ts`
+- Legacy slugs `/come-funziona` and `/esempi` are NOT in the sitemap (they 302-redirect in `proxy.ts`); listing redirecting URLs hurts SEO
+- Dynamic/shared routes (`/[locale]/i`, `/[locale]/i/[id]`) excluded — no indexable content; also disallowed in `robots.ts` alongside `/api/`
+- Base URL from `NEXT_PUBLIC_SITE_URL` env with fallback to `https://packron.vercel.app` — set the env var when the production domain changes instead of editing code
+- Rationale: sitemap must match the real `[locale]` route structure, not the pre-i18n slugs
+
 ## Dark Mode
 
 ### Implementation
@@ -138,6 +145,8 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - `resolveTheme()` guards `window.matchMedia` with `typeof window === "undefined"` check
 - Theme applied via `useEffect` on client — no flash of wrong theme on first load
 - Root `<html>` class updated dynamically (`light`/`dark`) via ThemeProvider effect
+- `suppressHydrationWarning` on BOTH `<html>` and `<body>` in `app/layout.tsx` — browser extensions (translator, password manager, Grammarly) inject attributes like `__processed_...="true"` into `<body>` before React loads; without suppression this triggers "A tree hydrated but some attributes..." error
+- `ThemeProvider` state initializes to `"system"`/`"light"` unconditionally (no `typeof window` branch in `useState` initializer); real preference synced from `localStorage` in mount `useEffect` — avoids server/client initial-state divergence
 
 ### i18n Keys Added
 - `themeAria`, `themeLight`, `themeDark`, `themeSystem` in both Italian and English

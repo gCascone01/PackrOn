@@ -15,13 +15,6 @@ const ThemeContext = createContext<ThemeContextValue | null>(null)
 
 const STORAGE_KEY = "packron-theme"
 
-function getInitialTheme(): Theme {
-  if (typeof window === "undefined") return "system"
-  const stored = window.localStorage.getItem(STORAGE_KEY) as Theme | null
-  if (stored) return stored
-  return "system"
-}
-
 function resolveTheme(theme: Theme): "light" | "dark" {
   if (theme === "system") {
     if (typeof window === "undefined") return "light"
@@ -31,7 +24,10 @@ function resolveTheme(theme: Theme): "light" | "dark" {
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>(() => getInitialTheme())
+  // Always start with the same value on server and client to avoid
+  // hydration mismatches (`if (typeof window !== 'undefined')` branching).
+  // The real preference is synced from localStorage in the mount effect below.
+  const [theme, setThemeState] = useState<Theme>("system")
   const [resolvedTheme, setResolvedTheme] = useState<"light" | "dark">("light")
   const [mounted, setMounted] = useState(false)
 
