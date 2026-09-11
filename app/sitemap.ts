@@ -1,24 +1,17 @@
 import type { MetadataRoute } from 'next'
+import { LOCALES } from '@/lib/i18n'
+
+const SITE_URL =
+  process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, '') ?? 'https://packron.vercel.app'
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  return [
-    {
-      url: 'https://packron.vercel.app',
+  const pages = ['', '/how-it-works', '/examples']
+  return LOCALES.flatMap((locale) =>
+    pages.map((page) => ({
+      url: `${SITE_URL}/${locale}${page}`,
       lastModified: new Date(),
-      changeFrequency: 'monthly',
-      priority: 1,
-    },
-    {
-       url: 'https://packron.vercel.app/come-funziona',
-       lastModified: new Date(),
-       changeFrequency: 'monthly',
-       priority: 0.8,
-     },
-     {
-       url: 'https://packron.vercel.app/esempi',
-       lastModified: new Date(),
-       changeFrequency: 'monthly',
-       priority: 0.8,
-     }
-  ]
+      changeFrequency: 'monthly' as const,
+      priority: page === '' ? 1 : 0.8,
+    }))
+  )
 }
