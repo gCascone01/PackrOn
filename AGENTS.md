@@ -137,8 +137,11 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - Uses Tailwind v4 + `tw-animate-css` with CSS custom properties defined in `app/globals.css`
 - Light/dark color schemes defined via `:root` and `.dark` selector (lines 53–162)
 - `color-scheme` meta tag set on `:root` and `.dark` for proper form control styling
+- Dark mode mirrors light palette (blue-slate hue ~238 + brand blue 224 + orange accent 38) — NOT neutral gray; bg `0.26`, card `0.315`, lighter than before for readability
+- Dark contrast: foreground `0.93`, muted-foreground `0.78` (was `0.708` — too dim); primary/accent keep light-theme hues lightened (`0.72`/`0.74`) with dark text for button contrast
 - Dark mode body background uses custom radial gradients matching brand palette (not pure black)
 - Hero stage and Leaflet map containers have dark-specific overrides
+- `CategoryBadge` (`components/category-badge.tsx`) has `dark:` variants (`-400/20` bg + `-200` text) — light pastels (`-50` bg) are blinding/unreadable on dark without them
 
 ### SSR Compatibility
 - Initial render defaults to `light` to avoid hydration mismatch
