@@ -16,10 +16,10 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 ## Architecture
 
-### Two-layer trip validation
-- **Client-side (fast)**: Nominatim geocoding + 5000km threshold — instant feedback for obvious errors
-- **Server-side (smart)**: Gemini evaluates trip feasibility with context — handles edge cases like ferries, specific routes, regional connectivity
-- Rationale: Hardcoded thresholds alone are too rigid; AI can make nuanced decisions (e.g., Italy-Sicily ferry is fine, but Rome-Tokyo isn't)
+### Trip validation (Gemini-only)
+- **Client-side (fast)**: Required field validation only (origin/destination for road trips, city for city trips) — instant feedback for missing fields
+- **Server-side (smart)**: Gemini evaluates trip feasibility with context — handles location existence, edge cases like ferries, specific routes, regional connectivity, intercontinental/ocean crossings, >5000km
+- Rationale: Nominatim geocoding was rigid and couldn't handle fuzzy locations (e.g., "Tuscany" vs specific city); Gemini can interpret natural language locations and make nuanced feasibility decisions (e.g., Italy-Sicily ferry is fine, but Rome-Tokyo isn't)
 
 ### Itinerary types
 - **Road trip**: Multi-stop driving itineraries with distances, fuel costs, tolls, overnight stays
@@ -58,9 +58,8 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 ## Key Files
 
 ### `lib/geocode.ts`
-- Forward geocoding via Nominatim (OpenStreetMap)
-- Validates origin/destination/city exist before calling Gemini
-- Returns structured coords for distance checks
+- Forward geocoding via Nominatim (OpenStreetMap) — **no longer used for validation**
+- `validateLocations` now only checks required fields exist (no geocoding)
 
 ### `lib/geo.ts`
 - `haversineKm`: Great-circle distance between two points
@@ -69,19 +68,18 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - `withLiveDistances`: Recomputes day distances dynamically when stops reordered/removed
 
 ### `lib/gemini-prompt.ts`
-- Added "Impossible trip detection" rules for Gemini
+- Added "Location validation" rules for city trips (city must be geocodable)
+- Added "Location validation" rules for road trips (origin/destination must be geocodable)
+- "Impossible trip detection" rules: intercontinental, ocean crossings, >5000km
 - AI returns `{"impossible_trip": true, "reason": "..."}` for invalid trips
-- Handles: intercontinental, ocean crossings, >5000km, ungeocodable locations
 
-### `lib/gemini-describe-stop.ts`
-- Dedicated schema and prompt for generating detailed stop descriptions
-- Returns `{"description": "..."}` with 3-5 sentence engaging descriptions
-- Includes historical/cultural context, what makes it special, practical tips
+### `lib/gemini-schema.ts`
+- Added required `origin_lat` and `origin_lng` fields to schema
 
 ### `app/api/generate-trip/route.ts`
-- Calls `validateLocations` (geocode) first
-- Checks 5000km threshold as fast path
-- Calls Gemini; handles `impossible_trip` response
+- Validates required fields only
+- Calls Gemini directly (no 5000km threshold check)
+- Handles `impossible_trip` response from Gemini
 - Returns localized error messages
 
 ### `app/api/describe-stop/route.ts`
