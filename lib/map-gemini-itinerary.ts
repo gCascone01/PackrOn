@@ -65,6 +65,9 @@ export function vehicleFromPayload(payload: GenerateTripPayload): Vehicle {
 export function isGeminiTrip(value: unknown): value is GeminiTrip {
   if (!value || typeof value !== "object") return false
   const trip = value as Record<string, unknown>
+  // An impossible-trip flag must never be treated as a displayable trip,
+  // even when the model also fills the required trip fields (schema forces them).
+  if (trip.impossible_trip === true) return false
   return (
     typeof trip.trip_title === "string" &&
     typeof trip.summary === "string" &&

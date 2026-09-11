@@ -3,6 +3,8 @@ import { Type, type Schema } from "@google/genai"
 export const GEMINI_TRIP_SCHEMA: Schema = {
   type: Type.OBJECT,
   propertyOrdering: [
+    "impossible_trip",
+    "reason",
     "trip_title",
     "summary",
     "origin_lat",
@@ -23,6 +25,15 @@ export const GEMINI_TRIP_SCHEMA: Schema = {
     "days",
   ],
   properties: {
+    impossible_trip: {
+      type: Type.BOOLEAN,
+      description:
+        "Set to true when the trip is impossible (ungeocodable location, intercontinental, ocean crossing, >~5000 km). Always fill the remaining required fields with minimal values and explain why in 'reason'. Omit or set to false for a normal trip.",
+    },
+    reason: {
+      type: Type.STRING,
+      description: "Explanation of why the trip is impossible. Empty string for a normal trip.",
+    },
     trip_title: {
       type: Type.STRING,
       description: "Short, appealing itinerary title in the requested output language",
@@ -145,12 +156,14 @@ export interface GeminiDay {
 }
 
 export interface GeminiTrip {
-  trip_title: string
-  summary: string
-  origin_lat: number
-  origin_lng: number
-  total_km_estimated: number
-  estimated_fuel_cost_range: string
-  toll_and_vignette_alerts: string[]
-  days: GeminiDay[]
+  impossible_trip?: boolean;
+  reason?: string;
+  trip_title: string;
+  summary: string;
+  origin_lat: number;
+  origin_lng: number;
+  total_km_estimated: number;
+  estimated_fuel_cost_range: string;
+  toll_and_vignette_alerts: string[];
+  days: GeminiDay[];
 }

@@ -16,7 +16,7 @@ export async function generateJson(
   model: string,
   prompt: string,
   locale: Locale,
-  schema: Schema,
+  schema?: Schema,
 ) {
   return ai.models.generateContent({
     model,
@@ -28,13 +28,13 @@ export async function generateJson(
           : "La lingua richiesta per l'output è l'italiano. Ogni campo testuale destinato all'utente deve essere scritto in italiano.",
       temperature: 0.7,
       responseMimeType: "application/json",
-      responseSchema: schema,
+      ...(schema ? { responseSchema: schema } : {}),
       ...(model.includes("2.5") ? { thinkingConfig: { thinkingBudget: 0 } } : {}),
     },
   })
 }
 
-export async function generateJsonWithFallback(prompt: string, locale: Locale, schema: Schema) {
+export async function generateJsonWithFallback(prompt: string, locale: Locale, schema?: Schema) {
   const apiKey = process.env.GEMINI_API_KEY
   if (!apiKey) {
     throw new Error("MISSING_KEY")

@@ -58,20 +58,27 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 ## Key Files
 
 ### `lib/geocode.ts`
-- Forward geocoding via Nominatim (OpenStreetMap)
-- Validates origin/destination/city exist before calling Gemini
+- **`geocodeLocation`**: Forward geocoding via Nominatim (OpenStreetMap) - queries OSM with a location name and returns `lat`/`lng` or `null`
+- **`validateLocations`**: **Now actually geocodes** origin/destination/city via `geocodeLocation` before calling Gemini. Returns specific error keys (`apiInvalidOrigin`, `apiInvalidDestination`, `apiInvalidCity`) when locations can't be found, and `apiTooFar` when the distance exceeds ~5000 km. Includes `coords` with latitude/longitude for downstream use.
 - Returns structured coords for distance checks
 
 ### `lib/geo.ts`
-- `haversineKm`: Great-circle distance between two points
+- `haversineKm`: Great-circle distance between two `Stop` points (×1.35 road factor)
+- `haversineKmCoords`: Great-circle distance between two plain `{lat, lng}` coordinate pairs (for `validateLocations`)
 - `intraDayKm`: Sum of distances between consecutive stops in a day (×1.35 road factor)
 - `originToFirstStopKm`: Distance from origin to first stop
 - `withLiveDistances`: Recomputes day distances dynamically when stops reordered/removed
+
+### Gemini API (`lib/gemini.ts`)
+- Calls `ai.models.generateContent()` with `responseMimeType: "application/json"` **plus `responseSchema`** (restored). Rationale: dropping the schema broke valid trips — without enforcement Gemini returned a wrong shape (`itinerary` instead of `days`, missing `lat`/`lng`, wrong stop `type` enum), causing `apiBadSchema` 500s on good requests. The schema keeps valid output well-formed (coordinates, enums, required fields).
+- The schema (`GEMINI_TRIP_SCHEMA`) carries **optional `impossible_trip: boolean` + `reason: string`** fields on top of the required trip fields. For impossible trips Gemini sets the flag, explains in `reason`, and fills remaining required fields with minimal values (empty `days`). The route checks the flag **before** `isGeminiTrip()`, and `isGeminiTrip()` explicitly rejects anything with `impossible_trip === true`, so the flagged payload can never render as a trip.
+- Has automatic fallback from primary to fallback model
 
 ### `lib/gemini-prompt.ts`
 - Added "Impossible trip detection" rules for Gemini
 - AI returns `{"impossible_trip": true, "reason": "..."}` for invalid trips
 - Handles: intercontinental, ocean crossings, >5000km, ungeocodable locations
+- **Prompt reordering**: Impossible trip detection and location validation instructions are placed at the very top of the prompt (before any trip generation rules), ensuring Gemini prioritizes these checks over trip generation
 
 ### `lib/gemini-describe-stop.ts`
 - Dedicated schema and prompt for generating detailed stop descriptions

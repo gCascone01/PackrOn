@@ -3,6 +3,10 @@ import type { ItineraryDay, Stop } from "./types"
 const ROAD_FACTOR = 1.35
 
 export function haversineKm(a: Stop, b: Stop): number {
+  return haversineKmCoords(a, b)
+}
+
+export function haversineKmCoords(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
   const R = 6371
   const dLat = ((b.lat - a.lat) * Math.PI) / 180
   const dLng = ((b.lng - a.lng) * Math.PI) / 180

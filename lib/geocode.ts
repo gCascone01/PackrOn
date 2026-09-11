@@ -1,5 +1,6 @@
 import type { Locale, MessageKey } from "./i18n"
 import type { GenerateTripPayload } from "./types"
+import { haversineKmCoords } from "./geo"
 
 export interface GeocodeResult {
   lat: number
@@ -56,11 +57,35 @@ export async function validateLocations(
 ): Promise<{ valid: boolean; errorKey?: MessageKey; coords?: { originLat?: number; originLng?: number; destLat?: number; destLng?: number; cityLat?: number; cityLng?: number } }> {
   if (payload.mode === "city") {
     if (!payload.city?.trim()) return { valid: false, errorKey: "apiNeedCity" }
-    return { valid: true }
+    const city = await geocodeLocation(payload.city, locale)
+    if (!city) return { valid: false, errorKey: "apiInvalidCity" }
+    return { valid: true, coords: { cityLat: city.lat, cityLng: city.lng } }
   }
 
   if (!payload.origin?.trim()) return { valid: false, errorKey: "apiNeedRoute" }
   if (!payload.destination?.trim()) return { valid: false, errorKey: "apiNeedRoute" }
 
-  return { valid: true }
+  const [origin, destination] = await Promise.all([
+    geocodeLocation(payload.origin, locale),
+    geocodeLocation(payload.destination, locale),
+  ])
+
+  if (!origin) return { valid: false, errorKey: "apiInvalidOrigin" }
+  if (!destination) return { valid: false, errorKey: "apiInvalidDestination" }
+
+  const distance = haversineKmCoords(
+    { lat: origin.lat, lng: origin.lng },
+    { lat: destination.lat, lng: destination.lng }
+  )
+  if (distance > 5000) return { valid: false, errorKey: "apiTooFar" }
+
+  return {
+    valid: true,
+    coords: {
+      originLat: origin.lat,
+      originLng: origin.lng,
+      destLat: destination.lat,
+      destLng: destination.lng,
+    },
+  }
 }
