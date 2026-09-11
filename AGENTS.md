@@ -16,10 +16,10 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 ## Architecture
 
-### Two-layer trip validation
-- **Client-side (fast)**: Nominatim geocoding + 5000km threshold — instant feedback for obvious errors
-- **Server-side (smart)**: Gemini evaluates trip feasibility with context — handles edge cases like ferries, specific routes, regional connectivity
-- Rationale: Hardcoded thresholds alone are too rigid; AI can make nuanced decisions (e.g., Italy-Sicily ferry is fine, but Rome-Tokyo isn't)
+### Trip validation (Gemini-only)
+- **Client-side (fast)**: Required field validation only (origin/destination for road trips, city for city trips) — instant feedback for missing fields
+- **Server-side (smart)**: Gemini evaluates trip feasibility with context — handles location existence, edge cases like ferries, specific routes, regional connectivity, intercontinental/ocean crossings, >5000km
+- Rationale: Nominatim geocoding was rigid and couldn't handle fuzzy locations (e.g., "Tuscany" vs specific city); Gemini can interpret natural language locations and make nuanced feasibility decisions (e.g., Italy-Sicily ferry is fine, but Rome-Tokyo isn't)
 
 ### Itinerary types
 - **Road trip**: Multi-stop driving itineraries with distances, fuel costs, tolls, overnight stays
@@ -58,9 +58,8 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 ## Key Files
 
 ### `lib/geocode.ts`
-- **`geocodeLocation`**: Forward geocoding via Nominatim (OpenStreetMap) - queries OSM with a location name and returns `lat`/`lng` or `null`
-- **`validateLocations`**: Best-effort only — principle is *reject if and only if the trip is confidently impossible*. A geocode miss proves nothing (the destination field is free text like "explore rural areas, then Slovakia...", plus typos, obscure places, Nominatim gaps, network failures — all handled by `safeGeocode` returning null instead of throwing). The **only** hard reject is `apiTooFar` when *both* ends resolve to real points >5000 km apart (great-circle; driving can only be longer). Everything else passes through and Gemini judges plannability via the `impossible_trip` flag. Includes `coords` when resolution succeeded.
-- Returns structured coords for distance checks
+- Forward geocoding via Nominatim (OpenStreetMap) — **no longer used for validation**
+- `validateLocations` now only checks required fields exist (no geocoding)
 
 ### `lib/geo.ts`
 - `haversineKm`: Great-circle distance between two `Stop` points (×1.35 road factor)
@@ -75,20 +74,18 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - Has automatic fallback from primary to fallback model
 
 ### `lib/gemini-prompt.ts`
-- Added "Impossible trip detection" rules for Gemini
+- Added "Location validation" rules for city trips (city must be geocodable)
+- Added "Location validation" rules for road trips (origin/destination must be geocodable)
+- "Impossible trip detection" rules: intercontinental, ocean crossings, >5000km
 - AI returns `{"impossible_trip": true, "reason": "..."}` for invalid trips
-- Handles: intercontinental, ocean crossings, >5000km, ungeocodable locations
-- **Prompt reordering**: Impossible trip detection and location validation instructions are placed at the very top of the prompt (before any trip generation rules), ensuring Gemini prioritizes these checks over trip generation
 
-### `lib/gemini-describe-stop.ts`
-- Dedicated schema and prompt for generating detailed stop descriptions
-- Returns `{"description": "..."}` with 3-5 sentence engaging descriptions
-- Includes historical/cultural context, what makes it special, practical tips
+### `lib/gemini-schema.ts`
+- Added required `origin_lat` and `origin_lng` fields to schema
 
 ### `app/api/generate-trip/route.ts`
-- Calls `validateLocations` (geocode) first
-- Checks 5000km threshold as fast path
-- Calls Gemini; handles `impossible_trip` response
+- Validates required fields only
+- Calls Gemini directly (no 5000km threshold check)
+- Handles `impossible_trip` response from Gemini
 - Returns localized error messages
 
 ### `app/api/describe-stop/route.ts`
