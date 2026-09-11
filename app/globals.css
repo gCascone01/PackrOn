@@ -172,6 +172,12 @@
       radial-gradient(circle at top right, oklch(0.76 0.12 38 / 0.17), transparent 22%),
       linear-gradient(180deg, oklch(0.99 0.016 210) 0%, oklch(0.985 0.016 210) 100%);
   }
+  .dark body {
+    background-image:
+      radial-gradient(circle at top left, oklch(0.35 0.15 240 / 0.18), transparent 26%),
+      radial-gradient(circle at top right, oklch(0.4 0.12 35 / 0.12), transparent 22%),
+      linear-gradient(180deg, oklch(0.12 0.02 240) 0%, oklch(0.145 0 0) 100%);
+  }
 }
 
 @utility font-display {
@@ -322,4 +328,20 @@
 .leaflet-container {
   font-family: var(--font-sans);
   background: #eaeef2;
+}
+
+.dark .hero-stage {
+  background-image:
+    radial-gradient(circle at 12% 8%, oklch(0.5 0.1 240 / 0.1), transparent 34%),
+    linear-gradient(to right, oklch(0.4 0.05 240 / 0.08) 1px, transparent 1px),
+    linear-gradient(to bottom, oklch(0.4 0.05 240 / 0.08) 1px, transparent 1px);
+  background-size: auto, 36px 36px, 36px 36px;
+}
+
+.dark .hero-stage::after {
+  background: radial-gradient(circle, oklch(0.5 0.15 35 / 0.12), transparent 68%);
+}
+
+.dark .leaflet-container {
+  background: #1a1a2e;
 }
