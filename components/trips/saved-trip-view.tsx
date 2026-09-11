@@ -123,7 +123,6 @@ export function SavedTripView({ tripId }: { tripId: string }) {
         initial={itinerary}
         onBack={() => router.push(tripsHref)}
         savedId={tripId}
-        onDeleted={() => router.push(tripsHref)}
       />
     </div>
   )

@@ -24,11 +24,9 @@ import { Button } from "@/components/ui/button"
 export function SaveTripButton({
   itinerary,
   savedId: initialSavedId,
-  onDeleted,
 }: {
   itinerary: Itinerary
   savedId?: string | null
-  onDeleted?: () => void
 }) {
   const { t } = useI18n()
   const { user, configured } = useAuth()
@@ -121,7 +119,6 @@ export function SaveTripButton({
       }
       setSavedId(null)
       setSnapshot(null)
-      onDeleted?.()
     } catch (err) {
       setError(err instanceof Error ? err.message : t("tripsDeleteFail"))
     } finally {

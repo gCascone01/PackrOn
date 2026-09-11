@@ -25,14 +25,11 @@ export function ResultView({
   initial,
   onBack,
   savedId,
-  onDeleted,
 }: {
   initial: Itinerary
   onBack: () => void
   /** Server id when this view shows a trip loaded from the account. */
   savedId?: string | null
-  /** Called after the saved record was deleted via the save button. */
-  onDeleted?: () => void
 }) {
   const { t, locale } = useI18n()
   const [itinerary, setItinerary] = useState<Itinerary>(initial)
@@ -222,7 +219,7 @@ export function ResultView({
         </div>
         <div className="relative shrink-0" ref={shareRef}>
           <div className="flex items-center gap-2">
-            <SaveTripButton itinerary={itinerary} savedId={savedId} onDeleted={onDeleted} />
+            <SaveTripButton itinerary={itinerary} savedId={savedId} />
             <Button
             variant="secondary"
             size="lg"
