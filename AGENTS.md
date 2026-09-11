@@ -59,7 +59,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 ### `lib/geocode.ts`
 - **`geocodeLocation`**: Forward geocoding via Nominatim (OpenStreetMap) - queries OSM with a location name and returns `lat`/`lng` or `null`
-- **`validateLocations`**: **Now actually geocodes** origin/destination/city via `geocodeLocation` before calling Gemini. Returns specific error keys (`apiInvalidOrigin`, `apiInvalidDestination`, `apiInvalidCity`) when locations can't be found, and `apiTooFar` when the distance exceeds ~5000 km. Includes `coords` with latitude/longitude for downstream use.
+- **`validateLocations`**: Best-effort only — principle is *reject if and only if the trip is confidently impossible*. A geocode miss proves nothing (the destination field is free text like "explore rural areas, then Slovakia...", plus typos, obscure places, Nominatim gaps, network failures — all handled by `safeGeocode` returning null instead of throwing). The **only** hard reject is `apiTooFar` when *both* ends resolve to real points >5000 km apart (great-circle; driving can only be longer). Everything else passes through and Gemini judges plannability via the `impossible_trip` flag. Includes `coords` when resolution succeeded.
 - Returns structured coords for distance checks
 
 ### `lib/geo.ts`
