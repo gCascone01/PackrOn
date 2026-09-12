@@ -64,6 +64,15 @@ export function buildTripPrompt(payload: GenerateTripPayload): string {
       ? (locale === "en" ? impossibleTripDetectionCityEn : impossibleTripDetectionCityIt)
       : (locale === "en" ? impossibleTripDetectionRoadEn : impossibleTripDetectionRoadIt)
 
+  const visitOriginLine =
+    locale === "en"
+      ? payload.visitOrigin
+        ? "Also visit the origin: include sightseeing stops in the origin city (e.g. on day 1) before departing along the route."
+        : "The origin is only the starting point: do not plan sightseeing stops there, depart directly."
+      : payload.visitOrigin
+        ? "Visita anche la partenza: includi tappe turistiche nella città di partenza (es. il giorno 1) prima di partire lungo il percorso."
+        : "La partenza è solo il punto di partenza: non pianificare tappe turistiche lì, parti direttamente."
+
 if (payload.mode === "city") {
     return [
       impossibleTripDetection,
@@ -76,6 +85,8 @@ if (payload.mode === "city") {
       "- Real, precise lat/lng for every stop.",
       "- Plan a complete day from 09:00 through the evening: include a balanced morning block, afternoon sightseeing, check-in at the overnight accommodation, and dinner or an evening activity. Do not end the schedule around lunchtime and do not leave unexplained gaps.",
       "- Use 5-7 meaningful stops per day when realistic, with non-overlapping durations and practical walking or public-transport transfer time between them.",
+      `- Generate exactly ${payload.days} entries in "days", one per trip day in order — never fewer, even for long trips.`,
+      "- Every day must contain at least 3 stops: spread the full schedule across all days instead of compressing the trip into fewer days.",
       "- When naming a city, town, or village, split it into specific landmark stops: principal monuments, viewpoints, historic districts, churches, museums, parks, or trails. Never use only the bare city name as the sightseeing stop.",
       "- For every type=pasto stop, describe the local dishes or regional specialities worth ordering at that specific location; avoid generic food descriptions.",
       "- Include practical logistics in descriptions when relevant: nearby parking, reservations, opening-time constraints, and check-in guidance.",
@@ -100,6 +111,7 @@ if (payload.mode === "city") {
       ? "You are an expert European road-trip planner. Generate a realistic driving itinerary with coherent distances and driving times."
       : "Sei un travel planner esperto di road trip europei. Genera un itinerario automobilistico realistico, con distanze e tempi di guida coerenti.",
     `Origin: ${payload.origin}`,
+    `${visitOriginLine}`,
     `Destinations / areas: ${payload.destination}`,
     `Duration: ${payload.days} days`,
     `Type: ${payload.loop ? (locale === "en" ? "loop (return to the start)" : "ad anello (tornare al punto di partenza)") : locale === "en" ? "one way" : "solo andata"}`,
@@ -115,6 +127,8 @@ if (payload.mode === "city") {
     "- Real, precise lat/lng.",
     "- Plan a complete day from 09:00 through the evening: include morning driving and sightseeing, afternoon stops, check-in at the overnight accommodation, and dinner or an evening activity. Do not end the schedule around lunchtime and do not leave unexplained gaps.",
     "- Use 5-7 meaningful stops per day when realistic, with non-overlapping durations and driving time consistent with driving_time_minutes between stops.",
+    `- Generate exactly ${payload.days} entries in "days", one per trip day in order — never fewer, even for long trips.`,
+    "- Every day must contain at least 3 stops: spread the full schedule across all days instead of compressing the trip into fewer days.",
     "- When naming a city, town, or village, split it into specific landmark stops: principal monuments, viewpoints, historic districts, churches, museums, parks, or trails. Never use only the bare city name as the sightseeing stop.",
     "- For every type=pasto stop, describe the local dishes or regional specialities worth ordering at that specific location; avoid generic food descriptions.",
     "- Include practical logistics in descriptions when relevant: nearby parking, reservations, opening-time constraints, and check-in guidance.",
