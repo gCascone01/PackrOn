@@ -141,6 +141,17 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - Dynamic/shared routes (`/[locale]/i`, `/[locale]/i/[id]`) excluded — no indexable content; also disallowed in `robots.ts` alongside `/api/`
 - Base URL from `NEXT_PUBLIC_SITE_URL` env with fallback to `https://packron.vercel.app` — set the env var when the production domain changes instead of editing code
 - Rationale: sitemap must match the real `[locale]` route structure, not the pre-i18n slugs
+- Every sitemap URL carries `alternates.languages` (`en`/`it`/`x-default`, absolute URLs) → Next renders `<xhtml:link hreflang>` entries, mirroring the hreflang link tags in metadata so Google serves the right locale
+
+## Favicons & social metadata (`app/layout.tsx`, `app/[locale]/layout.tsx`, `app/manifest.ts`)
+- All raster assets are generated from `public/logo.png` (the real brand mark — 2000×2000, transparent corners). The v0 placeholders in `public/` (`icon.svg`, `icon-light/dark-32x32.png`, `apple-icon.png`, `placeholder-*`) are unreferenced leftovers; do not point metadata at them
+- Generated assets in `public/`: `favicon.ico` (multi-size 16/32/48), `favicon-16x16.png`, `favicon-32x32.png`, `apple-touch-icon.png` (180, flattened on white — iOS renders transparency as black), `android-chrome-192x192.png` + `android-chrome-512x512.png` (transparency kept), `og-image.png` (1200×630, logo centered on white). Regenerate from `logo.png` with PIL if the brand mark changes
+- Root `app/layout.tsx` holds the full `metadata`: `metadataBase` (same SITE_URL env/fallback as sitemap), title template `%s | PackrOn`, keywords, authors/creator/publisher, canonical + `hreflang` (`en`/`it`/`x-default`), Open Graph (website, `en_US` + `it_IT` alternate, absolute `og-image` URL), Twitter `summary_large_image`, robots incl. `max-image-preview:large`, icons (`.ico` + PNG sizes + Apple), `manifest: /manifest.webmanifest`, `appleWebApp`, `msapplication-TileColor`
+- `app/[locale]/layout.tsx` `generateMetadata()` returns **complete** `openGraph`/`twitter` objects per locale (localized title/description/canonical/`og:locale`, alternate swapped). Rationale: Next.js merges `openGraph`/`twitter` shallowly — a partial child object silently wipes the parent's `images`/`siteName`/`type` (verified: first version rendered no `og:image` and `twitter:card=summary`)
+- JSON-LD (`Organization` + `WebSite` + `WebApplication/TravelApplication`) injected via script tag in root layout body
+- `Organization.sameAs` lists official social profiles (currently Instagram `packron.app`) — this is how Google discovers them for search-result profile links; append X/Facebook/etc. handles there when created
+- `app/manifest.ts` serves `/manifest.webmanifest` (standalone, white theme/bg, 192/512/180 icons). Google Search Console verification stays file-based (`public/google*.html`); no `verification` metadata field needed
+- Rationale: previously the favicon was the 1.6MB `logo.png` itself and no OG/Twitter/canonical/hreflang tags existed, so link unfurls and Google indexing were both broken
 
 ## Dark Mode
 
