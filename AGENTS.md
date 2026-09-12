@@ -267,3 +267,10 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - `lib/trips.test.ts`: save-payload validation + `isMissingTableError()` (PGRST205/42P01 detected, other errors ignored) + summary derivation (no `data`/`user_id` leak)
 - `lib/username.test.ts`: email-prefix derivation, sanitization, validation rules, `displayName()` fallback chain
 - `npm run typecheck`, `npm test` (26 tests), `npm run build` all green
+
+## Docs
+
+### README vs AGENTS.md
+- `README.md` is the user/contributor-facing overview (stack, features, setup, env, routes, sharing vs saved trips, key files). It must stay in sync with reality: no "no authentication" leftovers, real locale slugs (`/how-it-works`, `/examples`), all API routes, Supabase setup steps.
+- `AGENTS.md` remains the single source of truth for architecture decisions and rationale. README links to it instead of duplicating reasoning.
+- Rationale (2026-09 refresh): README had drifted — it still claimed "no authentication", listed removed Italian slugs, and omitted Supabase env vars, trips/account APIs, passkeys, dark mode, and SEO work.
