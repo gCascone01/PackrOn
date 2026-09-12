@@ -58,6 +58,7 @@ export function UserMenu() {
   }
 
   const label = displayName(user)
+  const initial = label.charAt(0).toUpperCase()
 
   const doSignOut = async () => {
     setSigningOut(true)
@@ -75,11 +76,24 @@ export function UserMenu() {
     <div className="relative" ref={menuRef}>
       <Button
         variant="outline"
+        size="icon"
+        aria-haspopup="menu"
+        aria-expanded={menuOpen}
+        onClick={() => setMenuOpen((v) => !v)}
+        title={label}
+        aria-label={label}
+        className="rounded-full font-bold sm:hidden"
+      >
+        {initial}
+      </Button>
+      <Button
+        variant="outline"
         size="lg"
         aria-haspopup="menu"
         aria-expanded={menuOpen}
         onClick={() => setMenuOpen((v) => !v)}
         title={label}
+        className="hidden sm:inline-flex"
       >
         <CircleUserRound className="size-4" />
         <span className="max-w-24 truncate sm:max-w-36">{label}</span>
