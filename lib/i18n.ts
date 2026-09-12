@@ -276,6 +276,8 @@ export const messages = {
     authWrongCredentials: "Email o password non corrette.",
     authAlreadyRegistered: "Questo indirizzo è già registrato. Accedi invece.",
     authRateLimited: "Troppe richieste. Attendi un minuto e riprova.",
+    authEmailRateLimited:
+      "Troppe registrazioni al momento. Attendi un po' e riprova più tardi.",
     authCheckEmail: "Controlla la tua email per confermare l'account, poi accedi.",
     authSecurityNote: "Password cifrate con bcrypt e sessioni in cookie httpOnly sicuri, gestiti da Supabase Auth.",
     authLogout: "Esci",
@@ -318,6 +320,8 @@ export const messages = {
     accountDeleting: "Elimino…",
     accountDeleteConfirmLabel: "Digita il tuo nome utente per confermare",
     accountDeleteFail: "Non sono riuscito a eliminare l'account.",
+    accountSetupRequired:
+      "Eliminazione account non configurata nel database: esegui supabase/migrations/20260912000000_delete_own_account.sql nell'SQL editor di Supabase, poi ricarica.",
   },
   en: {
     navHow: "How it works",
@@ -583,6 +587,7 @@ export const messages = {
     authWrongCredentials: "Incorrect email or password.",
     authAlreadyRegistered: "This address is already registered. Sign in instead.",
     authRateLimited: "Too many requests. Wait a minute and try again.",
+    authEmailRateLimited: "Too many signups at the moment. Please wait a while and try again later.",
     authCheckEmail: "Check your email to confirm your account, then sign in.",
     authSecurityNote: "Passwords hashed with bcrypt and sessions in secure httpOnly cookies, managed by Supabase Auth.",
     authLogout: "Sign out",
@@ -625,6 +630,8 @@ export const messages = {
     accountDeleting: "Deleting…",
     accountDeleteConfirmLabel: "Type your username to confirm",
     accountDeleteFail: "Couldn’t delete the account.",
+    accountSetupRequired:
+      "Account deletion is not set up in the database: run supabase/migrations/20260912000000_delete_own_account.sql in the Supabase SQL editor, then reload.",
   },
 } as const
 

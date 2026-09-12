@@ -93,10 +93,28 @@ export function AuthForm({
       }
     } catch (err) {
       const raw = err instanceof Error ? err.message : t("authGenericError")
-      const low = raw.toLowerCase()
+      const code =
+        err && typeof err === "object" && "code" in err
+          ? String((err as { code?: unknown }).code ?? "").toLowerCase()
+          : ""
+      const status =
+        err && typeof err === "object" && "status" in err
+          ? Number((err as { status?: unknown }).status)
+          : NaN
+      const low = `${raw} ${code}`.toLowerCase()
       if (low.includes("invalid login credentials")) setServerError(t("authWrongCredentials"))
       else if (low.includes("already registered") || low.includes("user already")) setServerError(t("authAlreadyRegistered"))
-      else if (low.includes("rate limit") || low.includes("too many requests")) setServerError(t("authRateLimited"))
+      // Supabase returns 429 for several distinct limits. The built-in email
+      // provider allows 2 emails/hour project-wide (`over_email_send_rate_limit`),
+      // which needs an hour-long wait / custom SMTP — not the generic "a minute".
+      else if (
+        code === "over_email_send_rate_limit" ||
+        low.includes("email rate limit") ||
+        low.includes("over_email")
+      )
+        setServerError(t("authEmailRateLimited"))
+      else if (low.includes("rate limit") || low.includes("too many requests") || low.includes("over_request") || status === 429)
+        setServerError(t("authRateLimited"))
       else setServerError(raw.length > 200 ? t("authGenericError") : raw)
     } finally {
       setPending(false)
