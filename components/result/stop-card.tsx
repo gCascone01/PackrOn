@@ -308,7 +308,16 @@ export function StopCard({
                   {shownAlts.map((a) => (
                     <li
                       key={a.id}
-                      className="flex items-center justify-between gap-3 rounded-lg border border-border bg-card px-3 py-2"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        useAlternative(a)
+                      }}
+                      className={cn(
+                        "flex cursor-pointer items-center justify-between gap-3 rounded-lg border border-border bg-card px-3 py-2 transition hover:border-brand/50 hover:shadow-sm",
+                        pinnedPrev &&
+                          a.id === pinnedPrev.id &&
+                          "border-brand/60 bg-brand-muted dark:border-brand/40 dark:bg-brand/15",
+                      )}
                     >
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
@@ -325,6 +334,7 @@ export function StopCard({
                       <Button
                         type="button"
                         size="sm"
+                        className="cursor-pointer"
                         onClick={(e) => {
                           e.stopPropagation()
                           useAlternative(a)
