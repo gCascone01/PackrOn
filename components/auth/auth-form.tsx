@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, type FormEvent } from "react"
+import { useEffect, useState, type FormEvent } from "react"
 import { useRouter } from "next/navigation"
 import { KeyRound, LogIn, UserPlus, Loader2 } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
@@ -35,8 +35,15 @@ export function AuthForm({
   const [info, setInfo] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
   const [passkeyPending, setPasskeyPending] = useState(false)
+  // Gated in a mount effect (not the useState initializer) so server and
+  // client render the same thing on first paint — no hydration mismatch.
+  const [passkeySupported, setPasskeySupported] = useState(false)
 
   const configured = isSupabaseConfigured()
+
+  useEffect(() => {
+    setPasskeySupported(typeof window.PublicKeyCredential !== "undefined")
+  }, [])
 
   const passkeyError = (error: unknown): string | null => {
     // A dismissed browser prompt is not an error — stay silent.
@@ -258,7 +265,7 @@ export function AuthForm({
         <p className="text-center text-xs leading-relaxed text-muted-foreground">{t("authSecurityNote")}</p>
       </form>
 
-      {configured ? (
+      {configured && passkeySupported ? (
         <>
           <div className="flex items-center gap-3" aria-hidden="true">
             <span className="h-px flex-1 bg-border" />
