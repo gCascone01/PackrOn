@@ -89,6 +89,9 @@ export async function validateLocations(
   // Confident fast path only: both ends resolved to real points more than
   // 10000 km apart (great-circle; driving distance can only be longer),
   // so the road trip is impossible regardless of wording.
+  // This is the ONLY distance limit in the app: Gemini itself must never
+  // impose one (see the prompt rules) — it only rejects unlocatable places
+  // and routes needing a flight.
   if (origin && destination) {
     const distance = haversineKmCoords(
       { lat: origin.lat, lng: origin.lng },

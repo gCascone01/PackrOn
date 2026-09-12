@@ -5,6 +5,7 @@ export const GEMINI_TRIP_SCHEMA: Schema = {
   propertyOrdering: [
     "impossible_trip",
     "reason",
+    "error_code",
     "trip_title",
     "summary",
     "origin_lat",
@@ -28,11 +29,17 @@ export const GEMINI_TRIP_SCHEMA: Schema = {
     impossible_trip: {
       type: Type.BOOLEAN,
       description:
-        "Set to true only when the trip is impossible after best-effort interpretation of place names (tolerate typos, transliterations, alternative names): ungeocodable gibberish/fictional place, intercontinental, ocean crossing, >~10000 km. Always fill the remaining required fields with minimal values and explain why in 'reason'. Omit or set to false for a normal trip.",
+        "Set to true only when the trip is impossible after best-effort interpretation of place names (tolerate typos, transliterations, alternative names): ungeocodable gibberish/fictional place, or a route needing a flight (different continents, ocean crossing). Never impose a distance limit. Always fill the remaining required fields with minimal values and explain why in 'reason'. Omit or set to false for a normal trip.",
     },
     reason: {
       type: Type.STRING,
       description: "Explanation of why the trip is impossible. Empty string for a normal trip.",
+    },
+    error_code: {
+      type: Type.STRING,
+      enum: ["invalid_city", "invalid_origin", "invalid_destination", "too_far", "impossible"],
+      description:
+        "Machine-readable error category, set together with impossible_trip: which location is invalid, or impossible for routes needing a flight. The too_far value is reserved for client-side distance checks — never set it for distance yourself. Omit for a normal trip.",
     },
     trip_title: {
       type: Type.STRING,
@@ -158,6 +165,7 @@ export interface GeminiDay {
 export interface GeminiTrip {
   impossible_trip?: boolean;
   reason?: string;
+  error_code?: "invalid_city" | "invalid_origin" | "invalid_destination" | "too_far" | "impossible";
   trip_title: string;
   summary: string;
   origin_lat: number;

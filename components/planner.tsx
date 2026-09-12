@@ -20,7 +20,7 @@ function ErrorExplanation({ error, t }: { error: string; t: (key: MessageKey, va
   // otherwise the category is missed and the fallback repeats the title.
   const lower = error.toLowerCase()
   const isImpossibleTrip = lower.includes("flight") || lower.includes("intercontinental") || lower.includes("volo")
-  const isTooFar = lower.includes("too great") || lower.includes("troppo grande")
+  const isTooFar = lower.includes("too great") || lower.includes("troppo grande") || lower.includes("supera il limite")
   const isInvalidOrigin = lower.includes("origin") || lower.includes("origine") || lower.includes("partenza")
   const isInvalidDestination = lower.includes("destination") || lower.includes("destinazione")
   const isInvalidCity = lower.includes("city") || lower.includes("città")
@@ -155,7 +155,19 @@ export function Planner() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...payload, locale }),
       })
-      const data = (await res.json()) as { itinerary?: Itinerary; error?: string }
+      // The platform may answer with an HTML error page instead of JSON
+      // (e.g. a timeout page for very long generations) — never let
+      // res.json() throw a raw SyntaxError at the user.
+      const contentType = res.headers.get("content-type") ?? ""
+      if (!contentType.includes("application/json")) {
+        throw new Error(t("apiUnexpected"))
+      }
+      let data: { itinerary?: Itinerary; error?: string }
+      try {
+        data = (await res.json()) as { itinerary?: Itinerary; error?: string }
+      } catch {
+        throw new Error(t("apiUnexpected"))
+      }
       if (!res.ok || !data.itinerary) {
         throw new Error(data.error || t("generateFail"))
       }
