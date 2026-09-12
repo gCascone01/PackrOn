@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { BedDouble, Clock, FileText, GripVertical, Hourglass, MapPin, ParkingSquare, RefreshCw, Search, Ticket, Trash2, X } from "lucide-react"
 import { bookingSearchUrl, getYourGuideSearchUrl, googleMapsSearchUrl } from "@/lib/affiliate-links"
+import { withPreviousStop } from "@/lib/alternatives"
+import type { StopImage } from "@/lib/stop-image"
 import { useI18n } from "@/components/locale-provider"
 
 function estimatedEndTime(start: string, duration: string): string | null {
@@ -29,6 +31,7 @@ export function StopCard({
   onSelect,
   onRemove,
   onReplace,
+  previousStop,
   dragging,
   onDragStart,
   onDragEnter,
@@ -42,6 +45,8 @@ export function StopCard({
   onSelect: () => void
   onRemove: () => void
   onReplace: (next: Stop) => void
+  /** Stop this one replaced, if any — pinned atop the alternatives for revert. */
+  previousStop?: Stop | null
   dragging: boolean
   onDragStart: (e: DragEvent) => void
   onDragEnter: (e: DragEvent) => void
@@ -52,6 +57,7 @@ export function StopCard({
   const [alts, setAlts] = useState<Stop[] | null>(null)
   const [loadingAlts, setLoadingAlts] = useState(false)
   const [description, setDescription] = useState<string | null>(null)
+  const [stopImage, setStopImage] = useState<StopImage | null>(null)
   const [loadingDescription, setLoadingDescription] = useState(false)
   const [showDescription, setShowDescription] = useState(false)
   const isOvernightStop = stop.category === "notte"
@@ -86,6 +92,17 @@ export function StopCard({
     }
   }
 
+  // Stop this one replaced (if any), pinned atop the alternatives so the
+  // user can revert. Owned by ResultView: StopCard remounts on replace
+  // (keyed by stop.id), so local state would not survive.
+  const pinnedPrev = previousStop && previousStop.id !== stop.id ? previousStop : null
+  const shownAlts = withPreviousStop(alts ?? [], pinnedPrev)
+
+  const useAlternative = (a: Stop) => {
+    onReplace({ ...a, time: stop.time, parking: stop.parking })
+    setAlts(null)
+  }
+
   const fetchDescription = async () => {
     if (description) {
       setShowDescription(true)
@@ -98,11 +115,12 @@ export function StopCard({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ stop, locale }),
       })
-      const data = (await res.json()) as { description?: string; error?: string }
+      const data = (await res.json()) as { description?: string; image?: StopImage | null; error?: string }
       if (!res.ok || !data.description) {
         throw new Error(data.error || t("descriptionUnavailable"))
       }
       setDescription(data.description)
+      setStopImage(data.image ?? null)
       setShowDescription(true)
     } catch {
       setDescription(t("descriptionUnavailable"))
@@ -176,7 +194,7 @@ export function StopCard({
               target="_blank"
               rel="noopener noreferrer"
               onClick={(e) => e.stopPropagation()}
-              className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg bg-brand px-2.5 text-xs font-semibold text-brand-foreground transition hover:opacity-90"
+              className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl bg-brand px-3 text-sm font-semibold text-brand-foreground transition hover:opacity-90"
             >
               <MapPin className="size-3.5" />
               {t("openInMaps")}
@@ -188,7 +206,7 @@ export function StopCard({
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={(e) => e.stopPropagation()}
-                  className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg border border-border bg-background px-2.5 text-xs font-medium text-foreground transition hover:bg-muted"
+                  className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl border border-border bg-background px-3 text-sm font-semibold text-foreground transition hover:bg-muted"
                 >
                   <BedDouble className="size-3.5" />
                   {t("lodging")}
@@ -199,7 +217,7 @@ export function StopCard({
                     target="_blank"
                     rel="noopener noreferrer"
                     onClick={(e) => e.stopPropagation()}
-                    className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg border border-border bg-background px-2.5 text-xs font-medium text-foreground transition hover:bg-muted"
+                    className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl border border-border bg-background px-3 text-sm font-semibold text-foreground transition hover:bg-muted"
                   >
                     <Search className="size-3.5" />
                     {t("otherLodgings")}
@@ -213,7 +231,7 @@ export function StopCard({
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={(e) => e.stopPropagation()}
-                className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg border border-border bg-background px-2.5 text-xs font-medium text-foreground transition hover:bg-muted"
+                className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl border border-border bg-background px-3 text-sm font-semibold text-foreground transition hover:bg-muted"
               >
                 <Ticket className="size-3.5" />
                 {t("experiences")}
@@ -222,7 +240,8 @@ export function StopCard({
             <Button
               type="button"
               variant="outline"
-              size="sm"
+              size="lg"
+              className="rounded-xl font-semibold"
               onClick={(e) => {
                 e.stopPropagation()
                 fetchDescription()
@@ -237,7 +256,8 @@ export function StopCard({
             <Button
               type="button"
               variant="outline"
-              size="sm"
+              size="lg"
+              className="rounded-xl font-semibold"
               onClick={(e) => {
                 e.stopPropagation()
                 openAlternatives()
@@ -248,9 +268,9 @@ export function StopCard({
             </Button>
             <Button
               type="button"
-              variant="ghost"
-              size="sm"
-              className="text-destructive hover:bg-destructive/10"
+              variant="destructive"
+              size="lg"
+              className="rounded-xl font-semibold"
               onClick={(e) => {
                 e.stopPropagation()
                 onRemove()
@@ -287,25 +307,39 @@ export function StopCard({
                 </div>
               ) : (
                 <ul className="flex flex-col gap-2">
-                  {alts?.map((a) => (
+                  {shownAlts.map((a) => (
                     <li
                       key={a.id}
-                      className="flex items-center justify-between gap-3 rounded-lg border border-border bg-card px-3 py-2"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        useAlternative(a)
+                      }}
+                      className={cn(
+                        "flex cursor-pointer items-center justify-between gap-3 rounded-lg border border-border bg-card px-3 py-2 transition hover:border-brand/50 hover:shadow-sm",
+                        pinnedPrev &&
+                          a.id === pinnedPrev.id &&
+                          "border-brand/60 bg-brand-muted dark:border-brand/40 dark:bg-brand/15",
+                      )}
                     >
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
                           <span className="truncate text-sm font-medium text-foreground">{a.name}</span>
                           <CategoryBadge category={a.category} />
+                          {pinnedPrev && a.id === pinnedPrev.id ? (
+                            <span className="inline-flex shrink-0 items-center rounded-full bg-brand-muted px-2 py-0.5 text-[11px] font-semibold text-[color:var(--brand)] dark:bg-brand/20 dark:text-[color:var(--brand)]">
+                              {t("previousStop")}
+                            </span>
+                          ) : null}
                         </div>
                         <p className="truncate text-xs text-muted-foreground">{a.description}</p>
                       </div>
                       <Button
                         type="button"
                         size="sm"
+                        className="cursor-pointer"
                         onClick={(e) => {
                           e.stopPropagation()
-                          onReplace({ ...a, time: stop.time, parking: stop.parking })
-                          setAlts(null)
+                          useAlternative(a)
                         }}
                       >
                         {t("useAlt")}
@@ -343,6 +377,28 @@ export function StopCard({
                   </button>
                 </div>
                 <div className="prose prose-sm max-w-none text-foreground">
+                  {stopImage ? (
+                    <figure className="mb-4">
+                      <img
+                        src={stopImage.url}
+                        alt={stopImage.title}
+                        loading="lazy"
+                        className="aspect-video w-full rounded-xl object-cover"
+                      />
+                      <figcaption className="mt-1.5 text-xs text-muted-foreground">
+                        <a
+                          href={stopImage.pageUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="underline underline-offset-2 hover:text-foreground"
+                        >
+                          {stopImage.title}
+                        </a>{" "}
+                        · {t("imageViaWikipedia")}
+                      </figcaption>
+                    </figure>
+                  ) : null}
                   <p className="whitespace-pre-wrap">{description}</p>
                 </div>
               </div>

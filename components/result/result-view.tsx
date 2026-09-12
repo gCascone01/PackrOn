@@ -13,7 +13,7 @@ import { Timeline } from "./timeline"
 import { CostSummary } from "./cost-summary"
 import { NavLauncher } from "./nav-launcher"
 import type { MapStop, OriginPoint } from "./itinerary-map"
-import { ArrowLeft, CalendarDays, Check, Copy, List, Map as MapIcon, RotateCcw, Share2 } from "lucide-react"
+import { ArrowLeft, CalendarDays, Check, Copy, List, Map as MapIcon, RotateCcw, Share2, Undo2 } from "lucide-react"
 import { useI18n } from "@/components/locale-provider"
 
 const ItineraryMap = dynamic(() => import("./itinerary-map").then((m) => m.ItineraryMap), {
@@ -42,6 +42,16 @@ export function ResultView({
   const [shareError, setShareError] = useState<string | null>(null)
   const [shareUrl, setShareUrl] = useState<string | null>(null)
   const shareRef = useRef<HTMLDivElement>(null)
+  /** Latest replacement: powers the undo toast (transient) and the pinned previous stop (persistent). */
+  const [lastReplaced, setLastReplaced] = useState<{ dayId: string; stopId: string; prev: Stop } | null>(null)
+  /** Previous stop per live stop id — survives StopCard remounts (keyed by stop.id). */
+  const [prevByStopId, setPrevByStopId] = useState<Record<string, Stop>>({})
+
+  useEffect(() => {
+    if (!lastReplaced) return
+    const timer = window.setTimeout(() => setLastReplaced(null), 8000)
+    return () => window.clearTimeout(timer)
+  }, [lastReplaced])
 
   useEffect(() => {
     let cancelled = false
@@ -152,6 +162,13 @@ export function ResultView({
 
   const removeStop = (dayId: string, stopId: string) => {
     if (selectedId === stopId) setSelectedId(null)
+    if (lastReplaced?.stopId === stopId) setLastReplaced(null)
+    setPrevByStopId((prev) => {
+      if (!(stopId in prev)) return prev
+      const next = { ...prev }
+      delete next[stopId]
+      return next
+    })
     setItinerary((prev) => ({
       ...prev,
       days: prev.days.map((d) =>
@@ -161,11 +178,39 @@ export function ResultView({
   }
 
   const replaceStop = (dayId: string, stopId: string, next: Stop) => {
-    setItinerary((prev) => ({
-      ...prev,
-      days: prev.days.map((d) =>
+    const prev = itinerary.days.find((d) => d.id === dayId)?.stops.find((s) => s.id === stopId)
+    if (prev) {
+      setLastReplaced({ dayId, stopId: next.id, prev })
+      setPrevByStopId((map) => ({ ...map, [next.id]: prev }))
+    }
+    setItinerary((prevIt) => ({
+      ...prevIt,
+      days: prevIt.days.map((d) =>
         d.id === dayId
           ? { ...d, stops: d.stops.map((s) => (s.id === stopId ? next : s)) }
+          : d,
+      ),
+    }))
+  }
+
+  const undoReplace = () => {
+    if (!lastReplaced) return
+    const { dayId, stopId, prev } = lastReplaced
+    setLastReplaced(null)
+    // The undone stop becomes the "previous" of the restored one, so the
+    // alternatives panel lets the user flip back and forth.
+    setPrevByStopId((map) => {
+      const restored = itinerary.days.find((d) => d.id === dayId)?.stops.find((s) => s.id === stopId)
+      const next = { ...map }
+      delete next[stopId]
+      if (restored) next[prev.id] = restored
+      return next
+    })
+    setItinerary((prevIt) => ({
+      ...prevIt,
+      days: prevIt.days.map((d) =>
+        d.id === dayId
+          ? { ...d, stops: d.stops.map((s) => (s.id === stopId ? prev : s)) }
           : d,
       ),
     }))
@@ -183,6 +228,7 @@ export function ResultView({
         onReorder={reorder}
         onRemove={removeStop}
         onReplace={replaceStop}
+        prevByStopId={prevByStopId}
         vehicle={liveItinerary.vehicle}
       />
     </div>
@@ -291,6 +337,22 @@ export function ResultView({
           <div className="h-[calc(100vh-13rem)]">{mapColumn}</div>
         )}
       </div>
+
+      {/* Undo toast after a stop replacement */}
+      {lastReplaced ? (
+        <div
+          role="status"
+          className="fixed bottom-6 left-1/2 z-40 flex -translate-x-1/2 items-center gap-3 rounded-full border border-border bg-card py-2 pl-4 pr-2 shadow-lg"
+        >
+          <span className="max-w-64 truncate text-sm font-medium text-foreground">
+            {t("stopReplaced", { name: lastReplaced.prev.name })}
+          </span>
+          <Button type="button" size="sm" onClick={undoReplace} className="shrink-0 rounded-full">
+            <Undo2 className="size-3.5" />
+            {t("undo")}
+          </Button>
+        </div>
+      ) : null}
     </div>
   )
 }

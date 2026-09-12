@@ -69,6 +69,21 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - Modal dialog shows full description; cached after first fetch per stop
 - Rationale: Pre-generating descriptions for all stops would be expensive in tokens; lazy loading defers cost to user interest
 
+### Stop replacement undo (toast + pinned previous)
+- Replacing a stop via "Change stop" is revertible two ways, with no permanent new buttons
+- **Undo toast**: `ResultView` keeps `lastReplaced: { dayId, stopId, prev }` and shows a transient bottom pill ("Tappa sostituita: {name}" + single Undo button, `stopReplaced`/`undo` keys) that auto-dismisses after 8s. Undo swaps the exact original stop back, so the save-trip dirty check (`JSON.stringify` snapshot) flips back to "Saved" automatically. Safe no-op if the stop was removed/reordered in the meantime; latest replace wins (single slot)
+- **Pinned previous on reopen**: `ResultView` also keeps `prevByStopId: Record<newId, prevStop>`, threaded through `Timeline` into `StopCard.previousStop` and merged atop fresh alternatives via pure `withPreviousStop()` (`lib/alternatives.ts`, tested). The pinned row carries a `previousStop` badge and reuses the existing "Use" button — picking it swaps back and the other stop becomes pinnable, so users can flip back and forth
+- State must live in `ResultView`, NOT `StopCard`: cards remount on every replace (`Timeline` fragments are keyed by `stop.id`), wiping any per-card memory
+- i18n keys: `stopReplaced`, `undo`, `previousStop` (both locales)
+
+### Stop photos (Wikipedia, lazy-loaded with description)
+- `/api/describe-stop` also returns `image: { url, title, pageUrl } | null` via new `lib/stop-image.ts`, fetched in parallel with the Gemini description
+- Source is the Wikipedia Action API (`pageimages` + `info`), keyless and freely licensed: coordinate `geosearch` (2km radius, locale wiki then English fallback) → text search by stop name as fallback; never throws, 6s timeout, `null` when nothing found so the modal degrades to text-only
+- `StopCard` modal renders the photo (`aspect-video object-cover`) above the text with a linked title + `imageViaWikipedia` caption for attribution (it/en)
+- Image cached in component state alongside the description after first fetch
+- Rationale: Wikipedia page images are real, freely-licensed photos needing no API key; AI-generated imagery would misrepresent real places. Plain `<img>` is used (no `next/image` remote config needed)
+- Tested in `lib/stop-image.test.ts` via pure `pickStopImagePage()` (index-ordered pick, skips pages without thumbnails, canonical-URL fallback)
+
 ## Key Files
 
 ### `lib/geocode.ts`
@@ -108,6 +123,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 ### `app/api/describe-stop/route.ts`
 - Accepts stop data and locale, returns detailed description
+- Also returns a Wikipedia stop photo (`image`, possibly `null`); both fetched in parallel via `Promise.all`, image failure never blocks the description
 - Falls back gracefully if Gemini unavailable
 
 ### `components/result/timeline.tsx`
@@ -124,6 +140,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - Added "Description" button with lazy-loaded modal
 - Fetches from `/api/describe-stop` on demand
 - Caches description after first fetch
+- Modal shows the Wikipedia photo (if any) above the description text with attribution caption
 
 ## i18n
 - All user-facing strings in `lib/i18n.ts` under `messages.it` / `messages.en`
