@@ -50,7 +50,7 @@ export function SiteHeader({ onBrandClick }: { onBrandClick?: () => void }) {
             Packr<span className="text-brand">On</span>
           </span>
         </Link>
-        <nav className="hidden items-center gap-6 text-sm font-medium sm:flex">
+        <nav className="hidden items-center gap-6 text-sm font-medium lg:flex">
           {NAV.map((item) => {
             const href = localizedPath(locale, item.href)
             const active = ready && pathname === href

@@ -2,9 +2,10 @@
 
 import { useState, type FormEvent } from "react"
 import { useRouter } from "next/navigation"
-import { LogIn, UserPlus, Loader2 } from "lucide-react"
+import { KeyRound, LogIn, UserPlus, Loader2 } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { isSupabaseConfigured } from "@/lib/supabase/config"
+import { getPasskeyErrorCode, isPasskeyCancelled } from "@/lib/passkeys"
 import { defaultUsername } from "@/lib/username"
 import { localizedPath } from "@/lib/paths"
 import { useI18n } from "@/components/locale-provider"
@@ -33,8 +34,55 @@ export function AuthForm({
   const [serverError, setServerError] = useState<string | null>(null)
   const [info, setInfo] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
+  const [passkeyPending, setPasskeyPending] = useState(false)
 
   const configured = isSupabaseConfigured()
+
+  const passkeyError = (error: unknown): string | null => {
+    // A dismissed browser prompt is not an error — stay silent.
+    if (isPasskeyCancelled(error)) return null
+    const code = getPasskeyErrorCode(error)
+    if (code === "passkey_disabled") return t("authPasskeyUnavailable")
+    const raw = error instanceof Error ? error.message : ""
+    const low = `${raw} ${code}`.toLowerCase()
+    if (low.includes("does not support webauthn") || low.includes("not supported"))
+      return t("authPasskeyUnsupported")
+    if (code === "webauthn_credential_not_found" || low.includes("no passkey"))
+      return t("authPasskeyNotFound")
+    return raw.length > 200 || raw.length === 0 ? t("authGenericError") : raw
+  }
+
+  const signInWithPasskey = async () => {
+    if (!configured) {
+      setServerError(t("authNotConfigured"))
+      return
+    }
+    setFieldError(null)
+    setServerError(null)
+    setInfo(null)
+    setPasskeyPending(true)
+    try {
+      const supabase = createClient()
+      const { data, error } = await supabase.auth.signInWithPasskey()
+      if (error) {
+        const mapped = passkeyError(error)
+        if (mapped) setServerError(mapped)
+        return
+      }
+      if (data.session) {
+        onSuccess?.()
+        router.push(localizedPath(locale, "/trips"))
+        router.refresh()
+      } else {
+        setServerError(t("authGenericError"))
+      }
+    } catch (err) {
+      const mapped = passkeyError(err)
+      if (mapped) setServerError(mapped)
+    } finally {
+      setPasskeyPending(false)
+    }
+  }
 
   const submit = async (event: FormEvent) => {
     event.preventDefault()
@@ -203,12 +251,33 @@ export function AuthForm({
           </p>
         ) : null}
 
-        <Button type="submit" size="lg" disabled={pending} className="w-full">
+        <Button type="submit" size="lg" disabled={pending || passkeyPending} className="w-full">
           {pending ? <Loader2 className="size-4 animate-spin" /> : mode === "login" ? <LogIn className="size-4" /> : <UserPlus className="size-4" />}
           {pending ? t("authWorking") : mode === "login" ? t("authLoginAction") : t("authSignupAction")}
         </Button>
         <p className="text-center text-xs leading-relaxed text-muted-foreground">{t("authSecurityNote")}</p>
       </form>
+
+      {configured ? (
+        <>
+          <div className="flex items-center gap-3" aria-hidden="true">
+            <span className="h-px flex-1 bg-border" />
+            <span className="text-xs font-medium text-muted-foreground">{t("authPasskeyOr")}</span>
+            <span className="h-px flex-1 bg-border" />
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="lg"
+            disabled={pending || passkeyPending}
+            onClick={signInWithPasskey}
+            className="w-full"
+          >
+            {passkeyPending ? <Loader2 className="size-4 animate-spin" /> : <KeyRound className="size-4" />}
+            {passkeyPending ? t("authPasskeyWorking") : t("authPasskeyButton")}
+          </Button>
+        </>
+      ) : null}
     </div>
   )
 }
