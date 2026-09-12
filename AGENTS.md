@@ -141,6 +141,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - Dynamic/shared routes (`/[locale]/i`, `/[locale]/i/[id]`) excluded — no indexable content; also disallowed in `robots.ts` alongside `/api/`
 - Base URL from `NEXT_PUBLIC_SITE_URL` env with fallback to `https://packron.vercel.app` — set the env var when the production domain changes instead of editing code
 - Rationale: sitemap must match the real `[locale]` route structure, not the pre-i18n slugs
+- Every sitemap URL carries `alternates.languages` (`en`/`it`/`x-default`, absolute URLs) → Next renders `<xhtml:link hreflang>` entries, mirroring the hreflang link tags in metadata so Google serves the right locale
 
 ## Favicons & social metadata (`app/layout.tsx`, `app/[locale]/layout.tsx`, `app/manifest.ts`)
 - All raster assets are generated from `public/logo.png` (the real brand mark — 2000×2000, transparent corners). The v0 placeholders in `public/` (`icon.svg`, `icon-light/dark-32x32.png`, `apple-icon.png`, `placeholder-*`) are unreferenced leftovers; do not point metadata at them
