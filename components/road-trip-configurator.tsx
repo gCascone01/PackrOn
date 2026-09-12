@@ -54,31 +54,66 @@ const VEHICLE_OPTIONS: Array<{ id: VehicleType; label: MessageKey }> = [
   { id: "moto", label: "vehicleMoto" },
 ]
 
+export type RoadFormValue = {
+  origin: string
+  destination: string
+  loop: boolean
+  days: number
+  pace: string
+  basecamp: boolean
+  crew: string[]
+  vehicle: VehicleType
+  consumption: string
+  avoidTolls: boolean
+  notes: string
+}
+
+export const DEFAULT_ROAD_FORM: RoadFormValue = {
+  origin: "",
+  destination: "",
+  loop: true,
+  days: 5,
+  pace: "balanced",
+  basecamp: false,
+  crew: ["couple"],
+  vehicle: "diesel",
+  consumption: "6.5",
+  avoidTolls: false,
+  notes: "",
+}
+
 export function RoadTripConfigurator({
   onGenerate,
   loading,
+  value,
+  onChange,
+  step,
   onStepChange,
 }: {
   onGenerate: (payload: GenerateTripPayload) => void
   loading: boolean
+  value: RoadFormValue
+  onChange: (next: RoadFormValue) => void
+  step: number
   onStepChange?: (step: number) => void
 }) {
   const { t, locale } = useI18n()
-  const [step, setStep] = useState(0)
-  const [origin, setOrigin] = useState("")
-  const [destination, setDestination] = useState("")
+  const { origin, destination, loop, days, pace, basecamp, crew, vehicle, consumption, avoidTolls, notes } = value
+  const patch = (p: Partial<RoadFormValue>) => onChange({ ...value, ...p })
+  const setOrigin = (origin: string) => patch({ origin })
+  const setDestination = (destination: string) => patch({ destination })
+  const setLoop = (loop: boolean) => patch({ loop })
+  const setDays = (days: number) => patch({ days })
+  const setPace = (pace: string) => patch({ pace })
+  const setBasecamp = (basecamp: boolean) => patch({ basecamp })
+  const setCrew = (crew: string[]) => patch({ crew })
+  const setVehicle = (vehicle: VehicleType) => patch({ vehicle })
+  const setConsumption = (consumption: string) => patch({ consumption })
+  const setAvoidTolls = (avoidTolls: boolean) => patch({ avoidTolls })
+  const setNotes = (notes: string) => patch({ notes })
   const [locating, setLocating] = useState(false)
   const [locationError, setLocationError] = useState<string | null>(null)
   const [stepError, setStepError] = useState<string | null>(null)
-  const [loop, setLoop] = useState(true)
-  const [days, setDays] = useState(5)
-  const [pace, setPace] = useState("balanced")
-  const [basecamp, setBasecamp] = useState(false)
-  const [crew, setCrew] = useState<string[]>(["couple"])
-  const [vehicle, setVehicle] = useState<VehicleType>("diesel")
-  const [consumption, setConsumption] = useState("6.5")
-  const [avoidTolls, setAvoidTolls] = useState(false)
-  const [notes, setNotes] = useState("")
 
   const steps = [t("roadStep1"), t("roadStep2"), t("roadStep3")]
   const paceOptions = [
@@ -106,7 +141,6 @@ export function RoadTripConfigurator({
       }
       setStepError(null)
     }
-    setStep(nextStep)
     onStepChange?.(nextStep)
   }
 

@@ -12,7 +12,7 @@ import { Timeline } from "./timeline"
 import { CostSummary } from "./cost-summary"
 import { NavLauncher } from "./nav-launcher"
 import type { MapStop, OriginPoint } from "./itinerary-map"
-import { ArrowLeft, CalendarDays, Check, Copy, List, Map as MapIcon, Share2 } from "lucide-react"
+import { ArrowLeft, CalendarDays, Check, Copy, List, Map as MapIcon, RotateCcw, Share2 } from "lucide-react"
 import { useI18n } from "@/components/locale-provider"
 
 const ItineraryMap = dynamic(() => import("./itinerary-map").then((m) => m.ItineraryMap), {
@@ -23,9 +23,11 @@ const ItineraryMap = dynamic(() => import("./itinerary-map").then((m) => m.Itine
 export function ResultView({
   initial,
   onBack,
+  onRestart,
 }: {
   initial: Itinerary
   onBack: () => void
+  onRestart?: () => void
 }) {
   const { t, locale } = useI18n()
   const [itinerary, setItinerary] = useState<Itinerary>(initial)
@@ -213,7 +215,14 @@ export function ResultView({
             </div>
           </div>
         </div>
-        <div className="relative shrink-0" ref={shareRef}>
+        <div className="flex shrink-0 items-center gap-2">
+          {onRestart ? (
+            <Button variant="outline" size="lg" className="shrink-0" onClick={onRestart} aria-label={t("restart")}>
+              <RotateCcw className="size-4" />
+              {t("restart")}
+            </Button>
+          ) : null}
+          <div className="relative shrink-0" ref={shareRef}>
           <Button
             variant="secondary"
             size="lg"
@@ -251,6 +260,7 @@ export function ResultView({
               ) : null}
             </div>
           ) : null}
+          </div>
         </div>
       </div>
 
