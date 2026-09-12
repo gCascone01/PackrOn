@@ -340,6 +340,10 @@ export const messages = {
     accountPasskeyFail: "Non sono riuscito a completare l'operazione. Riprova.",
     accountPasskeyConfirmEmail: "Conferma prima la tua email, poi aggiungi una passkey.",
     accountPasskeyExists: "Questo autenticatore è già registrato.",
+    accountPasskeyRename: "Rinomina",
+    accountPasskeySave: "Salva",
+    accountPasskeyCancel: "Annulla",
+    accountPasskeyRenamed: "Passkey rinominata.",
   },
   en: {
     navHow: "How it works",
@@ -668,6 +672,10 @@ export const messages = {
     accountPasskeyFail: "Couldn't complete the passkey action. Please try again.",
     accountPasskeyConfirmEmail: "Confirm your email first, then add a passkey.",
     accountPasskeyExists: "This authenticator is already registered.",
+    accountPasskeyRename: "Rename",
+    accountPasskeySave: "Save",
+    accountPasskeyCancel: "Cancel",
+    accountPasskeyRenamed: "Passkey renamed.",
   },
 } as const
 
