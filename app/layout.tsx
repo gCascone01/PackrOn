@@ -116,6 +116,7 @@ const JSON_LD = {
       name: SITE_NAME,
       url: SITE_URL,
       logo: `${SITE_URL}/logo.png`,
+      sameAs: ['https://www.instagram.com/packron.app/'],
     },
     {
       '@type': 'WebSite',
