@@ -3,7 +3,7 @@
 import { useEffect, useState, type FormEvent } from "react"
 import { useRouter } from "next/navigation"
 import type { PasskeyListItem } from "@supabase/supabase-js"
-import { AlertTriangle, Check, KeyRound, Loader2 } from "lucide-react"
+import { AlertTriangle, Check, KeyRound, Loader2, Pencil } from "lucide-react"
 import { SiteHeader } from "@/components/site-header"
 import { AuthDialog } from "@/components/auth/auth-dialog"
 import { useAuth } from "@/components/auth/auth-provider"
@@ -33,6 +33,9 @@ export function AccountPage() {
   const [passkeysLoading, setPasskeysLoading] = useState(false)
   const [registeringPasskey, setRegisteringPasskey] = useState(false)
   const [removingPasskeyId, setRemovingPasskeyId] = useState<string | null>(null)
+  const [renamingPasskeyId, setRenamingPasskeyId] = useState<string | null>(null)
+  const [renameValue, setRenameValue] = useState("")
+  const [savingRename, setSavingRename] = useState(false)
   const [passkeyError, setPasskeyError] = useState<string | null>(null)
   const [passkeyNotice, setPasskeyNotice] = useState<string | null>(null)
 
@@ -186,8 +189,37 @@ export function AccountPage() {
     }
   }
 
-  const removePasskey = async (passkeyId: string) => {
+  const startRename = (item: PasskeyListItem) => {
     setPasskeyError(null)
+    setPasskeyNotice(null)
+    setRenamingPasskeyId(item.id)
+    setRenameValue(item.friendly_name ?? "")
+  }
+
+  const saveRename = async (passkeyId: string) => {
+    const friendlyName = renameValue.trim()
+    if (friendlyName.length === 0) return
+    setPasskeyError(null)
+    setPasskeyNotice(null)
+    setSavingRename(true)
+    try {
+      const supabase = createClient()
+      const { data, error } = await supabase.auth.passkey.update({ passkeyId, friendlyName })
+      if (error) {
+        setPasskeyError(t("accountPasskeyFail"))
+        return
+      }
+      setPasskeys((prev) => prev.map((item) => (item.id === passkeyId ? (data ?? item) : item)))
+      setRenamingPasskeyId(null)
+      setPasskeyNotice(t("accountPasskeyRenamed"))
+    } catch {
+      setPasskeyError(t("accountPasskeyFail"))
+    } finally {
+      setSavingRename(false)
+    }
+  }
+
+  const removePasskey = async (passkeyId: string) => {    setPasskeyError(null)
     setPasskeyNotice(null)
     setRemovingPasskeyId(passkeyId)
     try {
@@ -305,33 +337,90 @@ export function AccountPage() {
               <p className="text-sm text-muted-foreground">{t("accountPasskeyEmpty")}</p>
             ) : (
               <ul className="flex flex-col gap-2">
-                {passkeys.map((item) => (
-                  <li
-                    key={item.id}
-                    className="flex items-center justify-between gap-3 rounded-xl border border-border bg-background px-3 py-2"
-                  >
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium text-foreground">
-                        {item.friendly_name || "Passkey"}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {new Date(item.created_at).toLocaleDateString(locale)}
-                      </p>
-                    </div>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      disabled={removingPasskeyId !== null || registeringPasskey}
-                      onClick={() => removePasskey(item.id)}
+                {passkeys.map((item) => {
+                  const renaming = renamingPasskeyId === item.id
+                  const busy = registeringPasskey || removingPasskeyId !== null || savingRename
+                  return (
+                    <li
+                      key={item.id}
+                      className="flex items-center justify-between gap-3 rounded-xl border border-border bg-background px-3 py-2"
                     >
-                      {removingPasskeyId === item.id ? (
-                        <Loader2 className="size-4 animate-spin" />
-                      ) : null}
-                      {removingPasskeyId === item.id ? t("accountPasskeyRemoving") : t("accountPasskeyRemove")}
-                    </Button>
-                  </li>
-                ))}
+                      {renaming ? (
+                        <div className="flex min-w-0 flex-1 items-center gap-2">
+                          <input
+                            type="text"
+                            autoFocus
+                            value={renameValue}
+                            onChange={(e) => setRenameValue(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") saveRename(item.id)
+                              if (e.key === "Escape") setRenamingPasskeyId(null)
+                            }}
+                            maxLength={120}
+                            disabled={savingRename}
+                            aria-label={t("accountPasskeyRename")}
+                            className="h-8 min-w-0 flex-1 rounded-lg border border-border bg-background px-2 text-sm text-foreground outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/25"
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            disabled={savingRename || renameValue.trim().length === 0}
+                            onClick={() => saveRename(item.id)}
+                          >
+                            {savingRename ? <Loader2 className="size-4 animate-spin" /> : null}
+                            {t("accountPasskeySave")}
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            disabled={savingRename}
+                            onClick={() => setRenamingPasskeyId(null)}
+                          >
+                            {t("accountPasskeyCancel")}
+                          </Button>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-medium text-foreground">
+                              {item.friendly_name || "Passkey"}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {new Date(item.created_at).toLocaleDateString(locale)}
+                            </p>
+                          </div>
+                          <div className="flex shrink-0 items-center gap-1">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              disabled={busy}
+                              onClick={() => startRename(item)}
+                              title={t("accountPasskeyRename")}
+                              aria-label={t("accountPasskeyRename")}
+                            >
+                              <Pencil className="size-4" />
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              disabled={busy}
+                              onClick={() => removePasskey(item.id)}
+                            >
+                              {removingPasskeyId === item.id ? (
+                                <Loader2 className="size-4 animate-spin" />
+                              ) : null}
+                              {removingPasskeyId === item.id ? t("accountPasskeyRemoving") : t("accountPasskeyRemove")}
+                            </Button>
+                          </div>
+                        </>
+                      )}
+                    </li>
+                  )
+                })}
               </ul>
             )}
             {passkeyError ? (
@@ -349,7 +438,7 @@ export function AccountPage() {
               variant="outline"
               size="lg"
               className="w-full"
-              disabled={registeringPasskey || removingPasskeyId !== null}
+              disabled={registeringPasskey || removingPasskeyId !== null || renamingPasskeyId !== null || savingRename}
               onClick={registerPasskey}
             >
               {registeringPasskey ? <Loader2 className="size-4 animate-spin" /> : <KeyRound className="size-4" />}
