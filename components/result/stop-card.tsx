@@ -194,7 +194,7 @@ export function StopCard({
               target="_blank"
               rel="noopener noreferrer"
               onClick={(e) => e.stopPropagation()}
-              className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg bg-brand px-2.5 text-xs font-semibold text-brand-foreground transition hover:opacity-90"
+              className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl bg-brand px-3 text-sm font-semibold text-brand-foreground transition hover:opacity-90"
             >
               <MapPin className="size-3.5" />
               {t("openInMaps")}
@@ -206,7 +206,7 @@ export function StopCard({
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={(e) => e.stopPropagation()}
-                  className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg border border-border bg-background px-2.5 text-xs font-medium text-foreground transition hover:bg-muted"
+                  className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl border border-border bg-background px-3 text-sm font-semibold text-foreground transition hover:bg-muted"
                 >
                   <BedDouble className="size-3.5" />
                   {t("lodging")}
@@ -217,7 +217,7 @@ export function StopCard({
                     target="_blank"
                     rel="noopener noreferrer"
                     onClick={(e) => e.stopPropagation()}
-                    className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg border border-border bg-background px-2.5 text-xs font-medium text-foreground transition hover:bg-muted"
+                    className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl border border-border bg-background px-3 text-sm font-semibold text-foreground transition hover:bg-muted"
                   >
                     <Search className="size-3.5" />
                     {t("otherLodgings")}
@@ -231,7 +231,7 @@ export function StopCard({
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={(e) => e.stopPropagation()}
-                className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg border border-border bg-background px-2.5 text-xs font-medium text-foreground transition hover:bg-muted"
+                className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl border border-border bg-background px-3 text-sm font-semibold text-foreground transition hover:bg-muted"
               >
                 <Ticket className="size-3.5" />
                 {t("experiences")}
@@ -240,7 +240,8 @@ export function StopCard({
             <Button
               type="button"
               variant="outline"
-              size="sm"
+              size="lg"
+              className="rounded-xl font-semibold"
               onClick={(e) => {
                 e.stopPropagation()
                 fetchDescription()
@@ -255,7 +256,8 @@ export function StopCard({
             <Button
               type="button"
               variant="outline"
-              size="sm"
+              size="lg"
+              className="rounded-xl font-semibold"
               onClick={(e) => {
                 e.stopPropagation()
                 openAlternatives()
@@ -266,9 +268,9 @@ export function StopCard({
             </Button>
             <Button
               type="button"
-              variant="ghost"
-              size="sm"
-              className="text-destructive hover:bg-destructive/10"
+              variant="destructive"
+              size="lg"
+              className="rounded-xl font-semibold"
               onClick={(e) => {
                 e.stopPropagation()
                 onRemove()
