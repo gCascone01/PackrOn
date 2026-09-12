@@ -15,16 +15,20 @@ import { useI18n } from "@/components/locale-provider"
 import type { MessageKey } from "@/lib/i18n"
 
 function ErrorExplanation({ error, t }: { error: string; t: (key: MessageKey, vars?: Record<string, string | number>) => string }) {
-  const isImpossibleTrip = error.includes("flight") || error.includes("intercontinental") || error.includes("volo")
-  const isInvalidOrigin = error.includes("origin") || error.includes("partenza")
-  const isInvalidDestination = error.includes("destination") || error.includes("destinazione")
-  const isInvalidCity = error.includes("city") || error.includes("città")
-  const isTooFar = error.includes("too great") || error.includes("troppo grande")
+  // Gemini reasons are free text with unpredictable capitalization
+  // (e.g. "City 'Xyz' not found"), so match case-insensitively —
+  // otherwise the category is missed and the fallback repeats the title.
+  const lower = error.toLowerCase()
+  const isImpossibleTrip = lower.includes("flight") || lower.includes("intercontinental") || lower.includes("volo")
+  const isTooFar = lower.includes("too great") || lower.includes("troppo grande") || lower.includes("supera il limite")
+  const isInvalidOrigin = lower.includes("origin") || lower.includes("origine") || lower.includes("partenza")
+  const isInvalidDestination = lower.includes("destination") || lower.includes("destinazione")
+  const isInvalidCity = lower.includes("city") || lower.includes("città")
 
   const getIcon = () => {
     if (isImpossibleTrip) return <Plane className="size-4" />
-    if (isInvalidOrigin || isInvalidDestination || isInvalidCity) return <MapPin className="size-4" />
     if (isTooFar) return <AlertCircle className="size-4" />
+    if (isInvalidOrigin || isInvalidDestination || isInvalidCity) return <MapPin className="size-4" />
     return <AlertCircle className="size-4" />
   }
 
@@ -40,6 +44,22 @@ function ErrorExplanation({ error, t }: { error: string; t: (key: MessageKey, va
             <li className="flex items-start gap-2"><span className="flex size-1.5 shrink-0 mt-1.5 rounded-full bg-destructive" />{tk("errorImpossibleTripTip1")}</li>
             <li className="flex items-start gap-2"><span className="flex size-1.5 shrink-0 mt-1.5 rounded-full bg-destructive" />{tk("errorImpossibleTripTip2")}</li>
             <li className="flex items-start gap-2"><span className="flex size-1.5 shrink-0 mt-1.5 rounded-full bg-destructive" />{tk("errorImpossibleTripTip3")}</li>
+          </ul>
+        </>
+      )
+    }
+    // Checked before origin/destination: the apiTooFar message itself mentions
+    // "origin and destination", so it would otherwise match the wrong category.
+    if (isTooFar) {
+      return (
+        <>
+          <p className="text-sm leading-relaxed">
+            {tk("errorTooFarExplanation")}
+          </p>
+          <ul className="mt-3 space-y-2 text-sm">
+            <li className="flex items-start gap-2"><span className="flex size-1.5 shrink-0 mt-1.5 rounded-full bg-destructive" />{tk("errorTooFarTip1")}</li>
+            <li className="flex items-start gap-2"><span className="flex size-1.5 shrink-0 mt-1.5 rounded-full bg-destructive" />{tk("errorTooFarTip2")}</li>
+            <li className="flex items-start gap-2"><span className="flex size-1.5 shrink-0 mt-1.5 rounded-full bg-destructive" />{tk("errorTooFarTip3")}</li>
           </ul>
         </>
       )
@@ -86,24 +106,12 @@ function ErrorExplanation({ error, t }: { error: string; t: (key: MessageKey, va
         </>
       )
     }
-    if (isTooFar) {
-      return (
-        <>
-          <p className="text-sm leading-relaxed">
-            {tk("errorTooFarExplanation")}
-          </p>
-          <ul className="mt-3 space-y-2 text-sm">
-            <li className="flex items-start gap-2"><span className="flex size-1.5 shrink-0 mt-1.5 rounded-full bg-destructive" />{tk("errorTooFarTip1")}</li>
-            <li className="flex items-start gap-2"><span className="flex size-1.5 shrink-0 mt-1.5 rounded-full bg-destructive" />{tk("errorTooFarTip2")}</li>
-            <li className="flex items-start gap-2"><span className="flex size-1.5 shrink-0 mt-1.5 rounded-full bg-destructive" />{tk("errorTooFarTip3")}</li>
-          </ul>
-        </>
-      )
-    }
-    return (
-      <p className="text-sm leading-relaxed">{error}</p>
-    )
+    // Unknown error: the title above already shows the message, so render
+    // nothing extra instead of repeating the same text.
+    return null
   }
+
+  const explanation = getExplanation()
 
   return (
     <div role="alert" className="mb-5 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-4 text-destructive">
@@ -113,7 +121,7 @@ function ErrorExplanation({ error, t }: { error: string; t: (key: MessageKey, va
         </div>
         <div className="flex-1 min-w-0">
           <p className="font-medium text-sm">{error}</p>
-          <div className="mt-3">{getExplanation()}</div>
+          {explanation ? <div className="mt-3">{explanation}</div> : null}
         </div>
       </div>
     </div>
@@ -147,7 +155,19 @@ export function Planner() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...payload, locale }),
       })
-      const data = (await res.json()) as { itinerary?: Itinerary; error?: string }
+      // The platform may answer with an HTML error page instead of JSON
+      // (e.g. a timeout page for very long generations) — never let
+      // res.json() throw a raw SyntaxError at the user.
+      const contentType = res.headers.get("content-type") ?? ""
+      if (!contentType.includes("application/json")) {
+        throw new Error(t("apiUnexpected"))
+      }
+      let data: { itinerary?: Itinerary; error?: string }
+      try {
+        data = (await res.json()) as { itinerary?: Itinerary; error?: string }
+      } catch {
+        throw new Error(t("apiUnexpected"))
+      }
       if (!res.ok || !data.itinerary) {
         throw new Error(data.error || t("generateFail"))
       }

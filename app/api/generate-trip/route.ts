@@ -63,8 +63,23 @@ export async function POST(request: Request) {
     
     // Check if Gemini detected an impossible trip
     if (parsed && typeof parsed === "object" && "impossible_trip" in parsed && (parsed as Record<string, unknown>).impossible_trip === true) {
-      const reason = ((parsed as Record<string, unknown>).reason as string) || (locale === "it" ? "Viaggio non fattibile in auto" : "Trip not feasible by car")
-      return NextResponse.json({ error: reason }, { status: 400 })
+      const record = parsed as Record<string, unknown>
+      const reason = (record.reason as string) || translate(locale, "apiGeneric")
+      // Prefer a stable localized message for the title (the UI matches error
+      // categories by keyword, which is unreliable on Gemini's free-text
+      // reason) and keep the reason as detail.
+      const code = typeof record.error_code === "string" ? record.error_code : ""
+      const key = {
+        invalid_city: "apiInvalidCity",
+        invalid_origin: "apiInvalidOrigin",
+        invalid_destination: "apiInvalidDestination",
+        too_far: "apiTooFar",
+        impossible: "apiImpossibleTrip",
+      }[code] as MessageKey | undefined
+      if (!key) {
+        return NextResponse.json({ error: reason }, { status: 400 })
+      }
+      return NextResponse.json({ error: `${translate(locale, key)} ${reason}` }, { status: 400 })
     }
     
     if (!isGeminiTrip(parsed)) {

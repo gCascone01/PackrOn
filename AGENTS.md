@@ -18,7 +18,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 ### Trip validation (Gemini-only)
 - **Client-side (fast)**: Required field validation only (origin/destination for road trips, city for city trips) — instant feedback for missing fields
-- **Server-side (smart)**: Gemini evaluates trip feasibility with context — handles location existence, edge cases like ferries, specific routes, regional connectivity, intercontinental/ocean crossings, >5000km
+- **Server-side (smart)**: Gemini evaluates trip feasibility with context — handles location existence, edge cases like ferries, specific routes, regional connectivity, intercontinental/ocean crossings. Gemini imposes **no distance limit**; the ~10000km cap is enforced client-side only (`validateLocations` fast path in `lib/geocode.ts`)
 - Rationale: Nominatim geocoding was rigid and couldn't handle fuzzy locations (e.g., "Tuscany" vs specific city); Gemini can interpret natural language locations and make nuanced feasibility decisions (e.g., Italy-Sicily ferry is fine, but Rome-Tokyo isn't)
 
 ### Itinerary types
@@ -36,6 +36,11 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 ### Error handling with explanations
 - `ErrorExplanation` component in `components/planner.tsx` shows contextual tips per error type
+- Category matching is **case-insensitive** (`error.toLowerCase()`): Gemini reasons are free text with unpredictable capitalization (e.g. "City 'Xyz' not found" never contained lowercase "city", so the old case-sensitive match missed every Gemini error)
+- Italian "Origine '…'" is matched via an explicit `origine` keyword (neither `origin` nor `partenza` covers it)
+- `isTooFar` is checked **before** origin/destination: the apiTooFar message itself mentions "origin and destination" and would otherwise match the wrong category
+- Unknown errors render **title only** — the old fallback re-rendered the same `error` string as the body, which is why title and description were often identical
+- Non-JSON API responses (e.g. a platform HTML timeout page on very long generations) are caught client-side via a content-type check + `res.json()` try/catch and surfaced as the localized `apiUnexpected` message — never a raw `Unexpected token '<'` SyntaxError
 - i18n keys for: impossible trip, invalid origin/destination/city, too far
 - Each error has explanation + 3 actionable tips
 - Rationale: Raw error messages like "I couldn't generate" are useless; users need to know *why* and *what to do*
@@ -70,22 +75,24 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 ### Gemini API (`lib/gemini.ts`)
 - Calls `ai.models.generateContent()` with `responseMimeType: "application/json"` **plus `responseSchema`** (restored). Rationale: dropping the schema broke valid trips — without enforcement Gemini returned a wrong shape (`itinerary` instead of `days`, missing `lat`/`lng`, wrong stop `type` enum), causing `apiBadSchema` 500s on good requests. The schema keeps valid output well-formed (coordinates, enums, required fields).
-- The schema (`GEMINI_TRIP_SCHEMA`) carries **optional `impossible_trip: boolean` + `reason: string`** fields on top of the required trip fields. For impossible trips Gemini sets the flag, explains in `reason`, and fills remaining required fields with minimal values (empty `days`). The route checks the flag **before** `isGeminiTrip()`, and `isGeminiTrip()` explicitly rejects anything with `impossible_trip === true`, so the flagged payload can never render as a trip.
+- The schema (`GEMINI_TRIP_SCHEMA`) carries **optional `impossible_trip: boolean` + `reason: string`** fields on top of the required trip fields. For impossible trips Gemini sets the flag, explains in `reason`, and fills remaining required fields with minimal values (empty `days`). The `impossible_trip` description instructs best-effort name interpretation (tolerate typos/transliterations/alt names) so only true gibberish/fictional places are flagged. The route checks the flag **before** `isGeminiTrip()`, and `isGeminiTrip()` explicitly rejects anything with `impossible_trip === true`, so the flagged payload can never render as a trip.
 - Has automatic fallback from primary to fallback model
 
 ### `lib/gemini-prompt.ts`
-- Added "Location validation" rules for city trips (city must be geocodable)
-- Added "Location validation" rules for road trips (origin/destination must be geocodable)
-- "Impossible trip detection" rules: intercontinental, ocean crossings, >5000km
-- AI returns `{"impossible_trip": true, "reason": "..."}` for invalid trips
+- "Impossible trip detection" is **permissive on names, strict on feasibility**: Gemini must auto-correct obvious typos, missing/extra/swapped letters, missing accents/diacritics, transliterations, and alternative-language names (e.g. "Seville" = "Siviglia", "Rmoa" = "Roma") and plan the trip for the corrected place — for city-trip cities and road-trip origin/destination alike
+- `impossible_trip: true` only after best-effort interpretation clearly yields no real visitable place (gibberish like "Xyzq", fictional places, empty/non-place input); never for a minor misspelling
+- **Generous durations are valid**: extra days vs. distance mean detours, rest days, deeper exploration — pace is a daily maximum, not a quota (a 30-day trip for ~2500 km must be planned, not refused)
+- "Impossible trip detection" feasibility rules: refuse for geography only when a flight is truly unavoidable (no drivable land connection AND no ferry link — e.g. Europe–America, Europe–Australia). **No kilometer limit on Gemini's side**: distance is gated client-side (`validateLocations` rejects only when both ends geocode >10000km apart; `error_code: "too_far"` is reserved for that client-side check and Gemini must never set it for distance). Ferry seas are road-trip territory: the Mediterranean is explicitly crossable (Italy–Greece / Italy–Tunisia ferries, or overland via Balkans–Turkey — Milan–Cairo is valid), with ferry legs and border/visa warnings stated in the itinerary
+- Border/visa/geopolitical complexity and "extensive distance" / "typical parameters" are **never refusal reasons**: Gemini must plan the route and surface crossing requirements as in-itinerary warnings instead
+- AI returns `{"impossible_trip": true, "error_code": "...", "reason": "..."}` for invalid trips — `error_code` is a machine-readable category (`invalid_city` | `invalid_origin` | `invalid_destination` | `too_far` | `impossible`) so the API can return a stable localized message instead of relying on free-text keyword matching
 
 ### `lib/gemini-schema.ts`
 - Added required `origin_lat` and `origin_lng` fields to schema
 
 ### `app/api/generate-trip/route.ts`
 - Validates required fields only
-- Calls Gemini directly (no 5000km threshold check)
-- Handles `impossible_trip` response from Gemini
+- `validateLocations` fast-path rejects only confidently impossible trips (both ends geocoded >10000km apart); otherwise Gemini decides via the `impossible_trip` flag
+- Handles `impossible_trip` response from Gemini: maps `error_code` to a stable localized message (`apiInvalidCity`/`apiInvalidOrigin`/`apiInvalidDestination`/`apiTooFar`/`apiImpossibleTrip`) and appends Gemini's `reason` as detail; falls back to the raw reason when `error_code` is missing
 - Returns localized error messages
 
 ### `app/api/describe-stop/route.ts`
