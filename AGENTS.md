@@ -79,6 +79,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - Has automatic fallback from primary to fallback model
 
 ### `lib/gemini-prompt.ts`
+- Day-count integrity: both modes require exactly N entries in `days` (one per trip day, never fewer) with at least 3 stops per day — without this, long trips under output-token pressure collapse into 1–2 sample days (~6-7 stops total). The 5-7/day target still governs short trips
 - "Impossible trip detection" is **permissive on names, strict on feasibility**: Gemini must auto-correct obvious typos, missing/extra/swapped letters, missing accents/diacritics, transliterations, and alternative-language names (e.g. "Seville" = "Siviglia", "Rmoa" = "Roma") and plan the trip for the corrected place — for city-trip cities and road-trip origin/destination alike
 - `impossible_trip: true` only after best-effort interpretation clearly yields no real visitable place (gibberish like "Xyzq", fictional places, empty/non-place input); never for a minor misspelling
 - **Generous durations are valid**: extra days vs. distance mean detours, rest days, deeper exploration — pace is a daily maximum, not a quota (a 30-day trip for ~2500 km must be planned, not refused)
