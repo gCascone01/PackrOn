@@ -84,6 +84,7 @@ export interface GenerateTripPayload {
   routeTags?: string[]
   loop?: boolean
   basecamp?: boolean
+  visitOrigin?: boolean
   crew?: string[]
   vehicle?: string
   consumption?: number

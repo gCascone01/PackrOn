@@ -59,6 +59,7 @@ export type RoadFormValue = {
   destination: string
   loop: boolean
   days: number
+  visitOrigin: boolean
   pace: string
   basecamp: boolean
   crew: string[]
@@ -73,6 +74,7 @@ export const DEFAULT_ROAD_FORM: RoadFormValue = {
   destination: "",
   loop: true,
   days: 5,
+  visitOrigin: false,
   pace: "balanced",
   basecamp: false,
   crew: ["couple"],
@@ -98,12 +100,13 @@ export function RoadTripConfigurator({
   onStepChange?: (step: number) => void
 }) {
   const { t, locale } = useI18n()
-  const { origin, destination, loop, days, pace, basecamp, crew, vehicle, consumption, avoidTolls, notes } = value
+  const { origin, destination, loop, days, visitOrigin, pace, basecamp, crew, vehicle, consumption, avoidTolls, notes } = value
   const patch = (p: Partial<RoadFormValue>) => onChange({ ...value, ...p })
   const setOrigin = (origin: string) => patch({ origin })
   const setDestination = (destination: string) => patch({ destination })
   const setLoop = (loop: boolean) => patch({ loop })
   const setDays = (days: number) => patch({ days })
+  const setVisitOrigin = (visitOrigin: boolean) => patch({ visitOrigin })
   const setPace = (pace: string) => patch({ pace })
   const setBasecamp = (basecamp: boolean) => patch({ basecamp })
   const setCrew = (crew: string[]) => patch({ crew })
@@ -154,6 +157,7 @@ export function RoadTripConfigurator({
       pace,
       routeTags: [],
       loop,
+      visitOrigin,
       basecamp,
       crew: crew.map((id) => t(CREW_OPTIONS.find((o) => o.id === id)!.label)),
       vehicle,
@@ -231,6 +235,8 @@ export function RoadTripConfigurator({
               onChange={(e) => setDestination(e.target.value)}
             />
           </Field>
+
+          <Toggle checked={visitOrigin} onChange={setVisitOrigin} label={t("visitOrigin")} />
 
           <div className="grid gap-5 sm:grid-cols-2">
             <Field label={t("itineraryType")} icon={<Route className="size-4" />}>
