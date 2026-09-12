@@ -5,8 +5,8 @@ import { useRef, useState } from "react"
 import type { GenerateTripPayload, Itinerary, TripMode } from "@/lib/types"
 import { SiteHeader } from "./site-header"
 import { ModeSelector } from "./mode-selector"
-import { RoadTripConfigurator } from "./road-trip-configurator"
-import { CityTripConfigurator } from "./city-trip-configurator"
+import { DEFAULT_ROAD_FORM, RoadTripConfigurator } from "./road-trip-configurator"
+import { DEFAULT_CITY_FORM, CityTripConfigurator } from "./city-trip-configurator"
 import { ResultView } from "./result/result-view"
 import { GeneratingSkeleton } from "./generating-skeleton"
 import { MouseDistanceCounter } from "./mouse-distance-counter"
@@ -131,12 +131,31 @@ function ErrorExplanation({ error, t }: { error: string; t: (key: MessageKey, va
 export function Planner() {
   const { t, locale } = useI18n()
   const [mode, setMode] = useState<TripMode>("road")
-  const [wizardStep, setWizardStep] = useState(0)
+  const [roadForm, setRoadForm] = useState(DEFAULT_ROAD_FORM)
+  const [cityForm, setCityForm] = useState(DEFAULT_CITY_FORM)
+  const [roadStep, setRoadStep] = useState(0)
+  const [cityStep, setCityStep] = useState(0)
   const [loading, setLoading] = useState(false)
   const [generationKey, setGenerationKey] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<Itinerary | null>(null)
   const wizardCardRef = useRef<HTMLDivElement>(null)
+
+  const goBack = () => {
+    setResult(null)
+    window.scrollTo({ top: 0 })
+  }
+
+  const restart = () => {
+    setRoadForm(DEFAULT_ROAD_FORM)
+    setCityForm(DEFAULT_CITY_FORM)
+    setRoadStep(0)
+    setCityStep(0)
+    setMode("road")
+    setError(null)
+    setResult(null)
+    window.scrollTo({ top: 0 })
+  }
 
   const features: Array<{ icon: typeof Route; title: MessageKey; text: MessageKey }> = [
     { icon: Route, title: "featureRouteTitle", text: "featureRouteText" },
@@ -183,8 +202,8 @@ export function Planner() {
   if (result) {
     return (
       <div className="min-h-screen bg-background">
-        <SiteHeader onBrandClick={() => setResult(null)} />
-        <ResultView initial={result} onBack={() => setResult(null)} />
+        <SiteHeader onBrandClick={goBack} />
+        <ResultView initial={result} onBack={goBack} onRestart={restart} />
       </div>
     )
   }
@@ -251,13 +270,12 @@ export function Planner() {
                 <p className="max-w-lg text-sm leading-relaxed text-muted-foreground">{t("configSubtitle")}</p>
               </div>
 
-              {wizardStep === 0 ? (
+              {(mode === "road" ? roadStep : cityStep) === 0 ? (
                 <div className="mb-8">
                   <ModeSelector
                     mode={mode}
                     onChange={(nextMode) => {
                       setMode(nextMode)
-                      setWizardStep(0)
                     }}
                   />
                 </div>
@@ -268,9 +286,23 @@ export function Planner() {
               ) : null}
 
               {mode === "road" ? (
-                <RoadTripConfigurator onGenerate={generate} loading={loading} onStepChange={setWizardStep} />
+                <RoadTripConfigurator
+                  onGenerate={generate}
+                  loading={loading}
+                  value={roadForm}
+                  onChange={setRoadForm}
+                  step={roadStep}
+                  onStepChange={setRoadStep}
+                />
               ) : (
-                <CityTripConfigurator onGenerate={generate} loading={loading} onStepChange={setWizardStep} />
+                <CityTripConfigurator
+                  onGenerate={generate}
+                  loading={loading}
+                  value={cityForm}
+                  onChange={setCityForm}
+                  step={cityStep}
+                  onStepChange={setCityStep}
+                />
               )}
             </div>
           </div>

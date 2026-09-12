@@ -53,6 +53,15 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - i18n keys: `originRequired`, `destinationRequired`, `cityRequired` (both locales)
 - Rationale: Immediate inline feedback prevents users from reaching generation with invalid data; keeps them in context of the problematic field
 
+### Back preserves inputs, Restart resets (form state lifted to Planner)
+- `RoadTripConfigurator` / `CityTripConfigurator` are fully controlled: `value: RoadFormValue/CityFormValue`, `onChange`, `step`, `onStepChange`
+- `Planner` owns `roadForm`, `cityForm`, `roadStep`, `cityStep`, `mode` — configurators no longer `useState` form fields, so unmounting on result view does not lose data
+- Back arrow (`onBack`/`goBack` in `Planner`, brand click) only clears `result` — all inputs + per-mode wizard steps survive for every tab
+- New Restart button (`RotateCcw` + i18n `restart`: "Ricomincia"/"Restart") in `ResultView` header next to Share calls `restart()` in `Planner`: resets both forms to `DEFAULT_*`, steps to 0, mode to "road", clears error/result
+- `ResultView` prop `onRestart?` is optional — examples/shared pages omit it so no restart button renders there (no form to reset)
+- Switching road/city via `ModeSelector` only sets mode, preserving the other mode's form + step (restores where user left off)
+- Rationale: back = "tweak and regenerate", restart = explicit "start over"; previously both were conflated and back wiped everything because state lived in unmounted children
+
 ### Stop descriptions (lazy-loaded)
 - "Description" button added alongside "Open in Google Maps", "Experiences", etc. in `StopCard`
 - Description fetched on-demand from new `/api/describe-stop` endpoint when button clicked

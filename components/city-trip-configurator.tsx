@@ -22,22 +22,44 @@ const INTEREST_OPTIONS: Array<{ id: string; label: MessageKey }> = [
   { id: "kids", label: "interestKids" },
 ]
 
+export type CityFormValue = {
+  city: string
+  days: number
+  interests: string[]
+  pace: string
+  notes: string
+}
+
+export const DEFAULT_CITY_FORM: CityFormValue = {
+  city: "",
+  days: 3,
+  interests: ["art", "food"],
+  pace: "balanced",
+  notes: "",
+}
+
 export function CityTripConfigurator({
   onGenerate,
   loading,
+  value,
+  onChange,
+  step,
   onStepChange,
 }: {
   onGenerate: (payload: GenerateTripPayload) => void
   loading: boolean
+  value: CityFormValue
+  onChange: (next: CityFormValue) => void
+  step: number
   onStepChange?: (step: number) => void
 }) {
   const { t } = useI18n()
-  const [step, setStep] = useState(0)
-  const [city, setCity] = useState("")
-  const [days, setDays] = useState(3)
-  const [interests, setInterests] = useState<string[]>(["art", "food"])
-  const [pace, setPace] = useState("balanced")
-  const [notes, setNotes] = useState("")
+  const { city, days, interests, pace, notes } = value
+  const patch = (p: Partial<CityFormValue>) => onChange({ ...value, ...p })
+  const setCity = (city: string) => patch({ city })
+  const setDays = (days: number) => patch({ days })
+  const setPace = (pace: string) => patch({ pace })
+  const setNotes = (notes: string) => patch({ notes })
   const [stepError, setStepError] = useState<string | null>(null)
 
   const steps = [t("cityStep1"), t("cityStep2")]
@@ -47,8 +69,12 @@ export function CityTripConfigurator({
     { id: "packed", title: t("cityPacked") },
   ]
 
-  const toggle = (value: string) =>
-    setInterests((list) => (list.includes(value) ? list.filter((v) => v !== value) : [...list, value]))
+  const toggle = (toggleValue: string) =>
+    patch({
+      interests: interests.includes(toggleValue)
+        ? interests.filter((v) => v !== toggleValue)
+        : [...interests, toggleValue],
+    })
 
   const canGenerate = city.trim().length > 1
 
@@ -62,7 +88,6 @@ export function CityTripConfigurator({
       }
       setStepError(null)
     }
-    setStep(nextStep)
     onStepChange?.(nextStep)
   }
 
