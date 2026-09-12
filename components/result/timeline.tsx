@@ -19,6 +19,7 @@ export function Timeline({
   onReorder,
   onRemove,
   onReplace,
+  prevByStopId,
 }: {
   days: ItineraryDay[]
   vehicle?: { consumption: number; fuelPrice: number }
@@ -29,6 +30,8 @@ export function Timeline({
   onReorder: (dayId: string, fromId: string, toId: string) => void
   onRemove: (dayId: string, stopId: string) => void
   onReplace: (dayId: string, stopId: string, next: Stop) => void
+  /** Previous stop per live stop id, for the revertible alternatives panel. */
+  prevByStopId?: Record<string, Stop>
 }) {
   const dragId = useRef<string | null>(null)
   const [draggingId, setDraggingId] = useState<string | null>(null)
@@ -128,6 +131,7 @@ export function Timeline({
                     onSelect={() => onSelect(stop.id)}
                     onRemove={() => onRemove(day.id, stop.id)}
                     onReplace={(next) => onReplace(day.id, stop.id, next)}
+                    previousStop={prevByStopId?.[stop.id] ?? null}
                     dragging={draggingId === stop.id}
                     onDragStart={() => {
                       dragId.current = stop.id

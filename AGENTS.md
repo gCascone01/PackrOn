@@ -69,6 +69,13 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - Modal dialog shows full description; cached after first fetch per stop
 - Rationale: Pre-generating descriptions for all stops would be expensive in tokens; lazy loading defers cost to user interest
 
+### Stop replacement undo (toast + pinned previous)
+- Replacing a stop via "Change stop" is revertible two ways, with no permanent new buttons
+- **Undo toast**: `ResultView` keeps `lastReplaced: { dayId, stopId, prev }` and shows a transient bottom pill ("Tappa sostituita: {name}" + single Undo button, `stopReplaced`/`undo` keys) that auto-dismisses after 8s. Undo swaps the exact original stop back, so the save-trip dirty check (`JSON.stringify` snapshot) flips back to "Saved" automatically. Safe no-op if the stop was removed/reordered in the meantime; latest replace wins (single slot)
+- **Pinned previous on reopen**: `ResultView` also keeps `prevByStopId: Record<newId, prevStop>`, threaded through `Timeline` into `StopCard.previousStop` and merged atop fresh alternatives via pure `withPreviousStop()` (`lib/alternatives.ts`, tested). The pinned row carries a `previousStop` badge and reuses the existing "Use" button — picking it swaps back and the other stop becomes pinnable, so users can flip back and forth
+- State must live in `ResultView`, NOT `StopCard`: cards remount on every replace (`Timeline` fragments are keyed by `stop.id`), wiping any per-card memory
+- i18n keys: `stopReplaced`, `undo`, `previousStop` (both locales)
+
 ### Stop photos (Wikipedia, lazy-loaded with description)
 - `/api/describe-stop` also returns `image: { url, title, pageUrl } | null` via new `lib/stop-image.ts`, fetched in parallel with the Gemini description
 - Source is the Wikipedia Action API (`pageimages` + `info`), keyless and freely licensed: coordinate `geosearch` (2km radius, locale wiki then English fallback) → text search by stop name as fallback; never throws, 6s timeout, `null` when nothing found so the modal degrades to text-only

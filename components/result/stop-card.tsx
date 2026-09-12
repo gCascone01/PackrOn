@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { BedDouble, Clock, FileText, GripVertical, Hourglass, MapPin, ParkingSquare, RefreshCw, Search, Ticket, Trash2, X } from "lucide-react"
 import { bookingSearchUrl, getYourGuideSearchUrl, googleMapsSearchUrl } from "@/lib/affiliate-links"
+import { withPreviousStop } from "@/lib/alternatives"
 import type { StopImage } from "@/lib/stop-image"
 import { useI18n } from "@/components/locale-provider"
 
@@ -30,6 +31,7 @@ export function StopCard({
   onSelect,
   onRemove,
   onReplace,
+  previousStop,
   dragging,
   onDragStart,
   onDragEnter,
@@ -43,6 +45,8 @@ export function StopCard({
   onSelect: () => void
   onRemove: () => void
   onReplace: (next: Stop) => void
+  /** Stop this one replaced, if any — pinned atop the alternatives for revert. */
+  previousStop?: Stop | null
   dragging: boolean
   onDragStart: (e: DragEvent) => void
   onDragEnter: (e: DragEvent) => void
@@ -86,6 +90,17 @@ export function StopCard({
     } finally {
       setLoadingAlts(false)
     }
+  }
+
+  // Stop this one replaced (if any), pinned atop the alternatives so the
+  // user can revert. Owned by ResultView: StopCard remounts on replace
+  // (keyed by stop.id), so local state would not survive.
+  const pinnedPrev = previousStop && previousStop.id !== stop.id ? previousStop : null
+  const shownAlts = withPreviousStop(alts ?? [], pinnedPrev)
+
+  const useAlternative = (a: Stop) => {
+    onReplace({ ...a, time: stop.time, parking: stop.parking })
+    setAlts(null)
   }
 
   const fetchDescription = async () => {
@@ -290,7 +305,7 @@ export function StopCard({
                 </div>
               ) : (
                 <ul className="flex flex-col gap-2">
-                  {alts?.map((a) => (
+                  {shownAlts.map((a) => (
                     <li
                       key={a.id}
                       className="flex items-center justify-between gap-3 rounded-lg border border-border bg-card px-3 py-2"
@@ -299,6 +314,11 @@ export function StopCard({
                         <div className="flex items-center gap-2">
                           <span className="truncate text-sm font-medium text-foreground">{a.name}</span>
                           <CategoryBadge category={a.category} />
+                          {pinnedPrev && a.id === pinnedPrev.id ? (
+                            <span className="inline-flex shrink-0 items-center rounded-full bg-brand-muted px-2 py-0.5 text-[11px] font-semibold text-[color:var(--brand)] dark:bg-brand/20 dark:text-[color:var(--brand)]">
+                              {t("previousStop")}
+                            </span>
+                          ) : null}
                         </div>
                         <p className="truncate text-xs text-muted-foreground">{a.description}</p>
                       </div>
@@ -307,8 +327,7 @@ export function StopCard({
                         size="sm"
                         onClick={(e) => {
                           e.stopPropagation()
-                          onReplace({ ...a, time: stop.time, parking: stop.parking })
-                          setAlts(null)
+                          useAlternative(a)
                         }}
                       >
                         {t("useAlt")}
