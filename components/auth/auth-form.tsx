@@ -60,8 +60,14 @@ export function AuthForm({
     try {
       const supabase = createClient()
       if (mode === "signup") {
-        const siteUrl =
-          typeof window !== "undefined" ? window.location.origin : process.env.NEXT_PUBLIC_SITE_URL ?? ""
+        // Prefer the canonical site URL so confirmation links never point at
+        // localhost or a preview origin. Fall back to the current origin when
+        // the env var is unset (local dev). This exact origin must be listed
+        // in Supabase Dashboard → Authentication → URL Configuration
+        // (Site URL + Redirect URLs), otherwise Supabase falls back to the
+        // dashboard Site URL.
+        const envSiteUrl = (process.env.NEXT_PUBLIC_SITE_URL ?? "").trim().replace(/\/+$/, "")
+        const siteUrl = envSiteUrl || (typeof window !== "undefined" ? window.location.origin : "")
         const { data, error } = await supabase.auth.signUp({
           email: cleanEmail,
           password,
