@@ -72,6 +72,7 @@ export function RoadTripConfigurator({
   const [stepError, setStepError] = useState<string | null>(null)
   const [loop, setLoop] = useState(true)
   const [days, setDays] = useState(5)
+  const [visitOrigin, setVisitOrigin] = useState(false)
   const [pace, setPace] = useState("balanced")
   const [basecamp, setBasecamp] = useState(false)
   const [crew, setCrew] = useState<string[]>(["couple"])
@@ -120,6 +121,7 @@ export function RoadTripConfigurator({
       pace,
       routeTags: [],
       loop,
+      visitOrigin,
       basecamp,
       crew: crew.map((id) => t(CREW_OPTIONS.find((o) => o.id === id)!.label)),
       vehicle,
@@ -197,6 +199,8 @@ export function RoadTripConfigurator({
               onChange={(e) => setDestination(e.target.value)}
             />
           </Field>
+
+          <Toggle checked={visitOrigin} onChange={setVisitOrigin} label={t("visitOrigin")} />
 
           <div className="grid gap-5 sm:grid-cols-2">
             <Field label={t("itineraryType")} icon={<Route className="size-4" />}>

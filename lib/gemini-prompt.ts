@@ -64,6 +64,15 @@ export function buildTripPrompt(payload: GenerateTripPayload): string {
       ? (locale === "en" ? impossibleTripDetectionCityEn : impossibleTripDetectionCityIt)
       : (locale === "en" ? impossibleTripDetectionRoadEn : impossibleTripDetectionRoadIt)
 
+  const visitOriginLine =
+    locale === "en"
+      ? payload.visitOrigin
+        ? "Also visit the origin: include sightseeing stops in the origin city (e.g. on day 1) before departing along the route."
+        : "The origin is only the starting point: do not plan sightseeing stops there, depart directly."
+      : payload.visitOrigin
+        ? "Visita anche la partenza: includi tappe turistiche nella città di partenza (es. il giorno 1) prima di partire lungo il percorso."
+        : "La partenza è solo il punto di partenza: non pianificare tappe turistiche lì, parti direttamente."
+
 if (payload.mode === "city") {
     return [
       impossibleTripDetection,
@@ -102,6 +111,7 @@ if (payload.mode === "city") {
       ? "You are an expert European road-trip planner. Generate a realistic driving itinerary with coherent distances and driving times."
       : "Sei un travel planner esperto di road trip europei. Genera un itinerario automobilistico realistico, con distanze e tempi di guida coerenti.",
     `Origin: ${payload.origin}`,
+    `${visitOriginLine}`,
     `Destinations / areas: ${payload.destination}`,
     `Duration: ${payload.days} days`,
     `Type: ${payload.loop ? (locale === "en" ? "loop (return to the start)" : "ad anello (tornare al punto di partenza)") : locale === "en" ? "one way" : "solo andata"}`,
