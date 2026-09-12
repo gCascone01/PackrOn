@@ -8,6 +8,7 @@ import { formatKm, totalDistanceKm } from "@/lib/costs"
 import { buildShareUrl, copyText, encodeItinerary } from "@/lib/share"
 import { localizedPath } from "@/lib/paths"
 import { Button } from "@/components/ui/button"
+import { SaveTripButton } from "@/components/auth/save-trip-button"
 import { Timeline } from "./timeline"
 import { CostSummary } from "./cost-summary"
 import { NavLauncher } from "./nav-launcher"
@@ -24,10 +25,13 @@ export function ResultView({
   initial,
   onBack,
   onRestart,
+  savedId,
 }: {
   initial: Itinerary
   onBack: () => void
   onRestart?: () => void
+  /** Server id when this view shows a trip loaded from the account. */
+  savedId?: string | null
 }) {
   const { t, locale } = useI18n()
   const [itinerary, setItinerary] = useState<Itinerary>(initial)
@@ -223,7 +227,9 @@ export function ResultView({
             </Button>
           ) : null}
           <div className="relative shrink-0" ref={shareRef}>
-          <Button
+          <div className="flex items-center gap-2">
+            <SaveTripButton itinerary={itinerary} savedId={savedId} />
+            <Button
             variant="secondary"
             size="lg"
             className="shrink-0"
@@ -237,6 +243,7 @@ export function ResultView({
             <Share2 className="size-4" />
             {t("share")}
           </Button>
+          </div>
           {shareOpen ? (
             <div
               role="menu"

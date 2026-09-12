@@ -18,7 +18,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 ### Trip validation (Gemini-only)
 - **Client-side (fast)**: Required field validation only (origin/destination for road trips, city for city trips) — instant feedback for missing fields
-- **Server-side (smart)**: Gemini evaluates trip feasibility with context — handles location existence, edge cases like ferries, specific routes, regional connectivity, intercontinental/ocean crossings, >5000km
+- **Server-side (smart)**: Gemini evaluates trip feasibility with context — handles location existence, edge cases like ferries, specific routes, regional connectivity, intercontinental/ocean crossings. Gemini imposes **no distance limit**; the ~10000km cap is enforced client-side only (`validateLocations` fast path in `lib/geocode.ts`)
 - Rationale: Nominatim geocoding was rigid and couldn't handle fuzzy locations (e.g., "Tuscany" vs specific city); Gemini can interpret natural language locations and make nuanced feasibility decisions (e.g., Italy-Sicily ferry is fine, but Rome-Tokyo isn't)
 
 ### Itinerary types
@@ -36,6 +36,11 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 ### Error handling with explanations
 - `ErrorExplanation` component in `components/planner.tsx` shows contextual tips per error type
+- Category matching is **case-insensitive** (`error.toLowerCase()`): Gemini reasons are free text with unpredictable capitalization (e.g. "City 'Xyz' not found" never contained lowercase "city", so the old case-sensitive match missed every Gemini error)
+- Italian "Origine '…'" is matched via an explicit `origine` keyword (neither `origin` nor `partenza` covers it)
+- `isTooFar` is checked **before** origin/destination: the apiTooFar message itself mentions "origin and destination" and would otherwise match the wrong category
+- Unknown errors render **title only** — the old fallback re-rendered the same `error` string as the body, which is why title and description were often identical
+- Non-JSON API responses (e.g. a platform HTML timeout page on very long generations) are caught client-side via a content-type check + `res.json()` try/catch and surfaced as the localized `apiUnexpected` message — never a raw `Unexpected token '<'` SyntaxError
 - i18n keys for: impossible trip, invalid origin/destination/city, too far
 - Each error has explanation + 3 actionable tips
 - Rationale: Raw error messages like "I couldn't generate" are useless; users need to know *why* and *what to do*
@@ -79,22 +84,24 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 ### Gemini API (`lib/gemini.ts`)
 - Calls `ai.models.generateContent()` with `responseMimeType: "application/json"` **plus `responseSchema`** (restored). Rationale: dropping the schema broke valid trips — without enforcement Gemini returned a wrong shape (`itinerary` instead of `days`, missing `lat`/`lng`, wrong stop `type` enum), causing `apiBadSchema` 500s on good requests. The schema keeps valid output well-formed (coordinates, enums, required fields).
-- The schema (`GEMINI_TRIP_SCHEMA`) carries **optional `impossible_trip: boolean` + `reason: string`** fields on top of the required trip fields. For impossible trips Gemini sets the flag, explains in `reason`, and fills remaining required fields with minimal values (empty `days`). The route checks the flag **before** `isGeminiTrip()`, and `isGeminiTrip()` explicitly rejects anything with `impossible_trip === true`, so the flagged payload can never render as a trip.
+- The schema (`GEMINI_TRIP_SCHEMA`) carries **optional `impossible_trip: boolean` + `reason: string`** fields on top of the required trip fields. For impossible trips Gemini sets the flag, explains in `reason`, and fills remaining required fields with minimal values (empty `days`). The `impossible_trip` description instructs best-effort name interpretation (tolerate typos/transliterations/alt names) so only true gibberish/fictional places are flagged. The route checks the flag **before** `isGeminiTrip()`, and `isGeminiTrip()` explicitly rejects anything with `impossible_trip === true`, so the flagged payload can never render as a trip.
 - Has automatic fallback from primary to fallback model
 
 ### `lib/gemini-prompt.ts`
-- Added "Location validation" rules for city trips (city must be geocodable)
-- Added "Location validation" rules for road trips (origin/destination must be geocodable)
-- "Impossible trip detection" rules: intercontinental, ocean crossings, >5000km
-- AI returns `{"impossible_trip": true, "reason": "..."}` for invalid trips
+- "Impossible trip detection" is **permissive on names, strict on feasibility**: Gemini must auto-correct obvious typos, missing/extra/swapped letters, missing accents/diacritics, transliterations, and alternative-language names (e.g. "Seville" = "Siviglia", "Rmoa" = "Roma") and plan the trip for the corrected place — for city-trip cities and road-trip origin/destination alike
+- `impossible_trip: true` only after best-effort interpretation clearly yields no real visitable place (gibberish like "Xyzq", fictional places, empty/non-place input); never for a minor misspelling
+- **Generous durations are valid**: extra days vs. distance mean detours, rest days, deeper exploration — pace is a daily maximum, not a quota (a 30-day trip for ~2500 km must be planned, not refused)
+- "Impossible trip detection" feasibility rules: refuse for geography only when a flight is truly unavoidable (no drivable land connection AND no ferry link — e.g. Europe–America, Europe–Australia). **No kilometer limit on Gemini's side**: distance is gated client-side (`validateLocations` rejects only when both ends geocode >10000km apart; `error_code: "too_far"` is reserved for that client-side check and Gemini must never set it for distance). Ferry seas are road-trip territory: the Mediterranean is explicitly crossable (Italy–Greece / Italy–Tunisia ferries, or overland via Balkans–Turkey — Milan–Cairo is valid), with ferry legs and border/visa warnings stated in the itinerary
+- Border/visa/geopolitical complexity and "extensive distance" / "typical parameters" are **never refusal reasons**: Gemini must plan the route and surface crossing requirements as in-itinerary warnings instead
+- AI returns `{"impossible_trip": true, "error_code": "...", "reason": "..."}` for invalid trips — `error_code` is a machine-readable category (`invalid_city` | `invalid_origin` | `invalid_destination` | `too_far` | `impossible`) so the API can return a stable localized message instead of relying on free-text keyword matching
 
 ### `lib/gemini-schema.ts`
 - Added required `origin_lat` and `origin_lng` fields to schema
 
 ### `app/api/generate-trip/route.ts`
 - Validates required fields only
-- Calls Gemini directly (no 5000km threshold check)
-- Handles `impossible_trip` response from Gemini
+- `validateLocations` fast-path rejects only confidently impossible trips (both ends geocoded >10000km apart); otherwise Gemini decides via the `impossible_trip` flag
+- Handles `impossible_trip` response from Gemini: maps `error_code` to a stable localized message (`apiInvalidCity`/`apiInvalidOrigin`/`apiInvalidDestination`/`apiTooFar`/`apiImpossibleTrip`) and appends Gemini's `reason` as detail; falls back to the raw reason when `error_code` is missing
 - Returns localized error messages
 
 ### `app/api/describe-stop/route.ts`
@@ -168,3 +175,55 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - CSS custom properties avoid Tailwind's `dark:` variant limitations with custom design tokens
 - SSR-safe pattern prevents hydration errors in Next.js App Router
 - Theme toggle in header next to language switcher follows standard UI conventions
+
+## Auth & Saved Trips (Supabase-native)
+
+### Decision: no custom password/crypto code — Supabase Auth + RLS is the wheel
+- **Auth**: Supabase Auth (GoTrue) via `@supabase/ssr` + `@supabase/supabase-js`. Passwords go over TLS straight to Supabase (bcrypt-hashed server-side); the app never sees, hashes, or stores passwords — so no `bcrypt`/`jose`/custom JWT code in this repo.
+- **Sessions**: httpOnly (`sb-*-auth-token`), Secure in production, SameSite=Lax cookies managed by `@supabase/ssr`; PKCE flow; no tokens in localStorage (XSS-proof). `proxy.ts` calls `updateSession()` on every request to refresh cookies.
+- **Encryption**: TLS 1.2+ in transit, AES-256 at rest (Supabase-managed). Only `NEXT_PUBLIC_SUPABASE_URL` + the public key (`NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, with legacy `NEXT_PUBLIC_SUPABASE_ANON_KEY` fallback via `getSupabasePublishableKey()`) are exposed (public by design — RLS enforces access). No secret/service-role key anywhere in the app.
+- **Authorization**: `saved_trips` table with RLS `auth.uid() = user_id` on SELECT/INSERT/UPDATE/DELETE (`supabase/migrations/20260911000000_create_saved_trips.sql`). API routes (`app/api/trips/route.ts`, `app/api/trips/[id]/route.ts`) take `user_id` from the server-side session only — never from client input (prevents IDOR). Payloads re-validated server-side with `isItinerary()` + 500KB cap + 160-char title cap (`lib/trips.ts`, tested in `lib/trips.test.ts`).
+- **Graceful pre-Supabase state**: until env vars are set, `isSupabaseConfigured()` / `AuthProvider.configured` degrade (auth UI explains setup, trip saving returns 503) while the rest of the app builds and runs. No dead imports, no crashes. Setup = create project → run migration → set the two env vars → enable email confirmation redirect to `/auth/callback`.
+- Rationale: anything hand-rolled (password hashing, JWT issuance, session cookies, per-user DB filtering) would duplicate — and likely weaken — what Supabase already provides audited and maintained.
+
+### Key files
+- `lib/supabase/config.ts` — env helpers + `isSupabaseConfigured()`
+- `lib/supabase/client.ts` — browser client (`createBrowserClient`)
+- `lib/supabase/server.ts` — server client (Route Handlers/Server Components, cookie-aware)
+- `lib/supabase/middleware.ts` — `updateSession()` used by `proxy.ts`
+- `lib/trips.ts` — `SavedTrip` types, `validateSaveTripPayload`, `toSavedTripSummary`
+- `supabase/migrations/20260911000000_create_saved_trips.sql` — table + RLS + `updated_at` trigger
+- `app/auth/callback/route.ts` — PKCE code exchange (not locale-prefixed)
+- `app/api/trips/route.ts` — GET list (summaries), POST save (201 + `{id}`)
+- `app/api/trips/[id]/route.ts` — GET one, PUT overwrite (re-saving an edited trip updates the same record, no duplicates), DELETE (401 logged-out / 404 foreign-or-missing, no existence leak)
+- `components/auth/auth-provider.tsx` — session context (`AuthProvider` in `components/providers.tsx`)
+- `components/auth/auth-form.tsx` — login/signup tabs, client validation (email regex, min 8 chars), friendly Supabase error mapping
+- `components/auth/auth-dialog.tsx` — modal used by header/save button (Esc + backdrop close, focus-safe). Rendered via `createPortal` to `document.body`: callers live inside filtered ancestors (sticky blurred header) that would otherwise trap `position: fixed` and break viewport centering; `min-h-full` flex wrapper keeps it centered and scrollable on small screens.
+- `components/auth/user-menu.tsx` — header: login button → dialog when logged out; email dropdown (My trips + logout) when logged in
+- `components/auth/save-trip-button.tsx` — tristate: never-saved → POST; saved+unedited → checked "Saved", click confirms + DELETEs (view stays open, button back to unsaved); saved+edited (snapshot mismatch on any reorder/remove/replace) → unchecked, click PUTs over the same id (POST fallback on 404). `ResultView` takes `savedId`; `SavedTripView` passes the trip id, `key={tripId}` remount, and resets state on id change.
+- `app/[locale]/login/page.tsx`, `app/[locale]/signup/page.tsx` — full-page auth (`components/auth/auth-page.tsx`)
+- `app/[locale]/trips/page.tsx` + `components/trips/my-trips-page.tsx` — saved-trip grid with delete (confirm dialog)
+- `app/[locale]/trips/[id]/page.tsx` + `components/trips/saved-trip-view.tsx` — reopen a saved itinerary in `ResultView`
+
+### i18n keys added
+- `authTitle`, `authSubtitle`, `authLogin`, `authSignup`, `authLoginAction`, `authSignupAction`, `authEmail`, `authPassword`, `authPasswordHint`, `authWorking`, `authClose`, `authInvalidEmail`, `authPasswordShort`, `authNotConfigured`, `authGenericError`, `authWrongCredentials`, `authAlreadyRegistered`, `authRateLimited`, `authCheckEmail`, `authSecurityNote`, `authLogout`, `authAccount`, `authMyTrips`, `authLoginRequired`, `tripSave`, `tripSaving`, `tripSaved`, `tripSaveFail`, `tripsTitle`, `tripsSubtitle`, `tripsEmpty`, `tripsEmptyAction`, `tripsOpen`, `tripsDelete`, `tripsDeleting`, `tripsDeleteFail`, `tripsLoadFail`, `tripsDeleteConfirm`, `tripsSignInPrompt`, `tripsSetupRequired`, `accountTitle`, `accountSubtitle`, `accountEmail`, `accountUsername`, `accountUsernameHint`, `accountNewPassword`, `accountNewPasswordHint`, `accountConfirmPassword`, `accountSave`, `accountSaving`, `accountSaved`, `accountSaveFail`, `accountPasswordMismatch`, `accountInvalidUsername` (both locales)
+
+### Missing-table diagnosis (2026-09: live debug)
+- Both "Couldn't load saved trips" and "Couldn't save the trip" traced to `PGRST205` — the `saved_trips` migration was never run in the Supabase project (verified via anon REST probe: table absent from schema cache).
+- Fix: `lib/trips.ts#isMissingTableError()` detects PGRST205/42P01; routes return 503 `{error: "setup_required"}` + `console.error` server-side; UI maps it to `tripsSetupRequired` (tells the user to run the migration file in the SQL editor). Tested in `lib/trips.test.ts`. Actual data fix still requires running the migration once in the dashboard.
+
+### SEO
+- `/login`, `/signup` (all locales) ARE in `app/sitemap.ts` (priority 0.5, public auth entry points) and allowed in `app/robots.ts`.
+- `/trips`, `/trips/[id]`, `/account` (all locales) + `/auth/*` + `/api/` + `/*/i/` are `disallow`ed in `app/robots.ts` and excluded from `app/sitemap.ts` — private/auth routes must never be indexed.
+
+### Username & account page
+- Username lives in Supabase Auth `user_metadata.username` (no extra table — avoids a second source of truth and extra RLS surface).
+- `lib/username.ts`: `defaultUsername(email)` (prefix before `@`, sanitized to `[a-zA-Z0-9._-]`, ≤30 chars, `traveler` fallback), `isValidUsername()` (3–30 same charset), `displayName(user)` (stored → derived → email → "Account"). Tested in `lib/username.test.ts`.
+- Signup (`auth-form.tsx`) seeds `options.data.username`; existing users without metadata get the derived fallback automatically.
+- `app/[locale]/account/page.tsx` + `components/auth/account-page.tsx`: read-only email, editable username, optional new-password + confirm (min 8, match check), single `auth.updateUser()` call. Header `UserMenu` shows `displayName()` + links to Account and My trips.
+- **Delete account**: danger zone at the bottom of the account page with an explicit cannot-be-undone notice; deletion requires typing the current username, then `DELETE /api/account` calls the `delete_own_account()` SECURITY DEFINER function (`supabase/migrations/20260912000000_delete_own_account.sql`, EXECUTE granted to `authenticated` only), which deletes only the caller's `auth.users` row (saved trips cascade). No service-role key used. Missing function maps to `setup_required` (PGRST202).
+
+### Testing
+- `lib/trips.test.ts`: save-payload validation + `isMissingTableError()` (PGRST205/42P01 detected, other errors ignored) + summary derivation (no `data`/`user_id` leak)
+- `lib/username.test.ts`: email-prefix derivation, sanitization, validation rules, `displayName()` fallback chain
+- `npm run typecheck`, `npm test` (26 tests), `npm run build` all green
