@@ -266,7 +266,9 @@ export function AccountPage() {
                       const data = (await res.json().catch(() => null)) as { error?: string } | null
                       if (!res.ok) {
                         throw new Error(
-                          data?.error === "setup_required" ? t("tripsSetupRequired") : t("accountDeleteFail"),
+                          data?.error === "account_setup_required" || data?.error === "setup_required"
+                            ? t("accountSetupRequired")
+                            : t("accountDeleteFail"),
                         )
                       }
                       await signOut()

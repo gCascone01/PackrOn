@@ -24,9 +24,12 @@ export async function DELETE() {
   const { error } = await supabase.rpc("delete_own_account")
   if (error) {
     console.error("[account] delete failed:", error)
-    // PGRST202 = function not found → the SQL migration was never run.
+    // PGRST202 = function not found → the delete_own_account migration was
+    // never run. Uses its own machine-readable code (distinct from the trips
+    // `setup_required`) so the UI points at the delete migration, not the
+    // saved_trips migration.
     if ((error as { code?: string }).code === "PGRST202") {
-      return NextResponse.json({ error: "setup_required" }, { status: 503 })
+      return NextResponse.json({ error: "account_setup_required" }, { status: 503 })
     }
     return NextResponse.json({ error: "Could not delete account" }, { status: 500 })
   }

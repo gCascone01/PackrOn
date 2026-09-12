@@ -156,11 +156,11 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 ## Dark Mode
 
 ### Implementation
-- **ThemeProvider** (`components/theme-provider.tsx`): React context managing theme state with three modes — `light`, `dark`, `system`
-- **Persisted preference**: Stored in `localStorage` (`packron-theme` key), survives page reloads
-- **System mode**: Respects `prefers-color-scheme` media query, auto-updates on OS theme change
+- **ThemeProvider** (`components/theme-provider.tsx`): React context managing theme state with two modes — `light`, `dark` (no `system` mode)
+- **Persisted preference**: Stored in a `packron-theme` cookie (`Path=/`, 1-year `Max-Age`, `SameSite=Lax`), survives page reloads
+- **First-visit init**: With no cookie yet, the theme is resolved once from the OS `prefers-color-scheme` media query and persisted to the cookie immediately; a legacy `localStorage` value (including the old `"system"`) is migrated once, then removed
 - **Providers integration**: ThemeProvider wraps LocaleProvider in `components/providers.tsx`
-- **Toggle UI** (`components/theme-toggle.tsx`): Segmented control with Sun/Moon/Monitor icons, accessible labels via i18n
+- **Toggle UI** (`components/theme-toggle.tsx`): Segmented control with Sun/Moon icons only, accessible labels via i18n
 
 ### CSS Strategy
 - Uses Tailwind v4 + `tw-animate-css` with CSS custom properties defined in `app/globals.css`
@@ -174,17 +174,16 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 ### SSR Compatibility
 - Initial render defaults to `light` to avoid hydration mismatch
-- `resolveTheme()` guards `window.matchMedia` with `typeof window === "undefined"` check
 - Theme applied via `useEffect` on client — no flash of wrong theme on first load
 - Root `<html>` class updated dynamically (`light`/`dark`) via ThemeProvider effect
 - `suppressHydrationWarning` on BOTH `<html>` and `<body>` in `app/layout.tsx` — browser extensions (translator, password manager, Grammarly) inject attributes like `__processed_...="true"` into `<body>` before React loads; without suppression this triggers "A tree hydrated but some attributes..." error
-- `ThemeProvider` state initializes to `"system"`/`"light"` unconditionally (no `typeof window` branch in `useState` initializer); real preference synced from `localStorage` in mount `useEffect` — avoids server/client initial-state divergence
+- `ThemeProvider` state initializes to `"light"` unconditionally (no `typeof window` branch in `useState` initializer); real preference synced from the cookie in mount `useEffect` — avoids server/client initial-state divergence
 
 ### i18n Keys Added
-- `themeAria`, `themeLight`, `themeDark`, `themeSystem` in both Italian and English
+- `themeAria`, `themeLight`, `themeDark` in both Italian and English (`themeSystem` removed with the system mode)
 
 ### Rationale
-- Three-mode toggle (not just light/dark) gives users full control while defaulting to system preference
+- Two-mode toggle (light/dark) keeps the header compact; the OS preference is only used once to seed the first visit, then the explicit choice is persisted in the cookie
 - CSS custom properties avoid Tailwind's `dark:` variant limitations with custom design tokens
 - SSR-safe pattern prevents hydration errors in Next.js App Router
 - Theme toggle in header next to language switcher follows standard UI conventions
@@ -219,7 +218,8 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - `app/[locale]/trips/[id]/page.tsx` + `components/trips/saved-trip-view.tsx` — reopen a saved itinerary in `ResultView`
 
 ### i18n keys added
-- `authTitle`, `authSubtitle`, `authLogin`, `authSignup`, `authLoginAction`, `authSignupAction`, `authEmail`, `authPassword`, `authPasswordHint`, `authWorking`, `authClose`, `authInvalidEmail`, `authPasswordShort`, `authNotConfigured`, `authGenericError`, `authWrongCredentials`, `authAlreadyRegistered`, `authRateLimited`, `authCheckEmail`, `authSecurityNote`, `authLogout`, `authAccount`, `authMyTrips`, `authLoginRequired`, `tripSave`, `tripSaving`, `tripSaved`, `tripSaveFail`, `tripsTitle`, `tripsSubtitle`, `tripsEmpty`, `tripsEmptyAction`, `tripsOpen`, `tripsDelete`, `tripsDeleting`, `tripsDeleteFail`, `tripsLoadFail`, `tripsDeleteConfirm`, `tripsSignInPrompt`, `tripsSetupRequired`, `accountTitle`, `accountSubtitle`, `accountEmail`, `accountUsername`, `accountUsernameHint`, `accountNewPassword`, `accountNewPasswordHint`, `accountConfirmPassword`, `accountSave`, `accountSaving`, `accountSaved`, `accountSaveFail`, `accountPasswordMismatch`, `accountInvalidUsername` (both locales)
+- `authTitle`, `authSubtitle`, `authLogin`, `authSignup`, `authLoginAction`, `authSignupAction`, `authEmail`, `authPassword`, `authPasswordHint`, `authWorking`, `authClose`, `authInvalidEmail`, `authPasswordShort`, `authNotConfigured`, `authGenericError`, `authWrongCredentials`, `authAlreadyRegistered`, `authRateLimited`, `authEmailRateLimited`, `authCheckEmail`, `authSecurityNote`, `authLogout`, `authAccount`, `authMyTrips`, `authLoginRequired`, `tripSave`, `tripSaving`, `tripSaved`, `tripSaveFail`, `tripsTitle`, `tripsSubtitle`, `tripsEmpty`, `tripsEmptyAction`, `tripsOpen`, `tripsDelete`, `tripsDeleting`, `tripsDeleteFail`, `tripsLoadFail`, `tripsDeleteConfirm`, `tripsSignInPrompt`, `tripsSetupRequired`, `accountTitle`, `accountSubtitle`, `accountEmail`, `accountUsername`, `accountUsernameHint`, `accountNewPassword`, `accountNewPasswordHint`, `accountConfirmPassword`, `accountSave`, `accountSaving`, `accountSaved`, `accountSaveFail`, `accountPasswordMismatch`, `accountInvalidUsername`, `accountSetupRequired` (both locales)
+- Auth rate limits (2026-09): Supabase returns 429 for distinct limits — `over_email_send_rate_limit` (built-in provider: 2 emails/hour project-wide) vs generic IP/request limits. `AuthForm` inspects both `error.code` and message (old code only checked `message`, missing the code) and shows `authEmailRateLimited` vs `authRateLimited` (wait a minute). `authEmailRateLimited` copy stays end-user friendly ("too many signups, try again later") with no Supabase/SMTP detail — the 2/hour + custom-SMTP fix lives only in the code comment and here. Rationale: "wait a minute" is wrong for the email cap and users kept retrying, extending the block.
 
 ### Missing-table diagnosis (2026-09: live debug)
 - Both "Couldn't load saved trips" and "Couldn't save the trip" traced to `PGRST205` — the `saved_trips` migration was never run in the Supabase project (verified via anon REST probe: table absent from schema cache).
@@ -234,7 +234,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - `lib/username.ts`: `defaultUsername(email)` (prefix before `@`, sanitized to `[a-zA-Z0-9._-]`, ≤30 chars, `traveler` fallback), `isValidUsername()` (3–30 same charset), `displayName(user)` (stored → derived → email → "Account"). Tested in `lib/username.test.ts`.
 - Signup (`auth-form.tsx`) seeds `options.data.username`; existing users without metadata get the derived fallback automatically.
 - `app/[locale]/account/page.tsx` + `components/auth/account-page.tsx`: read-only email, editable username, optional new-password + confirm (min 8, match check), single `auth.updateUser()` call. Header `UserMenu` shows `displayName()` + links to Account and My trips.
-- **Delete account**: danger zone at the bottom of the account page with an explicit cannot-be-undone notice; deletion requires typing the current username, then `DELETE /api/account` calls the `delete_own_account()` SECURITY DEFINER function (`supabase/migrations/20260912000000_delete_own_account.sql`, EXECUTE granted to `authenticated` only), which deletes only the caller's `auth.users` row (saved trips cascade). No service-role key used. Missing function maps to `setup_required` (PGRST202).
+- **Delete account**: danger zone at the bottom of the account page with an explicit cannot-be-undone notice; deletion requires typing the current username, then `DELETE /api/account` calls the `delete_own_account()` SECURITY DEFINER function (`supabase/migrations/20260912000000_delete_own_account.sql`, EXECUTE granted to `authenticated` only), which deletes only the caller's `auth.users` row (saved trips cascade). No service-role key used. Missing function (PGRST202) maps to distinct `account_setup_required` 503 (never the trips `setup_required`, which points at the wrong migration) so the UI shows `accountSetupRequired` with the delete-migration filename; the client also treats legacy `setup_required` as `accountSetupRequired` for backwards compat (2026-09 fix: delete failures previously showed the trips-table message).
 
 ### Testing
 - `lib/trips.test.ts`: save-payload validation + `isMissingTableError()` (PGRST205/42P01 detected, other errors ignored) + summary derivation (no `data`/`user_id` leak)
