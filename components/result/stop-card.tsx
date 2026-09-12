@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { BedDouble, Clock, FileText, GripVertical, Hourglass, MapPin, ParkingSquare, RefreshCw, Search, Ticket, Trash2, X } from "lucide-react"
 import { bookingSearchUrl, getYourGuideSearchUrl, googleMapsSearchUrl } from "@/lib/affiliate-links"
+import type { StopImage } from "@/lib/stop-image"
 import { useI18n } from "@/components/locale-provider"
 
 function estimatedEndTime(start: string, duration: string): string | null {
@@ -52,6 +53,7 @@ export function StopCard({
   const [alts, setAlts] = useState<Stop[] | null>(null)
   const [loadingAlts, setLoadingAlts] = useState(false)
   const [description, setDescription] = useState<string | null>(null)
+  const [stopImage, setStopImage] = useState<StopImage | null>(null)
   const [loadingDescription, setLoadingDescription] = useState(false)
   const [showDescription, setShowDescription] = useState(false)
   const isOvernightStop = stop.category === "notte"
@@ -98,11 +100,12 @@ export function StopCard({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ stop, locale }),
       })
-      const data = (await res.json()) as { description?: string; error?: string }
+      const data = (await res.json()) as { description?: string; image?: StopImage | null; error?: string }
       if (!res.ok || !data.description) {
         throw new Error(data.error || t("descriptionUnavailable"))
       }
       setDescription(data.description)
+      setStopImage(data.image ?? null)
       setShowDescription(true)
     } catch {
       setDescription(t("descriptionUnavailable"))
@@ -343,6 +346,28 @@ export function StopCard({
                   </button>
                 </div>
                 <div className="prose prose-sm max-w-none text-foreground">
+                  {stopImage ? (
+                    <figure className="mb-4">
+                      <img
+                        src={stopImage.url}
+                        alt={stopImage.title}
+                        loading="lazy"
+                        className="aspect-video w-full rounded-xl object-cover"
+                      />
+                      <figcaption className="mt-1.5 text-xs text-muted-foreground">
+                        <a
+                          href={stopImage.pageUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="underline underline-offset-2 hover:text-foreground"
+                        >
+                          {stopImage.title}
+                        </a>{" "}
+                        · {t("imageViaWikipedia")}
+                      </figcaption>
+                    </figure>
+                  ) : null}
                   <p className="whitespace-pre-wrap">{description}</p>
                 </div>
               </div>

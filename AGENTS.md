@@ -69,6 +69,14 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - Modal dialog shows full description; cached after first fetch per stop
 - Rationale: Pre-generating descriptions for all stops would be expensive in tokens; lazy loading defers cost to user interest
 
+### Stop photos (Wikipedia, lazy-loaded with description)
+- `/api/describe-stop` also returns `image: { url, title, pageUrl } | null` via new `lib/stop-image.ts`, fetched in parallel with the Gemini description
+- Source is the Wikipedia Action API (`pageimages` + `info`), keyless and freely licensed: coordinate `geosearch` (2km radius, locale wiki then English fallback) → text search by stop name as fallback; never throws, 6s timeout, `null` when nothing found so the modal degrades to text-only
+- `StopCard` modal renders the photo (`aspect-video object-cover`) above the text with a linked title + `imageViaWikipedia` caption for attribution (it/en)
+- Image cached in component state alongside the description after first fetch
+- Rationale: Wikipedia page images are real, freely-licensed photos needing no API key; AI-generated imagery would misrepresent real places. Plain `<img>` is used (no `next/image` remote config needed)
+- Tested in `lib/stop-image.test.ts` via pure `pickStopImagePage()` (index-ordered pick, skips pages without thumbnails, canonical-URL fallback)
+
 ## Key Files
 
 ### `lib/geocode.ts`
@@ -108,6 +116,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 ### `app/api/describe-stop/route.ts`
 - Accepts stop data and locale, returns detailed description
+- Also returns a Wikipedia stop photo (`image`, possibly `null`); both fetched in parallel via `Promise.all`, image failure never blocks the description
 - Falls back gracefully if Gemini unavailable
 
 ### `components/result/timeline.tsx`
@@ -124,6 +133,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - Added "Description" button with lazy-loaded modal
 - Fetches from `/api/describe-stop` on demand
 - Caches description after first fetch
+- Modal shows the Wikipedia photo (if any) above the description text with attribution caption
 
 ## i18n
 - All user-facing strings in `lib/i18n.ts` under `messages.it` / `messages.en`
