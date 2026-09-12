@@ -156,11 +156,11 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 ## Dark Mode
 
 ### Implementation
-- **ThemeProvider** (`components/theme-provider.tsx`): React context managing theme state with three modes — `light`, `dark`, `system`
-- **Persisted preference**: Stored in `localStorage` (`packron-theme` key), survives page reloads
-- **System mode**: Respects `prefers-color-scheme` media query, auto-updates on OS theme change
+- **ThemeProvider** (`components/theme-provider.tsx`): React context managing theme state with two modes — `light`, `dark` (no `system` mode)
+- **Persisted preference**: Stored in a `packron-theme` cookie (`Path=/`, 1-year `Max-Age`, `SameSite=Lax`), survives page reloads
+- **First-visit init**: With no cookie yet, the theme is resolved once from the OS `prefers-color-scheme` media query and persisted to the cookie immediately; a legacy `localStorage` value (including the old `"system"`) is migrated once, then removed
 - **Providers integration**: ThemeProvider wraps LocaleProvider in `components/providers.tsx`
-- **Toggle UI** (`components/theme-toggle.tsx`): Segmented control with Sun/Moon/Monitor icons, accessible labels via i18n
+- **Toggle UI** (`components/theme-toggle.tsx`): Segmented control with Sun/Moon icons only, accessible labels via i18n
 
 ### CSS Strategy
 - Uses Tailwind v4 + `tw-animate-css` with CSS custom properties defined in `app/globals.css`
@@ -174,17 +174,16 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 ### SSR Compatibility
 - Initial render defaults to `light` to avoid hydration mismatch
-- `resolveTheme()` guards `window.matchMedia` with `typeof window === "undefined"` check
 - Theme applied via `useEffect` on client — no flash of wrong theme on first load
 - Root `<html>` class updated dynamically (`light`/`dark`) via ThemeProvider effect
 - `suppressHydrationWarning` on BOTH `<html>` and `<body>` in `app/layout.tsx` — browser extensions (translator, password manager, Grammarly) inject attributes like `__processed_...="true"` into `<body>` before React loads; without suppression this triggers "A tree hydrated but some attributes..." error
-- `ThemeProvider` state initializes to `"system"`/`"light"` unconditionally (no `typeof window` branch in `useState` initializer); real preference synced from `localStorage` in mount `useEffect` — avoids server/client initial-state divergence
+- `ThemeProvider` state initializes to `"light"` unconditionally (no `typeof window` branch in `useState` initializer); real preference synced from the cookie in mount `useEffect` — avoids server/client initial-state divergence
 
 ### i18n Keys Added
-- `themeAria`, `themeLight`, `themeDark`, `themeSystem` in both Italian and English
+- `themeAria`, `themeLight`, `themeDark` in both Italian and English (`themeSystem` removed with the system mode)
 
 ### Rationale
-- Three-mode toggle (not just light/dark) gives users full control while defaulting to system preference
+- Two-mode toggle (light/dark) keeps the header compact; the OS preference is only used once to seed the first visit, then the explicit choice is persisted in the cookie
 - CSS custom properties avoid Tailwind's `dark:` variant limitations with custom design tokens
 - SSR-safe pattern prevents hydration errors in Next.js App Router
 - Theme toggle in header next to language switcher follows standard UI conventions

@@ -1,6 +1,6 @@
 "use client"
 
-import { Sun, Moon, Monitor } from "lucide-react"
+import { Sun, Moon } from "lucide-react"
 import { useTheme } from "@/components/theme-provider"
 import { cn } from "@/lib/utils"
 import { useI18n } from "@/components/locale-provider"
@@ -11,10 +11,9 @@ export function ThemeToggle() {
 
   if (!mounted) return null
 
-  const themes: Array<{ value: "light" | "dark" | "system"; icon: typeof Sun; label: string }> = [
+  const themes: Array<{ value: "light" | "dark"; icon: typeof Sun; label: string }> = [
     { value: "light", icon: Sun, label: t("themeLight") },
     { value: "dark", icon: Moon, label: t("themeDark") },
-    { value: "system", icon: Monitor, label: t("themeSystem") },
   ]
 
   return (
