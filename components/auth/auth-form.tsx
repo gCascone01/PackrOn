@@ -265,7 +265,7 @@ export function AuthForm({
         <p className="text-center text-xs leading-relaxed text-muted-foreground">{t("authSecurityNote")}</p>
       </form>
 
-      {configured && passkeySupported ? (
+      {configured && passkeySupported && mode === "login" ? (
         <>
           <div className="flex items-center gap-3" aria-hidden="true">
             <span className="h-px flex-1 bg-border" />
