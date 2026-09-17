@@ -232,11 +232,11 @@ export function Planner() {
                   <Image
                     src="/logo.png"
                     alt=""
-                    width={620}
-                    height={220}
+                    width={256}
+                    height={256}
                     priority
                     aria-hidden="true"
-                    className="relative h-auto w-full object-contain"
+                    className="relative h-full max-h-full w-auto object-contain"
                   />
                 </div>
               </div>

@@ -40,10 +40,10 @@ export function SiteHeader({ onBrandClick }: { onBrandClick?: () => void }) {
             <Image
               src="/logo.png"
               alt="PackrOn logo"
-              width={180}
-              height={60}
+              width={80}
+              height={80}
               priority
-              className="h-10 w-auto object-contain"
+              className="h-10 w-10 object-contain"
             />
           ) : null}
           <span className="font-display text-2xl font-extrabold tracking-tight text-foreground sm:text-[2rem]">
