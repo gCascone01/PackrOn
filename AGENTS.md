@@ -183,9 +183,9 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - Uses Tailwind v4 + `tw-animate-css` with CSS custom properties defined in `app/globals.css`
 - Light/dark color schemes defined via `:root` and `.dark` selector (lines 53–162)
 - `color-scheme` meta tag set on `:root` and `.dark` for proper form control styling
-- Dark mode mirrors light palette (blue-slate hue ~238 + brand blue 224 + orange accent 38) — NOT neutral gray; bg `0.26`, card `0.315`, lighter than before for readability
-- Dark contrast: foreground `0.93`, muted-foreground `0.78` (was `0.708` — too dim); primary/accent keep light-theme hues lightened (`0.72`/`0.74`) with dark text for button contrast
-- Dark mode body background uses custom radial gradients matching brand palette (not pure black)
+- Dark mode surfaces are neutral gray (hue 260, chroma ≤0.01) — NOT blue-slate; bg `0.27`, card/popover `0.31`, secondary/muted `0.33`. Brand blue 224 + orange accent 38 reserved for primary/accent/charts only, so backgrounds don't look "techy"
+- Dark contrast: foreground `0.92`, muted-foreground `0.75` neutral; primary/accent keep light-theme hues lightened (`0.72`/`0.74`) with dark text for button contrast; borders/inputs are neutral white at 12%/16% opacity
+- Dark mode body background uses subtle neutral radial gradients (8%/6% opacity) over a neutral base (not saturated brand glows)
 - Hero stage and Leaflet map containers have dark-specific overrides
 - `CategoryBadge` (`components/category-badge.tsx`) has `dark:` variants (`-400/20` bg + `-200` text) — light pastels (`-50` bg) are blinding/unreadable on dark without them
 
