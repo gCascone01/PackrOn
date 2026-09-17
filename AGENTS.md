@@ -146,6 +146,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - All user-facing strings in `lib/i18n.ts` under `messages.it` / `messages.en`
 - `MessageKey` type ensures compile-time safety
 - New keys must be added to both locales
+- Wizard step labels (`roadStep*`, `cityStep*`) are single short words (Route/Style/Vehicle, Destination/Interests — Percorso/Stile/Veicolo, Destinazione/Interessi): the longer "X & Y" labels overflowed the `StepProgress` tabs. The label span also needs `min-w-0` for `truncate` to work inside flex, and connectors hide below `md` to leave room for labels
 
 ## Testing
 - Mock itineraries in `lib/mock-itinerary.ts` include `originLat`/`originLng`

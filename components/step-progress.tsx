@@ -36,7 +36,7 @@ export function StepProgress({
               </span>
               <span
                 className={cn(
-                  "hidden truncate text-sm font-medium sm:block",
+                  "hidden min-w-0 truncate text-sm font-medium sm:block",
                   active && "font-semibold text-foreground",
                   done && !active && "text-foreground",
                   !done && !active && "text-muted-foreground",
@@ -46,7 +46,7 @@ export function StepProgress({
               </span>
             </div>
             {i < steps.length - 1 ? (
-              <span className="relative mx-2 hidden h-1 flex-1 overflow-hidden rounded-full bg-border sm:block" aria-hidden="true">
+              <span className="relative mx-2 hidden h-1 flex-1 overflow-hidden rounded-full bg-border md:block" aria-hidden="true">
                 <span className={cn("absolute inset-y-0 left-0 rounded-full bg-brand transition-all duration-500", done ? "w-full" : "w-0")} />
               </span>
             ) : null}
