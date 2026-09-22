@@ -141,6 +141,18 @@ export function RoadTripConfigurator({
   const toggle = (list: string[], value: string, set: (v: string[]) => void) =>
     set(list.includes(value) ? list.filter((v) => v !== value) : [...list, value])
 
+  // Group composition (solo/couple/family/friends) is mutually exclusive;
+  // the dog is an independent modifier that combines with any of them.
+  const selectCrew = (id: string) => {
+    if (id === "dog") {
+      toggle(crew, id, setCrew)
+    } else if (crew.includes(id)) {
+      setCrew(crew.filter((c) => c !== id))
+    } else {
+      setCrew([...crew.filter((c) => c === "dog"), id])
+    }
+  }
+
   const canGenerate = origin.trim().length > 1 && destination.trim().length > 1
 
   const changeStep = (nextStep: number) => {
@@ -289,10 +301,10 @@ export function RoadTripConfigurator({
             </div>
           </Field>
 
-          <Field label={t("onboard")} hint={t("multiSelect")} icon={<Users className="size-4" />}>
+          <Field label={t("onboard")} hint={t("crewHint")} icon={<Users className="size-4" />}>
             <div className="flex flex-wrap gap-2">
               {CREW_OPTIONS.map((c) => (
-                <Chip key={c.id} active={crew.includes(c.id)} onClick={() => toggle(crew, c.id, setCrew)}>
+                <Chip key={c.id} active={crew.includes(c.id)} onClick={() => selectCrew(c.id)}>
                   {t(c.label)}
                 </Chip>
               ))}
