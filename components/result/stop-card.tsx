@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useRef, useState } from "react"
 import type { DragEvent } from "react"
 import type { Stop } from "@/lib/types"
 import { CategoryBadge } from "@/components/category-badge"
@@ -56,6 +56,8 @@ export function StopCard({
   const { t, locale } = useI18n()
   const [alts, setAlts] = useState<Stop[] | null>(null)
   const [loadingAlts, setLoadingAlts] = useState(false)
+  const [hint, setHint] = useState("")
+  const altsAbort = useRef<AbortController | null>(null)
   const [description, setDescription] = useState<string | null>(null)
   const [stopImage, setStopImage] = useState<StopImage | null>(null)
   const [loadingDescription, setLoadingDescription] = useState(false)
@@ -68,28 +70,50 @@ export function StopCard({
     return stop.name.toLowerCase().includes(candidate.toLowerCase()) ? stop.name : candidate
   })()
 
-  const openAlternatives = async () => {
-    if (alts) {
-      setAlts(null)
-      return
-    }
+  const fetchAlternatives = async (hintValue: string) => {
+    // A new search supersedes the in-flight one: abort it so a stale
+    // response can never overwrite fresher results.
+    altsAbort.current?.abort()
+    const ctrl = new AbortController()
+    altsAbort.current = ctrl
     setLoadingAlts(true)
     try {
       const res = await fetch("/api/suggest-stops", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ stop, locale }),
+        body: JSON.stringify({ stop, locale, hint: hintValue.trim().slice(0, 200) }),
+        signal: ctrl.signal,
       })
       const data = (await res.json()) as { alternatives?: Stop[]; error?: string }
       if (!res.ok || !data.alternatives?.length) {
         throw new Error(data.error || t("apiAltsFail"))
       }
       setAlts(data.alternatives)
-    } catch {
+    } catch (e) {
+      // Superseded by a newer search: keep whatever is shown, don't wipe it.
+      if (e instanceof Error && e.name === "AbortError") return
       setAlts(null)
     } finally {
-      setLoadingAlts(false)
+      if (altsAbort.current === ctrl) setLoadingAlts(false)
     }
+  }
+
+  const closeAlternatives = () => {
+    altsAbort.current?.abort()
+    setAlts(null)
+  }
+
+  const openAlternatives = async () => {
+    if (alts) {
+      closeAlternatives()
+      return
+    }
+    await fetchAlternatives(hint)
+  }
+
+  const applyHint = async () => {
+    if (!hint.trim()) return
+    await fetchAlternatives(hint)
   }
 
   // Stop this one replaced (if any), pinned atop the alternatives so the
@@ -99,9 +123,52 @@ export function StopCard({
   const shownAlts = withPreviousStop(alts ?? [], pinnedPrev)
 
   const useAlternative = (a: Stop) => {
+    altsAbort.current?.abort()
     onReplace({ ...a, time: stop.time, parking: stop.parking })
     setAlts(null)
   }
+
+  // Single alternative row, shared by the loaded list and the pinned
+  // previous-stop row that stays visible while fresh results load.
+  const renderAltRow = (a: Stop) => (
+    <li
+      key={a.id}
+      onClick={(e) => {
+        e.stopPropagation()
+        useAlternative(a)
+      }}
+      className={cn(
+        "flex cursor-pointer items-center justify-between gap-3 rounded-lg border border-border bg-card px-3 py-2 transition hover:border-brand/50 hover:shadow-sm",
+        pinnedPrev &&
+          a.id === pinnedPrev.id &&
+          "border-brand/60 bg-brand-muted dark:border-brand/40 dark:bg-brand/15",
+      )}
+    >
+      <div className="min-w-0">
+        <div className="flex items-center gap-2">
+          <span className="truncate text-sm font-medium text-foreground">{a.name}</span>
+          <CategoryBadge category={a.category} />
+          {pinnedPrev && a.id === pinnedPrev.id ? (
+            <span className="inline-flex shrink-0 items-center rounded-full bg-brand-muted px-2 py-0.5 text-[11px] font-semibold text-[color:var(--brand)] dark:bg-brand/20 dark:text-[color:var(--brand)]">
+              {t("previousStop")}
+            </span>
+          ) : null}
+        </div>
+        <p className="truncate text-xs text-muted-foreground">{a.description}</p>
+      </div>
+      <Button
+        type="button"
+        size="sm"
+        className="cursor-pointer"
+        onClick={(e) => {
+          e.stopPropagation()
+          useAlternative(a)
+        }}
+      >
+        {t("useAlt")}
+      </Button>
+    </li>
+  )
 
   const fetchDescription = async () => {
     if (description) {
@@ -291,7 +358,7 @@ export function StopCard({
                     aria-label={t("closeAlts")}
                     onClick={(e) => {
                       e.stopPropagation()
-                      setAlts(null)
+                      closeAlternatives()
                     }}
                     className="text-muted-foreground hover:text-foreground"
                   >
@@ -301,53 +368,46 @@ export function StopCard({
               </div>
               {loadingAlts ? (
                 <div className="flex flex-col gap-2">
+                  {pinnedPrev ? (
+                    <ul className="flex flex-col gap-2">{renderAltRow(pinnedPrev)}</ul>
+                  ) : null}
                   {[0, 1, 2].map((i) => (
                     <div key={i} className="h-12 animate-pulse rounded-lg bg-muted" />
                   ))}
                 </div>
               ) : (
-                <ul className="flex flex-col gap-2">
-                  {shownAlts.map((a) => (
-                    <li
-                      key={a.id}
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        useAlternative(a)
-                      }}
-                      className={cn(
-                        "flex cursor-pointer items-center justify-between gap-3 rounded-lg border border-border bg-card px-3 py-2 transition hover:border-brand/50 hover:shadow-sm",
-                        pinnedPrev &&
-                          a.id === pinnedPrev.id &&
-                          "border-brand/60 bg-brand-muted dark:border-brand/40 dark:bg-brand/15",
-                      )}
-                    >
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="truncate text-sm font-medium text-foreground">{a.name}</span>
-                          <CategoryBadge category={a.category} />
-                          {pinnedPrev && a.id === pinnedPrev.id ? (
-                            <span className="inline-flex shrink-0 items-center rounded-full bg-brand-muted px-2 py-0.5 text-[11px] font-semibold text-[color:var(--brand)] dark:bg-brand/20 dark:text-[color:var(--brand)]">
-                              {t("previousStop")}
-                            </span>
-                          ) : null}
-                        </div>
-                        <p className="truncate text-xs text-muted-foreground">{a.description}</p>
-                      </div>
-                      <Button
-                        type="button"
-                        size="sm"
-                        className="cursor-pointer"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          useAlternative(a)
-                        }}
-                      >
-                        {t("useAlt")}
-                      </Button>
-                    </li>
-                  ))}
-                </ul>
+                <ul className="flex flex-col gap-2">{shownAlts.map(renderAltRow)}</ul>
               )}
+              <form
+                className="mt-2 flex items-center gap-2"
+                onClick={(e) => e.stopPropagation()}
+                onSubmit={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  applyHint()
+                }}
+              >
+                <input
+                  type="text"
+                  value={hint}
+                  maxLength={200}
+                  onChange={(e) => setHint(e.target.value)}
+                  onClick={(e) => e.stopPropagation()}
+                  placeholder={t("altsHintPlaceholder")}
+                  aria-label={t("altsHintPlaceholder")}
+                  className="h-9 min-w-0 flex-1 rounded-xl border border-border bg-card px-3 text-sm text-foreground placeholder:text-muted-foreground/70 focus:border-brand focus:outline-none disabled:opacity-60"
+                />
+                <Button
+                  type="submit"
+                  variant="outline"
+                  size="sm"
+                  className="h-9 shrink-0 rounded-xl font-semibold"
+                  disabled={!hint.trim()}
+                >
+                  <Search className={cn("size-3.5", loadingAlts && "animate-spin")} />
+                  {t("altsHintApply")}
+                </Button>
+              </form>
             </div>
           )}
 

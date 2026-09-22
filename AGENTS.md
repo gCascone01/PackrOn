@@ -76,6 +76,15 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - State must live in `ResultView`, NOT `StopCard`: cards remount on every replace (`Timeline` fragments are keyed by `stop.id`), wiping any per-card memory
 - i18n keys: `stopReplaced`, `undo`, `previousStop` (both locales)
 
+### Custom alternative hint ("Change stop" input)
+- Below the 3 alternative rows in `StopCard` there is a clickable text input + Search button (form, Enter submits): users can type something specific (e.g. "with sea view") and regenerate alternatives honoring it
+- `StopCard` keeps local `hint` state and refetches `/api/suggest-stops` with `{ stop, locale, hint }` (trimmed, capped at 200 chars); input/button stopPropagation so typing/clicking never triggers card select; button disabled only when the hint is empty — the input stays usable while Gemini generates, and a new search aborts the in-flight fetch via `AbortController` so a stale response can never overwrite fresher results (aborted responses keep the currently shown state; only the latest request clears `loadingAlts`)
+- The pinned previous stop stays visible during reload: the row JSX is shared via `renderAltRow()`, rendered above the loading skeletons while fetching and merged via `withPreviousStop()` once loaded — the undo target never disappears/reappears
+- `/api/suggest-stops` accepts optional `hint: string` and forwards it to `buildAlternativesPrompt(stop, locale, hint)`, which appends a "User preference" line instructing Gemini to honor it while staying near the current stop and keeping the same type when realistic; empty hint leaves the prompt unchanged (mock fallback ignores the hint)
+- **Hint takes precedence over the same-type rule**: when a hint is present the type rule is replaced with an explicit type-switch instruction (e.g. "hostel" → `type=notte` with `booking_query`, "restaurant" → `pasto`). Rationale: the original wording ("same type when realistic") made Gemini return nearby museums for a "Hostel" query on a museum stop; an explicit user preference must win, proximity is the only hard constraint. Covered by `lib/gemini-alternatives.test.ts`
+- i18n keys: `altsHintPlaceholder`, `altsHintApply` (both locales)
+- Rationale: the 3 generic alternatives often miss the user's actual need; a free-text preference steers Gemini without new screens or persistent state (hint is per-card local state, cleared on replace via remount — same pattern as `alts`)
+
 ### Stop photos (Wikipedia, lazy-loaded with description)
 - `/api/describe-stop` also returns `image: { url, title, pageUrl } | null` via new `lib/stop-image.ts`, fetched in parallel with the Gemini description
 - Source is the Wikipedia Action API (`pageimages` + `info`), keyless and freely licensed: coordinate `geosearch` (2km radius, locale wiki then English fallback) → text search by stop name as fallback; never throws, 6s timeout, `null` when nothing found so the modal degrades to text-only
