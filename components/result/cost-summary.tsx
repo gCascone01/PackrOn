@@ -12,6 +12,8 @@ export function CostSummary({ itinerary }: { itinerary: Itinerary }) {
   const tolls = tollsCost(itinerary)
   const computedTotal = totalCost(itinerary)
   const { consumption, fuelPrice } = itinerary.vehicle
+  const isEv = itinerary.vehicle.type === "elettrica"
+  const energyUnit = isEv ? "kWh" : "L"
   const fuelLabel = itinerary.estimatedFuelCostRange || formatEur(fuel, locale)
   const totalLabel = itinerary.estimatedFuelCostRange
     ? itinerary.estimatedFuelCostRange
@@ -38,7 +40,7 @@ export function CostSummary({ itinerary }: { itinerary: Itinerary }) {
       <p className="mt-3 rounded-lg bg-muted px-3 py-2 text-xs leading-relaxed text-muted-foreground">
         {t("fuelFormula")}{" "}
         <span className="font-medium text-foreground">
-          ({formatKm(km, locale)} / 100) × {consumption} L × {formatEur(fuelPrice, locale)}/L
+          ({formatKm(km, locale)} / 100) × {consumption} {energyUnit} × {formatEur(fuelPrice, locale)}/{energyUnit}
         </span>{" "}
         = {formatEur(fuel, locale)}
       </p>
