@@ -53,12 +53,21 @@ const CATEGORY_TO_TYPE: Record<Stop["category"], GeminiStopType> = {
   sosta: "panoramica",
 }
 
-export function buildAlternativesPrompt(stop: Stop, locale: Locale): string {
+export function buildAlternativesPrompt(stop: Stop, locale: Locale, hint?: string): string {
   const type = CATEGORY_TO_TYPE[stop.category]
   const languageLine =
     locale === "en"
       ? "Write every user-facing field in English. Keep official local proper names."
       : "Scrivi ogni campo testuale in italiano. Conserva i nomi propri ufficiali."
+  const cleanHint = (hint ?? "").trim().slice(0, 200)
+  const typeRule =
+    locale === "en"
+      ? cleanHint
+        ? "- Honor the user preference above even if it means a DIFFERENT type (e.g. 'hostel', 'hotel', 'B&B' imply type=notte with booking_query set; 'restaurant', 'pizza' imply type=pasto; 'museum' implies type=museo). Only fall back to the current type if the preference cannot be satisfied nearby."
+        : "- Return exactly 3 alternatives of the same type when realistic."
+      : cleanHint
+        ? "- Rispetta la preferenza dell'utente sopra anche se comporta un tipo DIVERSO (es. 'ostello', 'hotel', 'B&B' implicano type=notte con booking_query impostato; 'ristorante', 'pizza' implicano type=pasto; 'museo' implica type=museo). Torna al tipo attuale solo se la preferenza non è soddisfabile nelle vicinanze."
+        : "- Restituisci esattamente 3 alternative dello stesso tipo quando realistico."
   return [
     locale === "en"
       ? "You are an expert travel planner. Suggest 3 real alternative stops near the current one."
@@ -68,11 +77,18 @@ export function buildAlternativesPrompt(stop: Stop, locale: Locale): string {
     `Type: ${type}`,
     `Coordinates: ${stop.lat}, ${stop.lng}`,
     `Preferred duration minutes: ${stop.duration}`,
+    ...(cleanHint
+      ? [
+          locale === "en"
+            ? `User preference (takes precedence over the type rule; stay near the current stop): ${cleanHint}`
+            : `Preferenza dell'utente (ha precedenza sulla regola del tipo; resta vicino alla tappa attuale): ${cleanHint}`,
+        ]
+      : []),
     "Rules:",
-    "- Return exactly 3 alternatives of the same type when realistic.",
+    typeRule,
     "- Use real places with precise lat/lng within a short distance of the current stop.",
     "- Do not repeat the current stop name.",
-    "- For type=notte, name a specific hotel or B&B and set booking_query to that name plus the city.",
+    "- For type=notte, name a specific hotel, B&B or hostel and set booking_query to that name plus the city.",
     "- For type=pasto, mention local dishes in the description.",
     `- ${languageLine}`,
   ].join("\n")

@@ -19,9 +19,9 @@ function isStop(value: unknown): value is Stop {
 }
 
 export async function POST(request: Request) {
-  let body: { stop?: unknown; locale?: unknown }
+  let body: { stop?: unknown; locale?: unknown; hint?: unknown }
   try {
-    body = (await request.json()) as { stop?: unknown; locale?: unknown }
+    body = (await request.json()) as { stop?: unknown; locale?: unknown; hint?: unknown }
   } catch {
     return NextResponse.json({ error: translate("en", "apiBadBody") }, { status: 400 })
   }
@@ -30,6 +30,7 @@ export async function POST(request: Request) {
   if (!isStop(body.stop)) {
     return NextResponse.json({ error: translate(locale, "apiBadBody") }, { status: 400 })
   }
+  const hint = typeof body.hint === "string" ? body.hint.trim().slice(0, 200) : ""
 
   const fallback = () => NextResponse.json({ alternatives: getAlternatives(body.stop as Stop, locale), fallback: true })
 
@@ -39,7 +40,7 @@ export async function POST(request: Request) {
 
   try {
     const response = await generateJsonWithFallback(
-      buildAlternativesPrompt(body.stop, locale),
+      buildAlternativesPrompt(body.stop, locale, hint),
       locale,
       GEMINI_ALTERNATIVES_SCHEMA,
     )
