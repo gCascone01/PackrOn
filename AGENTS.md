@@ -53,6 +53,18 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - i18n keys: `originRequired`, `destinationRequired`, `cityRequired` (both locales)
 - Rationale: Immediate inline feedback prevents users from reaching generation with invalid data; keeps them in context of the problematic field
 
+<### EV consumption units (kWh, not litres)
+- `RoadTripConfigurator` consumption field is vehicle-aware: for `elettrica` the hint switches to `consumptionHintEv` ("kWh per 100 km") and the suffix to "kWh / 100 km"; fuel vehicles keep "L / 100 km". The cost formula (`lib/costs.ts`, `(km/100)*consumption*price`) is unit-agnostic, so only labels change — including `CostSummary`'s formula line (`× … kWh × … €/kWh` for EVs)
+- EV defaults: selecting `elettrica` with the fossil default (or empty) still in the field prefills "18"; submit falls back to 18 for EVs vs 6.5 otherwise (mirrors `vehicleFromPayload` in `lib/map-gemini-itinerary.ts`, which the old `|| 6.5` fallback was overriding). Prefill is one-directional on purpose — switching back to a fuel vehicle never clobbers a possibly intentional value
+- i18n keys: `consumptionHintEv` (both locales)
+- Rationale: asking "litres per 100 km" for an electric car is nonsense input that also poisons the cost estimate; the unit must follow the selected vehicle
+
+### Crew selection (exclusive group + dog modifier)
+- Road-trip step 1 "onboard" chips are not all multi-select: `solo`/`couple`/`family`/`friends` are mutually exclusive (selecting one replaces the other, dog preserved), while `dog` is an independent modifier toggling on top of any of them (`selectCrew` in `RoadTripConfigurator`)
+- The field hint switched from the generic `multiSelect` to the dedicated `crewHint` ("Una sola compagnia, cane opzionale" / "One party, dog optional"); city-trip interests keep `multiSelect` since those genuinely combine
+- i18n keys: `crewHint` (both locales)
+- Rationale: contradictory combos like Solo + Couple reached Gemini verbatim in the crew line; the constraint belongs in the UI, not the prompt
+
 ### Back preserves inputs, Restart resets (form state lifted to Planner)
 - `RoadTripConfigurator` / `CityTripConfigurator` are fully controlled: `value: RoadFormValue/CityFormValue`, `onChange`, `step`, `onStepChange`
 - `Planner` owns `roadForm`, `cityForm`, `roadStep`, `cityStep`, `mode` — configurators no longer `useState` form fields, so unmounting on result view does not lose data

@@ -84,6 +84,9 @@ export const DEFAULT_ROAD_FORM: RoadFormValue = {
   notes: "",
 }
 
+const DEFAULT_CONSUMPTION_FOSSIL = "6.5"
+const DEFAULT_CONSUMPTION_EV = "18"
+
 export function RoadTripConfigurator({
   onGenerate,
   loading,
@@ -110,7 +113,17 @@ export function RoadTripConfigurator({
   const setPace = (pace: string) => patch({ pace })
   const setBasecamp = (basecamp: boolean) => patch({ basecamp })
   const setCrew = (crew: string[]) => patch({ crew })
-  const setVehicle = (vehicle: VehicleType) => patch({ vehicle })
+  const setVehicle = (next: VehicleType) => {
+    // Switching to electric with the fossil default (or empty) still in the
+    // field would ask for "6.5 kWh/100km" nonsense — prefill the EV default.
+    // One-directional on purpose: never clobber a value the user may have
+    // typed deliberately when switching back to a fuel vehicle.
+    if (next === "elettrica" && (consumption === "" || consumption === DEFAULT_CONSUMPTION_FOSSIL)) {
+      patch({ vehicle: next, consumption: DEFAULT_CONSUMPTION_EV })
+    } else {
+      patch({ vehicle: next })
+    }
+  }
   const setConsumption = (consumption: string) => patch({ consumption })
   const setAvoidTolls = (avoidTolls: boolean) => patch({ avoidTolls })
   const setNotes = (notes: string) => patch({ notes })
@@ -127,6 +140,18 @@ export function RoadTripConfigurator({
 
   const toggle = (list: string[], value: string, set: (v: string[]) => void) =>
     set(list.includes(value) ? list.filter((v) => v !== value) : [...list, value])
+
+  // Group composition (solo/couple/family/friends) is mutually exclusive;
+  // the dog is an independent modifier that combines with any of them.
+  const selectCrew = (id: string) => {
+    if (id === "dog") {
+      toggle(crew, id, setCrew)
+    } else if (crew.includes(id)) {
+      setCrew(crew.filter((c) => c !== id))
+    } else {
+      setCrew([...crew.filter((c) => c === "dog"), id])
+    }
+  }
 
   const canGenerate = origin.trim().length > 1 && destination.trim().length > 1
 
@@ -161,7 +186,7 @@ export function RoadTripConfigurator({
       basecamp,
       crew: crew.map((id) => t(CREW_OPTIONS.find((o) => o.id === id)!.label)),
       vehicle,
-      consumption: Number.parseFloat(consumption) || 6.5,
+      consumption: Number.parseFloat(consumption) || (vehicle === "elettrica" ? 18 : 6.5),
       avoidTolls,
       notes: notes.trim(),
     })
@@ -276,10 +301,10 @@ export function RoadTripConfigurator({
             </div>
           </Field>
 
-          <Field label={t("onboard")} hint={t("multiSelect")} icon={<Users className="size-4" />}>
+          <Field label={t("onboard")} hint={t("crewHint")} icon={<Users className="size-4" />}>
             <div className="flex flex-wrap gap-2">
               {CREW_OPTIONS.map((c) => (
-                <Chip key={c.id} active={crew.includes(c.id)} onClick={() => toggle(crew, c.id, setCrew)}>
+                <Chip key={c.id} active={crew.includes(c.id)} onClick={() => selectCrew(c.id)}>
                   {t(c.label)}
                 </Chip>
               ))}
@@ -300,7 +325,7 @@ export function RoadTripConfigurator({
             </div>
           </Field>
 
-          <Field label={t("consumption")} hint={t("consumptionHint")} icon={<Fuel className="size-4" />}>
+          <Field label={t("consumption")} hint={t(vehicle === "elettrica" ? "consumptionHintEv" : "consumptionHint")} icon={<Fuel className="size-4" />}>
             <div className="flex items-center gap-2">
               <TextInput
                 type="number"
@@ -309,7 +334,7 @@ export function RoadTripConfigurator({
                 value={consumption}
                 onChange={(e) => setConsumption(e.target.value)}
               />
-              <span className="text-sm text-muted-foreground">L / 100 km</span>
+              <span className="text-sm text-muted-foreground">{vehicle === "elettrica" ? "kWh / 100 km" : "L / 100 km"}</span>
             </div>
           </Field>
 
