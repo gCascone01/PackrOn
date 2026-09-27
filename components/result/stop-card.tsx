@@ -6,13 +6,14 @@ import type { Stop } from "@/lib/types"
 import { CategoryBadge } from "@/components/category-badge"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
-import { BedDouble, Clock, FileText, GripVertical, Hourglass, MapPin, ParkingSquare, RefreshCw, Search, Ticket, Trash2, X } from "lucide-react"
+import { BedDouble, Camera, Car, Church, Clock, FileText, Footprints, GripVertical, Hourglass, Landmark, MapPin, ParkingSquare, RefreshCw, Search, Ticket, Trash2, UtensilsCrossed, X } from "lucide-react"
 import { bookingSearchUrl, getYourGuideSearchUrl, googleMapsSearchUrl } from "@/lib/affiliate-links"
 import { withPreviousStop } from "@/lib/alternatives"
 import type { StopImage } from "@/lib/stop-image"
 import { useI18n } from "@/components/locale-provider"
 
-function estimatedEndTime(start: string, duration: string): string | null {
+function estimatedEndTime(start: string, duration?: string): string | null {
+  if (!duration) return null
   const match = duration.match(/(?:(\d+)h)?\s*(?:(\d+)m)?/)
   if (!match || (!match[1] && !match[2])) return null
   const [hours, minutes] = start.split(":").map(Number)
@@ -21,6 +22,27 @@ function estimatedEndTime(start: string, duration: string): string | null {
   const endHours = Math.floor((total % 1440) / 60)
   const endMinutes = total % 60
   return `${String(endHours).padStart(2, "0")}:${String(endMinutes).padStart(2, "0")}`
+}
+
+function substopIcon(type: string | undefined, name: string) {
+  const normalizedType = (type ?? "").toLowerCase()
+  const normalizedName = name.toLowerCase()
+  if (/walk|stroll|trail|hike|path/.test(`${normalizedType} ${normalizedName}`)) return Footprints
+  if (/church|basilica|cathedral|chapel/.test(`${normalizedType} ${normalizedName}`)) return Church
+  if (/museum|monument|palace|castle|fort|ruins|temple|landmark/.test(`${normalizedType} ${normalizedName}`)) return Landmark
+  if (/food|taste|try|market|dish|wine|gelato|waffle/.test(`${normalizedType} ${normalizedName}`)) return UtensilsCrossed
+  if (/viewpoint/.test(`${normalizedType} ${normalizedName}`)) return Camera
+  return MapPin
+}
+
+function isExternalHttpUrl(value: string | undefined): value is string {
+  if (!value) return false
+  try {
+    const protocol = new URL(value).protocol
+    return protocol === "https:" || protocol === "http:"
+  } catch {
+    return false
+  }
 }
 
 export function StopCard({
@@ -63,7 +85,8 @@ export function StopCard({
   const [loadingDescription, setLoadingDescription] = useState(false)
   const [showDescription, setShowDescription] = useState(false)
   const isOvernightStop = stop.category === "notte"
-  const endTime = estimatedEndTime(stop.time, stop.duration)
+  const isDriveStop = stop.kind === "drive"
+  const endTime = stop.endTime || estimatedEndTime(stop.time, stop.duration)
   const experienceQuery = (() => {
     const candidate = (stop.getYourGuideQuery || stop.name || "").trim()
     if (!candidate) return stop.name
@@ -230,9 +253,14 @@ export function StopCard({
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <h4 className="font-display text-sm font-bold text-foreground">
-              {isOvernightStop ? stop.bookingQuery || stop.name : stop.name}
+              {stop.name}
             </h4>
-            <CategoryBadge category={stop.category} />
+            {isDriveStop ? (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700 dark:bg-slate-400/20 dark:text-slate-200">
+                <Car className="size-3.5" aria-hidden />
+                {t("drive")}
+              </span>
+            ) : <CategoryBadge category={stop.category} />}
           </div>
           <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{stop.description}</p>
 
@@ -243,11 +271,13 @@ export function StopCard({
                 {endTime ? `${stop.time}–${endTime}` : stop.time}
               </span>
             </span>
-            <span className="inline-flex items-center gap-1.5">
-              <Hourglass className="size-3.5 text-brand" />
-              {stop.duration}
-            </span>
-            {showParking && stop.parking ? (
+            {stop.duration ? (
+              <span className="inline-flex items-center gap-1.5">
+                <Hourglass className="size-3.5 text-brand" />
+                {stop.duration}
+              </span>
+            ) : null}
+            {showParking && !isDriveStop && stop.parking ? (
               <span className="inline-flex items-center gap-1.5">
                 <ParkingSquare className="size-3.5 text-brand" />
                 {stop.parking}
@@ -255,17 +285,90 @@ export function StopCard({
             ) : null}
           </div>
 
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            <a
-              href={googleMapsSearchUrl(stop.name, stop.lat, stop.lng)}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={(e) => e.stopPropagation()}
-              className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl bg-brand px-3 text-sm font-semibold text-brand-foreground transition hover:opacity-90"
-            >
-              <MapPin className="size-3.5" />
-              {t("openInMaps")}
-            </a>
+          {stop.substops?.length ? (
+            <div className="mt-4 ml-1 sm:ml-2">
+              <p className="text-xs font-medium text-muted-foreground">{t("subStopsTitle")}</p>
+              <div className="mt-2.5 flex min-w-0 flex-col gap-3">
+                {stop.substops.map((substop, index) => {
+                  const Icon = substopIcon(substop.type, substop.name)
+                  const ticketUrl = (isExternalHttpUrl(substop.bookingUrl) ? substop.bookingUrl : null) || (substop.getYourGuideQuery
+                    ? getYourGuideSearchUrl(substop.getYourGuideQuery)
+                    : null)
+                  return (
+                    <article
+                      key={`${substop.name}-${index}`}
+                      className="min-w-0 rounded-xl border border-border/60 bg-muted/35 p-3.5 sm:p-4 dark:bg-muted/25"
+                    >
+                      <div className="flex min-w-0 items-start gap-2.5">
+                        <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-brand-muted text-brand dark:bg-brand/15">
+                          <Icon className="size-4" aria-hidden />
+                        </span>
+                        <h5 className="min-w-0 flex-1 break-words pt-1 text-sm font-semibold leading-snug text-foreground">{substop.name}</h5>
+                        <a
+                          href={googleMapsSearchUrl(substop.name)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          aria-label={`${t("openInMaps")}: ${substop.name}`}
+                          title={t("openInMaps")}
+                          className="inline-flex size-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition hover:bg-background hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                        >
+                          <MapPin className="size-4" />
+                        </a>
+                      </div>
+                      {substop.description ? (
+                        <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
+                          {substop.description}
+                        </p>
+                      ) : null}
+                      {substop.bookingQuery || ticketUrl ? (
+                        <div className="mt-3 flex justify-end gap-2">
+                          {substop.bookingQuery ? (
+                            <a
+                              href={bookingSearchUrl(substop.bookingQuery)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              className="inline-flex h-8 items-center gap-1.5 rounded-full border border-border bg-background px-3 text-xs font-semibold text-foreground transition hover:border-brand/40 hover:text-brand"
+                            >
+                              <BedDouble className="size-3.5" aria-hidden />
+                              {t("lodging")}
+                            </a>
+                          ) : null}
+                          {ticketUrl ? (
+                            <a
+                              href={ticketUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              className="inline-flex h-8 items-center gap-1.5 rounded-full bg-brand px-3 text-xs font-semibold text-brand-foreground transition hover:opacity-90"
+                            >
+                              <Ticket className="size-3.5" aria-hidden />
+                              {t("getTickets")}
+                            </a>
+                          ) : null}
+                        </div>
+                      ) : null}
+                    </article>
+                  )
+                })}
+              </div>
+            </div>
+          ) : null}
+
+          <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-border/70 pt-3">
+            {stop.lat != null && stop.lng != null ? (
+              <a
+                href={googleMapsSearchUrl(stop.name, stop.lat, stop.lng)}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl bg-brand px-3 text-sm font-semibold text-brand-foreground transition hover:opacity-90"
+              >
+                <MapPin className="size-3.5" />
+                {t("openInMaps")}
+              </a>
+            ) : null}
             {isOvernightStop ? (
               <>
                 <a
@@ -292,7 +395,7 @@ export function StopCard({
                 ) : null}
               </>
             ) : null}
-            {!isOvernightStop ? (
+            {!isOvernightStop && !isDriveStop && !stop.substops?.length ? (
               <a
                 href={getYourGuideSearchUrl(experienceQuery)}
                 target="_blank"
@@ -304,7 +407,7 @@ export function StopCard({
                 {t("experiences")}
               </a>
             ) : null}
-            <Button
+            {!isDriveStop ? <Button
               type="button"
               variant="outline"
               size="lg"
@@ -316,11 +419,10 @@ export function StopCard({
             >
               <FileText className={cn("size-3.5", loadingDescription && "animate-spin")} />
               {t("description")}
-            </Button>
+            </Button> : null}
           </div>
 
-          <div className="mt-3 flex items-center gap-2">
-            <Button
+            {!isDriveStop ? <Button
               type="button"
               variant="outline"
               size="lg"
@@ -332,7 +434,7 @@ export function StopCard({
             >
               <RefreshCw className={cn("size-3.5", loadingAlts && "animate-spin")} />
               {t("changeStop")}
-            </Button>
+            </Button> : null}
             <Button
               type="button"
               variant="destructive"
@@ -346,7 +448,6 @@ export function StopCard({
               <Trash2 className="size-3.5" />
               {t("remove")}
             </Button>
-          </div>
 
           {(loadingAlts || alts) && (
             <div className="mt-3 rounded-xl border border-border bg-muted/50 p-3">

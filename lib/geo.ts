@@ -3,7 +3,15 @@ import type { ItineraryDay, Stop } from "./types"
 const ROAD_FACTOR = 1.35
 
 export function haversineKm(a: Stop, b: Stop): number {
-  return haversineKmCoords(a, b)
+  if (a.lat == null || a.lng == null || b.lat == null || b.lng == null) return 0
+  return haversineKmCoords(a as { lat: number; lng: number }, b as { lat: number; lng: number })
+}
+
+function locatedStops(stops: Stop[]): Stop[] {
+  return stops.filter((stop) =>
+    typeof stop.lat === "number" && Number.isFinite(stop.lat) &&
+    typeof stop.lng === "number" && Number.isFinite(stop.lng),
+  )
 }
 
 export function haversineKmCoords(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
@@ -19,20 +27,21 @@ export function haversineKmCoords(a: { lat: number; lng: number }, b: { lat: num
 
 /** Deterministic intra-day driving distance from the current stop order. */
 export function intraDayKm(stops: Stop[], previousStop?: Stop): number {
+  const located = locatedStops(stops)
   let sum = 0
-  if (previousStop && stops.length > 0) {
-    sum += haversineKm(previousStop, stops[0]) * ROAD_FACTOR
+  if (previousStop && located.length > 0 && previousStop.lat != null && previousStop.lng != null) {
+    sum += haversineKm(previousStop, located[0]) * ROAD_FACTOR
   }
-  for (let i = 0; i < stops.length - 1; i++) {
-    sum += haversineKm(stops[i], stops[i + 1]) * ROAD_FACTOR
+  for (let i = 0; i < located.length - 1; i++) {
+    sum += haversineKm(located[i], located[i + 1]) * ROAD_FACTOR
   }
   return sum
 }
 
 /** Distance from origin to first stop of the first day */
 export function originToFirstStopKm(origin: { lat: number; lng: number } | undefined, stops: Stop[]): number {
-  if (!origin || stops.length === 0) return 0
-  const firstStop = stops[0]
+  const firstStop = locatedStops(stops)[0]
+  if (!origin || !firstStop) return 0
   return haversineKm({ lat: origin.lat, lng: origin.lng } as Stop, firstStop) * ROAD_FACTOR
 }
 
@@ -44,7 +53,7 @@ export function originToFirstStopKm(origin: { lat: number; lng: number } | undef
 export function withLiveDistances(days: ItineraryDay[], origin?: { lat: number; lng: number }): ItineraryDay[] {
   return days.map((d, index) => {
     const prevDay = days[index - 1]
-    const prevStop = prevDay && prevDay.stops.length > 0 ? prevDay.stops[prevDay.stops.length - 1] : undefined
+    const prevStop = prevDay ? locatedStops(prevDay.stops).at(-1) : undefined
     let computedKm = intraDayKm(d.stops, prevStop)
     // Add origin to first stop distance for the first day
     if (index === 0 && origin) {

@@ -81,7 +81,8 @@ export function ItineraryMap({
 
     // Filtra solo le tappe con coordinate valide per evitare crash (NaN)
     const validStops = stops.filter(
-      (s) => s && typeof s.lat === "number" && typeof s.lng === "number" && !isNaN(s.lat) && !isNaN(s.lng)
+      (s): s is MapStop & { lat: number; lng: number } =>
+        typeof s.lat === "number" && typeof s.lng === "number" && Number.isFinite(s.lat) && Number.isFinite(s.lng),
     )
     if (validStops.length === 0) return
 
@@ -119,18 +120,18 @@ export function ItineraryMap({
       lineCap: "round",
     }).addTo(layer)
 
-    validStops.forEach((s) => {
+    validStops.forEach((s, index) => {
       const active = s.id === selectedId
       const icon = L.divIcon({
         className: "packron-marker",
         html: `<div class="packron-marker-pin" style="${
           active ? "background:oklch(0.72 0.15 60);transform:rotate(-45deg) scale(1.2);" : ""
-        }"><span>${s.seq}</span></div>`,
+        }"><span>${index + 1}</span></div>`,
         iconSize: [30, 30],
         iconAnchor: [15, 30],
       })
       const marker = L.marker([s.lat, s.lng], { icon }).addTo(layer)
-      marker.bindTooltip(`${s.seq}. ${s.name}`, { direction: "top", offset: [0, -28] })
+      marker.bindTooltip(`${index + 1}. ${s.name}`, { direction: "top", offset: [0, -28] })
       
       // I pin rimangono sempre cliccabili su qualsiasi dispositivo
       marker.on("click", () => selectRef.current(s.id))

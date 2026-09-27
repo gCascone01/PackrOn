@@ -12,7 +12,16 @@ export type StopCategory =
 
 export type VehicleType = "benzina" | "diesel" | "elettrica" | "camper" | "moto"
 
-export type GeminiStopType = "panoramica" | "pasto" | "museo" | "notte"
+export type GeminiStopType = "drive" | "breakfast" | "panoramica" | "pasto" | "museo" | "notte"
+
+export interface StopSubstop {
+  name: string
+  type?: string
+  description?: string
+  bookingUrl?: string
+  bookingQuery?: string
+  getYourGuideQuery?: string
+}
 
 export interface Stop {
   id: string
@@ -22,11 +31,15 @@ export interface Stop {
   /** Suggested arrival time, e.g. "09:30" */
   time: string
   /** Recommended visit duration, e.g. "1h 30m" */
-  duration: string
+  duration?: string
+  /** Explicit scheduled end time supplied by itinerary generation. */
+  endTime?: string
   /** Parking hint (road trips) */
   parking?: string
-  lat: number
-  lng: number
+  lat: number | null
+  lng: number | null
+  kind?: GeminiStopType
+  substops?: StopSubstop[]
   bookingQuery?: string
   bookingCity?: string
   getYourGuideQuery?: string
@@ -84,7 +97,6 @@ export interface GenerateTripPayload {
   routeTags?: string[]
   loop?: boolean
   basecamp?: boolean
-  visitOrigin?: boolean
   crew?: string[]
   vehicle?: string
   consumption?: number
@@ -106,6 +118,8 @@ export const CATEGORY_LABELS: Record<StopCategory, string> = {
 }
 
 export const GEMINI_STOP_LABELS: Record<GeminiStopType, string> = {
+  drive: "Guida",
+  breakfast: "Colazione",
   panoramica: "Panoramica",
   pasto: "Pasto",
   museo: "Museo",

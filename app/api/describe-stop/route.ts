@@ -8,7 +8,9 @@ import type { Stop } from "@/lib/types"
 
 export const maxDuration = 30
 
-function isStop(value: unknown): value is Stop {
+type StopWithCoordinates = Stop & { lat: number; lng: number }
+
+function isStop(value: unknown): value is StopWithCoordinates {
   if (!value || typeof value !== "object") return false
   const stop = value as Stop
   return typeof stop.name === "string" && typeof stop.lat === "number" && typeof stop.lng === "number"
@@ -27,7 +29,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: translate(locale, "apiBadBody") }, { status: 400 })
   }
 
-  const stop = body.stop as Stop
+  const stop = body.stop
 
   const [description, image] = await Promise.all([
     loadDescription(stop, locale),

@@ -13,6 +13,8 @@ import { formatDurationMinutes } from "./costs"
 import { translate } from "./i18n"
 
 export const STOP_TYPE_TO_CATEGORY: Record<GeminiStopType, StopCategory> = {
+  drive: "sosta",
+  breakfast: "food",
   panoramica: "panorama",
   pasto: "food",
   museo: "cultura",
@@ -86,27 +88,41 @@ export function mapGeminiTrip(raw: GeminiTrip, payload: GenerateTripPayload): It
   const kmPerDay = raw.total_km_estimated > 0 ? raw.total_km_estimated / dayCount : 0
 
   const days: ItineraryDay[] = raw.days.map((day) => {
-    let clock = 9 * 60
     const stops: Stop[] = (day.stops ?? []).map((stop) => {
-      const type = (["panoramica", "pasto", "museo", "notte"].includes(stop.type)
+      const type = (["drive", "breakfast", "panoramica", "pasto", "museo", "notte"].includes(stop.type)
         ? stop.type
         : "panoramica") as GeminiStopType
-      const duration = Math.max(15, Number(stop.duration_minutes) || 60)
+      const durationMinutes = Number(stop.duration_minutes)
+      const bookingCity = payload.mode === "city" ? payload.city?.trim() : day.title.trim()
+      const lodgingSearch = bookingCity && !stop.name.toLowerCase().includes(bookingCity.toLowerCase())
+        ? `${stop.name} ${bookingCity}`
+        : stop.name
       const mapped: Stop = {
         id: uid("stop"),
         name: stop.name,
         description: stop.short_description,
         category: STOP_TYPE_TO_CATEGORY[type],
-        time: padTime(clock),
-        duration: formatDurationMinutes(duration),
+        kind: type,
+        time: stop.start_time,
+        endTime: stop.end_time,
+        duration: Number.isFinite(durationMinutes) && durationMinutes > 0
+          ? formatDurationMinutes(durationMinutes)
+          : undefined,
         parking: payload.mode === "road" ? translate(payload.locale === "it" ? "it" : "en", "parkingHint") : undefined,
-        lat: Number(stop.lat),
-        lng: Number(stop.lng),
-        bookingQuery: stop.booking_query?.trim() || stop.name,
-        bookingCity: payload.mode === "city" ? payload.city?.trim() : day.title.trim(),
-        getYourGuideQuery: stop.getyourguide_query || stop.name,
+        lat: typeof stop.lat === "number" ? stop.lat : null,
+        lng: typeof stop.lng === "number" ? stop.lng : null,
+        substops: (stop.sub_stops ?? []).map((substop) => ({
+          name: substop.name,
+          type: substop.type,
+          description: substop.description,
+          bookingUrl: substop.booking_url,
+          bookingQuery: substop.booking_query?.trim() || undefined,
+          getYourGuideQuery: substop.getyourguide_query?.trim() || undefined,
+        })),
+        bookingQuery: stop.booking_query?.trim() || (type === "notte" ? lodgingSearch : undefined),
+        bookingCity,
+        getYourGuideQuery: stop.getyourguide_query?.trim() || undefined,
       }
-      clock += duration + 20
       return mapped
     })
 

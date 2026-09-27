@@ -6,6 +6,14 @@ import { isGeminiTrip, mapGeminiTrip } from "@/lib/map-gemini-itinerary"
 import type { GenerateTripPayload } from "@/lib/types"
 import { translate, type Locale, type MessageKey } from "@/lib/i18n"
 import { validateLocations } from "@/lib/geocode"
+import {
+  createGeminiDebugId,
+  isGeminiDebugEnabled,
+  logGeminiDebugStart,
+  logGeminiMappedItinerary,
+  logGeminiParsedJson,
+  logGeminiRawResponse,
+} from "@/lib/gemini-debug"
 
 export const maxDuration = 60
 
@@ -53,13 +61,20 @@ export async function POST(request: Request) {
   }
 
   try {
-    const response = await generateJsonWithFallback(buildTripPrompt(payload), locale, GEMINI_TRIP_SCHEMA)
+    const prompt = buildTripPrompt(payload)
+    const debugEnabled = isGeminiDebugEnabled()
+    const debugId = debugEnabled ? createGeminiDebugId() : null
+    if (debugId) logGeminiDebugStart(debugId, prompt)
+
+    const response = await generateJsonWithFallback(prompt, locale, GEMINI_TRIP_SCHEMA)
     const text = response.text
     if (!text) {
       return apiError(locale, "apiEmpty", 502)
     }
+    if (debugEnabled) logGeminiRawResponse(text)
 
     const parsed = parseJsonPayload(text)
+    if (debugEnabled) logGeminiParsedJson(parsed)
     
     // Check if Gemini detected an impossible trip
     if (parsed && typeof parsed === "object" && "impossible_trip" in parsed && (parsed as Record<string, unknown>).impossible_trip === true) {
@@ -87,6 +102,7 @@ export async function POST(request: Request) {
     }
 
     const itinerary = mapGeminiTrip(parsed as GeminiTrip, payload)
+  if (debugEnabled) logGeminiMappedItinerary(itinerary, parsed as GeminiTrip)
     return NextResponse.json({ itinerary })
   } catch (error) {
     const message = error instanceof Error && error.message !== "MISSING_KEY"

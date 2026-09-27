@@ -275,8 +275,8 @@ export function getAlternatives(stop: Stop, locale: Locale = "en"): Stop[] {
     ...alt,
     id: uid("alt"),
     time: stop.time,
-    lat: stop.lat + (i - 1) * 0.012,
-    lng: stop.lng + (i - 1) * 0.014,
+    lat: stop.lat == null ? null : stop.lat + (i - 1) * 0.012,
+    lng: stop.lng == null ? null : stop.lng + (i - 1) * 0.014,
     parking: stop.parking ? alt.parking : undefined,
   }))
 }

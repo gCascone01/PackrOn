@@ -22,7 +22,6 @@ import {
   CalendarDays,
   CarFront,
   Coffee,
-  FileText,
   Fuel,
   Gauge,
   Map,
@@ -54,19 +53,25 @@ const VEHICLE_OPTIONS: Array<{ id: VehicleType; label: MessageKey }> = [
   { id: "moto", label: "vehicleMoto" },
 ]
 
+const ROUTE_STYLE_OPTIONS: Array<{ id: string; label: MessageKey }> = [
+  { id: "alpine", label: "routeAlpine" },
+  { id: "villages", label: "routeVillages" },
+  { id: "nature", label: "routeNature" },
+  { id: "coast", label: "routeCoast" },
+]
+
 export type RoadFormValue = {
   origin: string
   destination: string
   loop: boolean
   days: number
-  visitOrigin: boolean
+  routeTags: string[]
   pace: string
   basecamp: boolean
   crew: string[]
   vehicle: VehicleType
   consumption: string
   avoidTolls: boolean
-  notes: string
 }
 
 export const DEFAULT_ROAD_FORM: RoadFormValue = {
@@ -74,14 +79,13 @@ export const DEFAULT_ROAD_FORM: RoadFormValue = {
   destination: "",
   loop: true,
   days: 5,
-  visitOrigin: false,
+  routeTags: [],
   pace: "balanced",
   basecamp: false,
   crew: ["couple"],
   vehicle: "diesel",
   consumption: "6.5",
   avoidTolls: false,
-  notes: "",
 }
 
 const DEFAULT_CONSUMPTION_FOSSIL = "6.5"
@@ -103,13 +107,13 @@ export function RoadTripConfigurator({
   onStepChange?: (step: number) => void
 }) {
   const { t, locale } = useI18n()
-  const { origin, destination, loop, days, visitOrigin, pace, basecamp, crew, vehicle, consumption, avoidTolls, notes } = value
+  const { origin, destination, loop, days, routeTags, pace, basecamp, crew, vehicle, consumption, avoidTolls } = value
   const patch = (p: Partial<RoadFormValue>) => onChange({ ...value, ...p })
   const setOrigin = (origin: string) => patch({ origin })
   const setDestination = (destination: string) => patch({ destination })
   const setLoop = (loop: boolean) => patch({ loop })
   const setDays = (days: number) => patch({ days })
-  const setVisitOrigin = (visitOrigin: boolean) => patch({ visitOrigin })
+  const setRouteTags = (routeTags: string[]) => patch({ routeTags })
   const setPace = (pace: string) => patch({ pace })
   const setBasecamp = (basecamp: boolean) => patch({ basecamp })
   const setCrew = (crew: string[]) => patch({ crew })
@@ -126,7 +130,6 @@ export function RoadTripConfigurator({
   }
   const setConsumption = (consumption: string) => patch({ consumption })
   const setAvoidTolls = (avoidTolls: boolean) => patch({ avoidTolls })
-  const setNotes = (notes: string) => patch({ notes })
   const [locating, setLocating] = useState(false)
   const [locationError, setLocationError] = useState<string | null>(null)
   const [stepError, setStepError] = useState<string | null>(null)
@@ -180,15 +183,13 @@ export function RoadTripConfigurator({
       destination: destination.trim(),
       days,
       pace,
-      routeTags: [],
+      routeTags,
       loop,
-      visitOrigin,
       basecamp,
-      crew: crew.map((id) => t(CREW_OPTIONS.find((o) => o.id === id)!.label)),
+      crew,
       vehicle,
       consumption: Number.parseFloat(consumption) || (vehicle === "elettrica" ? 18 : 6.5),
       avoidTolls,
-      notes: notes.trim(),
     })
   }
 
@@ -261,8 +262,6 @@ export function RoadTripConfigurator({
             />
           </Field>
 
-          <Toggle checked={visitOrigin} onChange={setVisitOrigin} label={t("visitOrigin")} />
-
           <div className="grid gap-5 sm:grid-cols-2">
             <Field label={t("itineraryType")} icon={<Route className="size-4" />}>
               <div className="grid grid-cols-2 gap-2">
@@ -290,6 +289,23 @@ export function RoadTripConfigurator({
                   description={p.desc}
                   icon={<p.icon className="size-4" />}
                 />
+              ))}
+            </div>
+          </Field>
+
+          <Field label={t("routeStyle")} hint={t("pickMany")} icon={<Route className="size-4" />}>
+            <div className="flex flex-wrap gap-2">
+              <Chip active={routeTags.length === 0} onClick={() => setRouteTags([])}>
+                {t("routeMix")}
+              </Chip>
+              {ROUTE_STYLE_OPTIONS.map((style) => (
+                <Chip
+                  key={style.id}
+                  active={routeTags.includes(style.id)}
+                  onClick={() => toggle(routeTags, style.id, setRouteTags)}
+                >
+                  {t(style.label)}
+                </Chip>
               ))}
             </div>
           </Field>
@@ -342,13 +358,6 @@ export function RoadTripConfigurator({
             <Toggle checked={avoidTolls} onChange={setAvoidTolls} label={t("avoidTolls")} />
           </Field>
 
-          <Field label={t("notes")} hint={t("optional")} icon={<FileText className="size-4" />}>
-            <TextArea
-              placeholder={t("notesPlaceholder")}
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-            />
-          </Field>
         </div>
       )}
 

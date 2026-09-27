@@ -133,7 +133,7 @@ export function ResultView({
     return { mapStops: stops, seqMap: map }
   }, [liveItinerary])
 
-  const selectedStop = mapStops.find((s) => s.id === selectedId) ?? null
+  const selectedStop = mapStops.find((s) => s.id === selectedId && s.lat != null && s.lng != null) ?? null
   const totalStops = mapStops.length
   const totalKm = totalDistanceKm(liveItinerary)
 

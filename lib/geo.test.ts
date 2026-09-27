@@ -40,4 +40,24 @@ describe("geo", () => {
     // Day 3 distance includes Melk -> Bratislava
     expect(updated[2].distanceKm).toBeGreaterThan(120)
   })
+
+  it("ignores coordinate-free drive entries when calculating map-based distances", () => {
+    const drive: Stop = {
+      ...a,
+      id: "drive",
+      name: "Drive from Vienna to Melk",
+      kind: "drive",
+      lat: null,
+      lng: null,
+    }
+    const days: ItineraryDay[] = [{
+      id: "d1",
+      dayNumber: 1,
+      title: "Vienna to Melk",
+      distanceKm: 0,
+      stops: [a, drive, b],
+    }]
+
+    expect(withLiveDistances(days)[0].distanceKm).toBe(Math.round(haversineKm(a, b) * 1.35))
+  })
 })

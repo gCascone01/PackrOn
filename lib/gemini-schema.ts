@@ -33,7 +33,7 @@ export const GEMINI_TRIP_SCHEMA: Schema = {
     },
     reason: {
       type: Type.STRING,
-      description: "Explanation of why the trip is impossible. Empty string for a normal trip.",
+      description: "Explain which location is invalid or why a flight is required, in English. Empty string for a normal trip.",
     },
     error_code: {
       type: Type.STRING,
@@ -43,11 +43,11 @@ export const GEMINI_TRIP_SCHEMA: Schema = {
     },
     trip_title: {
       type: Type.STRING,
-      description: "Short, appealing itinerary title in the requested output language",
+      description: "Short, appealing itinerary title in English",
     },
     summary: {
       type: Type.STRING,
-      description: "One or two sentence trip summary in the requested output language",
+      description: "One or two sentence trip summary in English",
     },
     origin_lat: {
       type: Type.NUMBER,
@@ -67,7 +67,7 @@ export const GEMINI_TRIP_SCHEMA: Schema = {
     },
     toll_and_vignette_alerts: {
       type: Type.ARRAY,
-      description: "Toll, vignette, or road-charge alerts in the requested output language; use an empty array when not applicable",
+      description: "Toll, vignette, or road-charge alerts in English; list each country crossed and use an empty array when not applicable",
       items: { type: Type.STRING },
     },
     days: {
@@ -80,11 +80,11 @@ export const GEMINI_TRIP_SCHEMA: Schema = {
           day_number: { type: Type.INTEGER },
           title: {
             type: Type.STRING,
-            description: "Day title clearly identifying the area or city and its main focus, in the requested output language",
+            description: "Day title clearly identifying the area or city and its main focus, in English",
           },
           driving_time_minutes: {
             type: Type.INTEGER,
-            description: "Minuti di guida stimati per la giornata (0 per city trip)",
+            description: "Estimated driving minutes for the day (0 for a city trip)",
           },
           stops: {
             type: Type.ARRAY,
@@ -95,45 +95,87 @@ export const GEMINI_TRIP_SCHEMA: Schema = {
                 "type",
                 "lat",
                 "lng",
+                "start_time",
+                "end_time",
                 "duration_minutes",
                 "short_description",
+                "sub_stops",
                 "booking_query",
                 "getyourguide_query",
               ],
               required: [
                 "name",
                 "type",
-                "lat",
-                "lng",
-                "duration_minutes",
+                "start_time",
+                "end_time",
                 "short_description",
-                "booking_query",
-                "getyourguide_query",
+                "sub_stops",
               ],
               properties: {
                 name: { type: Type.STRING },
                 type: {
                   type: Type.STRING,
-                  enum: ["panoramica", "pasto", "museo", "notte"],
-                  description: "Stop type: panoramica, pasto, museo, or notte",
+                  enum: ["drive", "breakfast", "panoramica", "pasto", "museo", "notte"],
+                  description: "Main stop type: drive, breakfast, pasto (lunch/dinner), panoramica, museo, or notte",
                 },
-                lat: { type: Type.NUMBER },
-                lng: { type: Type.NUMBER },
+                lat: { type: Type.NUMBER, nullable: true, description: "Real latitude for located main stops; omit or set null for drive entries" },
+                lng: { type: Type.NUMBER, nullable: true, description: "Real longitude for located main stops; omit or set null for drive entries" },
+                start_time: {
+                  type: Type.STRING,
+                  description: "Scheduled local start time in 24-hour HH:MM format",
+                },
+                end_time: {
+                  type: Type.STRING,
+                  description: "Scheduled local end time in 24-hour HH:MM format",
+                },
                 duration_minutes: {
                   type: Type.INTEGER,
-                  description: "Realistic stop duration in minutes with no overlaps; allow enough time for meals, check-in, and evening activities",
+                  description: "Overall main-stop duration in minutes; omit or set to 0 for type=notte",
                 },
                 short_description: {
                   type: Type.STRING,
-                  description: "Concrete description with specific points of interest; for meals mention local dishes; include parking or booking guidance when relevant, in the requested output language",
+                  description: "Concrete description in English; meals name specific local dishes, drives include route/logistics, and overnight stays include check-in guidance",
+                },
+                sub_stops: {
+                  type: Type.ARRAY,
+                  description: "Specific landmarks or actions that belong inside this main experience; empty for meals, drives, and lodging",
+                  items: {
+                    type: Type.OBJECT,
+                    propertyOrdering: ["name", "type", "description", "booking_url", "booking_query", "getyourguide_query"],
+                    required: ["name", "type", "description"],
+                    properties: {
+                      name: { type: Type.STRING, description: "Specific thing to see, do, or try, in English" },
+                      type: {
+                        type: Type.STRING,
+                        enum: ["walk", "landmark", "museum", "food", "church", "viewpoint", "other"],
+                        description: "Activity kind used to choose a display icon",
+                      },
+                      description: {
+                        type: Type.STRING,
+                        description: "Concise, specific details about this activity, in English",
+                      },
+                      booking_url: {
+                        type: Type.STRING,
+                        description: "Optional direct HTTPS booking/ticket URL for this specific activity",
+                      },
+                      booking_query: {
+                        type: Type.STRING,
+                        description: "Optional precise booking search relevant to this substop; omit when not applicable",
+                      },
+                      getyourguide_query: {
+                        type: Type.STRING,
+                        description: "Optional attraction or activity search relevant to this substop; omit when not applicable",
+                      },
+                    },
+                  },
                 },
                 booking_query: {
                   type: Type.STRING,
-                  description: "Exact hotel or B&B name followed by the city; never use a city-only or area-only search",
+                  description: "For lodging only, exact hotel or B&B name followed by the city; never use a city-only or area-only search",
                 },
                 getyourguide_query: {
                   type: Type.STRING,
-                  description: "Search query for the experience or activity",
+                  description: "Optional only for a standalone main experience; otherwise attach the precise query to its relevant sub_stops item",
                 },
               },
             },
@@ -146,13 +188,23 @@ export const GEMINI_TRIP_SCHEMA: Schema = {
 
 export interface GeminiStop {
   name: string
-  type: "panoramica" | "pasto" | "museo" | "notte"
-  lat: number
-  lng: number
-  duration_minutes: number
+  type: "drive" | "breakfast" | "panoramica" | "pasto" | "museo" | "notte"
+  lat?: number | null
+  lng?: number | null
+  start_time: string
+  end_time: string
+  duration_minutes?: number | null
   short_description: string
-  booking_query: string
-  getyourguide_query: string
+  sub_stops: Array<{
+    name: string
+    type: "walk" | "landmark" | "museum" | "food" | "church" | "viewpoint" | "other"
+    description: string
+    booking_url?: string
+    booking_query?: string
+    getyourguide_query?: string
+  }>
+  booking_query?: string
+  getyourguide_query?: string
 }
 
 export interface GeminiDay {
