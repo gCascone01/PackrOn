@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { SiteHeader } from "@/components/site-header"
 import { ResultView } from "@/components/result/result-view"
+import { TripHero } from "@/components/result/trip-hero"
 import { HomeCta } from "@/components/marketing-shell"
 import { useI18n } from "@/components/locale-provider"
 import { decodeItinerary, isItinerary, readShareTokenFromLocation } from "@/lib/share"
@@ -83,10 +84,38 @@ export function SharedItineraryPage({ shareId }: { shareId?: string }) {
     )
   }
 
+  const heroStops = itinerary.days.flatMap((day) =>
+    day.stops.map((stop, index) => ({
+      ...stop,
+      seq: index + 1,
+      dayNumber: day.dayNumber,
+    })),
+  )
+
+  const originPoint =
+    itinerary.origin && itinerary.originLat && itinerary.originLng
+      ? { lat: itinerary.originLat, lng: itinerary.originLng, name: itinerary.origin }
+      : undefined
+
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background relative selection:bg-primary/30">
       <SiteHeader onBrandClick={() => router.push(homeHref)} />
-      <ResultView initial={itinerary} onBack={() => router.push(homeHref)} />
+
+      <TripHero
+        title={itinerary.title}
+        subtitle={itinerary.subtitle}
+        daysCount={itinerary.days.length}
+        tripTypeLabel={itinerary.mode === "road" ? t("modeRoadTitle") : t("modeCityTitle")}
+        highlights={itinerary.days.map((day) => day.title)}
+        mode={itinerary.mode}
+        stops={heroStops}
+        origin={originPoint}
+        scrollTargetId="itinerary-content"
+      />
+
+      <div id="itinerary-content" className="relative z-20 border-t border-border/50 bg-background">
+        <ResultView initial={itinerary} onBack={() => router.push(homeHref)} />
+      </div>
     </div>
   )
 }

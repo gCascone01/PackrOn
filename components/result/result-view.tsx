@@ -12,6 +12,7 @@ import { SaveTripButton } from "@/components/auth/save-trip-button"
 import { Timeline } from "./timeline"
 import { CostSummary } from "./cost-summary"
 import { NavLauncher } from "./nav-launcher"
+import { TripHero } from "./trip-hero"
 import type { MapStop, OriginPoint } from "./itinerary-map"
 import { ArrowLeft, CalendarDays, Check, Copy, List, Map as MapIcon, RotateCcw, Share2, Undo2 } from "lucide-react"
 import { useI18n } from "@/components/locale-provider"
@@ -245,24 +246,29 @@ export function ResultView({
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6">
-      {/* Trip header */}
-      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="flex items-start gap-3">
+      <TripHero
+        title={liveItinerary.title}
+        subtitle={liveItinerary.subtitle}
+        daysCount={liveItinerary.days.length}
+        tripTypeLabel={liveItinerary.mode === "road" ? t("modeRoadTitle") : t("modeCityTitle")}
+        highlights={liveItinerary.days.map((day) => day.title)}
+        mode={liveItinerary.mode}
+        stops={mapStops}
+        origin={originPoint}
+        scrollTargetId="itinerary-detail-view"
+      />
+
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-3">
           <Button variant="outline" size="icon-lg" onClick={onBack} aria-label={t("backToConfig")}>
             <ArrowLeft className="size-4" />
           </Button>
-          <div>
-            <h1 className="font-display text-2xl font-extrabold tracking-tight text-foreground text-balance">
-              {liveItinerary.title}
-            </h1>
-            <p className="mt-0.5 text-sm text-muted-foreground">{liveItinerary.subtitle}</p>
-            <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
-              <Meta icon={<CalendarDays className="size-3.5" />} text={t("daysCount", { n: liveItinerary.days.length })} />
-              <Meta icon={<List className="size-3.5" />} text={t("stopsCount", { n: totalStops })} />
-              {liveItinerary.mode === "road" ? (
-                <Meta icon={<MapIcon className="size-3.5" />} text={formatKm(totalKm, locale)} />
-              ) : null}
-            </div>
+          <div className="flex flex-wrap items-center gap-2 text-xs">
+            <Meta icon={<CalendarDays className="size-3.5" />} text={t("daysCount", { n: liveItinerary.days.length })} />
+            <Meta icon={<List className="size-3.5" />} text={t("stopsCount", { n: totalStops })} />
+            {liveItinerary.mode === "road" ? (
+              <Meta icon={<MapIcon className="size-3.5" />} text={formatKm(totalKm, locale)} />
+            ) : null}
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-2">
@@ -273,46 +279,46 @@ export function ResultView({
             </Button>
           ) : null}
           <div className="relative shrink-0" ref={shareRef}>
-          <div className="flex items-center gap-2">
-            <SaveTripButton itinerary={itinerary} savedId={savedId} />
-            <Button
-            variant="secondary"
-            size="lg"
-            className="shrink-0"
-            aria-haspopup="menu"
-            aria-expanded={shareOpen}
-            onClick={() => {
-              setShareOpen((open) => !open)
-              setShareError(null)
-            }}
-          >
-            <Share2 className="size-4" />
-            {t("share")}
-          </Button>
-          </div>
-          {shareOpen ? (
-            <div
-              role="menu"
-              className="absolute right-0 z-20 mt-2 w-52 rounded-xl border border-border bg-card p-1 shadow-lg"
-            >
-              <button
-                type="button"
-                role="menuitem"
-                disabled={!shareUrl}
-                data-share-url={shareUrl ?? undefined}
-                onClick={copyShareLink}
-                className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-medium text-foreground hover:bg-muted"
+            <div className="flex items-center gap-2">
+              <SaveTripButton itinerary={itinerary} savedId={savedId} />
+              <Button
+                variant="secondary"
+                size="lg"
+                className="shrink-0"
+                aria-haspopup="menu"
+                aria-expanded={shareOpen}
+                onClick={() => {
+                  setShareOpen((open) => !open)
+                  setShareError(null)
+                }}
               >
-                {copied ? <Check className="size-4 text-brand" /> : <Copy className="size-4" />}
-                {copied ? t("linkCopied") : t("copyLink")}
-              </button>
-              {shareError ? (
-                <p role="alert" className="px-3 pb-2 text-xs text-destructive">
-                  {shareError}
-                </p>
-              ) : null}
+                <Share2 className="size-4" />
+                {t("share")}
+              </Button>
             </div>
-          ) : null}
+            {shareOpen ? (
+              <div
+                role="menu"
+                className="absolute right-0 z-20 mt-2 w-52 rounded-xl border border-border bg-card p-1 shadow-lg"
+              >
+                <button
+                  type="button"
+                  role="menuitem"
+                  disabled={!shareUrl}
+                  data-share-url={shareUrl ?? undefined}
+                  onClick={copyShareLink}
+                  className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-medium text-foreground hover:bg-muted"
+                >
+                  {copied ? <Check className="size-4 text-brand" /> : <Copy className="size-4" />}
+                  {copied ? t("linkCopied") : t("copyLink")}
+                </button>
+                {shareError ? (
+                  <p role="alert" className="px-3 pb-2 text-xs text-destructive">
+                    {shareError}
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
           </div>
         </div>
       </div>
@@ -323,19 +329,21 @@ export function ResultView({
         <TabButton active={mobileTab === "map"} onClick={() => setMobileTab("map")} icon={<MapIcon className="size-4" />} label={t("tabMap")} />
       </div>
 
-      {/* Desktop split screen */}
-      <div className="hidden gap-6 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)]">
-        <div className="min-w-0">{leftColumn}</div>
-        <div className="sticky top-20 h-[calc(100vh-6.5rem)]">{mapColumn}</div>
-      </div>
+      <div id="itinerary-detail-view">
+        {/* Desktop split screen */}
+        <div className="hidden gap-6 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)]">
+          <div className="min-w-0">{leftColumn}</div>
+          <div className="sticky top-20 h-[calc(100vh-6.5rem)]">{mapColumn}</div>
+        </div>
 
-      {/* Mobile stacked sheets */}
-      <div className="lg:hidden">
-        {mobileTab === "timeline" ? (
-          leftColumn
-        ) : (
-          <div className="h-[calc(100vh-13rem)]">{mapColumn}</div>
-        )}
+        {/* Mobile stacked sheets */}
+        <div className="lg:hidden">
+          {mobileTab === "timeline" ? (
+            leftColumn
+          ) : (
+            <div className="h-[calc(100vh-13rem)]">{mapColumn}</div>
+          )}
+        </div>
       </div>
 
       {/* Undo toast after a stop replacement */}

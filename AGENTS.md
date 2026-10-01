@@ -14,6 +14,19 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 # Project Decisions & Rationale
 
+### Shared Trip Hero (2026-10-02)
+- Extracted the itinerary hero into a reusable `TripHero` component in `components/result/trip-hero.tsx` so both the generated itinerary view and the shared itinerary route use the same UI contract.
+- The component accepts explicit props for title, subtitle, trip mode, days count, highlight list, map stops, and origin point instead of pulling page data internally.
+- The hero sits above the itinerary map/timeline on the main generation result page and uses a scroll target id to send the chevron back to the dense itinerary section.
+- The shared route page now passes the fetched itinerary data into `TripHero` as props so the share flow keeps the same layout without duplicating the hero markup.
+- Rationale: a shared hero keeps the layout consistent across routes while letting each page pass its own data and scroll anchors without coupling the UI to a single page.
+
+### Dynamic social previews (2026-10-02)
+- Added a dedicated OG image route at `app/share/[id]/opengraph-image.tsx` for shared itinerary links and aligned the locale-specific preview route with the same brand palette and route-map composition.
+- The social preview uses the PackrOn blue brand color and orange accent color converted from the app’s OKLCH design tokens, while avoiding CSS variable references because `ImageResponse` needs fixed hex values.
+- The preview includes the trip title, day count/mode, highlight chips, and a compact route map that starts from the trip origin house marker and follows the itinerary path.
+- Rationale: chat apps such as WhatsApp only render the social metadata image, so a dynamic OG preview gives a usable card even when the live app page is not rendered inline.
+
 ## Architecture
 
 ### Trip validation (Gemini-only)
