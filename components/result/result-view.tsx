@@ -27,12 +27,14 @@ export function ResultView({
   onBack,
   onRestart,
   savedId,
+  showHero = true,
 }: {
   initial: Itinerary
   onBack: () => void
   onRestart?: () => void
   /** Server id when this view shows a trip loaded from the account. */
   savedId?: string | null
+  showHero?: boolean
 }) {
   const { t, locale } = useI18n()
   const [itinerary, setItinerary] = useState<Itinerary>(initial)
@@ -246,17 +248,19 @@ export function ResultView({
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6">
-      <TripHero
-        title={liveItinerary.title}
-        subtitle={liveItinerary.subtitle}
-        daysCount={liveItinerary.days.length}
-        tripTypeLabel={liveItinerary.mode === "road" ? t("modeRoadTitle") : t("modeCityTitle")}
-        highlights={liveItinerary.days.map((day) => day.title)}
-        mode={liveItinerary.mode}
-        stops={mapStops}
-        origin={originPoint}
-        scrollTargetId="itinerary-detail-view"
-      />
+      {showHero ? (
+        <TripHero
+          title={liveItinerary.title}
+          subtitle={liveItinerary.subtitle}
+          daysCount={liveItinerary.days.length}
+          tripTypeLabel={liveItinerary.mode === "road" ? t("modeRoadTitle") : t("modeCityTitle")}
+          highlights={liveItinerary.days.map((day) => day.title)}
+          mode={liveItinerary.mode}
+          stops={mapStops}
+          origin={originPoint}
+          scrollTargetId="itinerary-detail-view"
+        />
+      ) : null}
 
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">

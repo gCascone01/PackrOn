@@ -114,7 +114,7 @@ export function SharedItineraryPage({ shareId }: { shareId?: string }) {
       />
 
       <div id="itinerary-content" className="relative z-20 border-t border-border/50 bg-background">
-        <ResultView initial={itinerary} onBack={() => router.push(homeHref)} />
+        <ResultView initial={itinerary} onBack={() => router.push(homeHref)} showHero={false} />
       </div>
     </div>
   )

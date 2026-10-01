@@ -19,13 +19,14 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - The component accepts explicit props for title, subtitle, trip mode, days count, highlight list, map stops, and origin point instead of pulling page data internally.
 - The hero sits above the itinerary map/timeline on the main generation result page and uses a scroll target id to send the chevron back to the dense itinerary section.
 - The shared route page now passes the fetched itinerary data into `TripHero` as props so the share flow keeps the same layout without duplicating the hero markup.
+- Shared itinerary pages render the outer `TripHero` once and pass `showHero={false}` to the nested `ResultView`; all other `ResultView` uses keep the default hero.
 - Rationale: a shared hero keeps the layout consistent across routes while letting each page pass its own data and scroll anchors without coupling the UI to a single page.
 
 ### Dynamic social previews (2026-10-02)
 - Added a dedicated OG image route at `app/share/[id]/opengraph-image.tsx` for shared itinerary links and aligned the locale-specific preview route with the same brand palette and route-map composition.
 - The social preview uses the PackrOn blue brand color and orange accent color converted from the app’s OKLCH design tokens, while avoiding CSS variable references because `ImageResponse` needs fixed hex values.
 - The preview includes the trip title, day count/mode, highlight chips, and a compact route map that starts from the trip origin house marker and follows the itinerary path.
-- Both preview routes run on the Edge runtime and fetch share data from the absolute `/api/share/{id}` URL; failed or missing data returns a generic branded image rather than a server error. Do not import filesystem-backed `loadShare` into these routes.
+- Both preview routes use the default Node.js runtime and request-time image generation. They fetch itinerary data from the absolute same-origin `/api/share/{id}` URL built from request-scoped forwarded host/protocol headers, with the canonical site URL as fallback. Fetch failures and missing data are logged and return a generic branded image; the API route reads the filesystem-backed share store.
 - Rationale: chat apps such as WhatsApp only render the social metadata image, so a dynamic OG preview gives a usable card even when the live app page is not rendered inline.
 
 ## Architecture

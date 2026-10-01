@@ -1,8 +1,9 @@
 import { ImageResponse } from "next/og"
+import { headers } from "next/headers"
 import type { Itinerary } from "@/lib/types"
 import { normalizeCoordinates } from "@/lib/map-svg"
 
-export const runtime = "edge"
+export const dynamic = "force-dynamic"
 export const alt = "PackrOn itinerary preview"
 export const size = { width: 1200, height: 630 }
 export const contentType = "image/png"
@@ -16,6 +17,14 @@ const TEXT = "#0f172a"
 const MUTED = "#47657d"
 const BORDER = "rgba(15, 23, 42, 0.08)"
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ?? "https://packron.vercel.app"
+
+async function getRequestOrigin() {
+  const requestHeaders = await headers()
+  const host = requestHeaders.get("x-forwarded-host")?.split(",")[0].trim() || requestHeaders.get("host")
+  if (!host) return SITE_URL
+  const protocol = requestHeaders.get("x-forwarded-proto")?.split(",")[0].trim() || (host.startsWith("localhost") ? "http" : "https")
+  return `${protocol}://${host}`
+}
 
 function fallbackImage() {
   return new ImageResponse(
@@ -51,12 +60,14 @@ export default async function Image({ params }: { params: Promise<{ id: string }
   const { id } = await params
   let itinerary: Itinerary
   try {
-    const response = await fetch(`${SITE_URL}/api/share/${encodeURIComponent(id)}`, { cache: "no-store" })
-    if (!response.ok) return fallbackImage()
+    const url = new URL(`/api/share/${encodeURIComponent(id)}`, await getRequestOrigin())
+    const response = await fetch(url, { cache: "no-store" })
+    if (!response.ok) throw new Error(`Share API returned ${response.status}`)
     const data: { itinerary?: Itinerary } = await response.json()
-    if (!data.itinerary) return fallbackImage()
+    if (!data.itinerary) throw new Error(`Shared itinerary ${id} was not found`)
     itinerary = data.itinerary
-  } catch {
+  } catch (error) {
+    console.error("OG Image Fetch Error:", error)
     return fallbackImage()
   }
 
