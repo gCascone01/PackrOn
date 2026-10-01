@@ -1,7 +1,8 @@
 import { ImageResponse } from "next/og"
-import { loadShare } from "@/lib/share-store"
+import type { Itinerary } from "@/lib/types"
 import { normalizeCoordinates } from "@/lib/map-svg"
 
+export const runtime = "edge"
 export const alt = "PackrOn itinerary preview"
 export const size = { width: 1200, height: 630 }
 export const contentType = "image/png"
@@ -14,6 +15,32 @@ const CARD = "#ffffff"
 const TEXT = "#0f172a"
 const MUTED = "#47657d"
 const BORDER = "rgba(15, 23, 42, 0.08)"
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ?? "https://packron.vercel.app"
+
+function fallbackImage() {
+  return new ImageResponse(
+    (
+      <div
+        style={{
+          display: "flex",
+          width: "100%",
+          height: "100%",
+          alignItems: "center",
+          justifyContent: "center",
+          background: `linear-gradient(135deg, ${SKY} 0%, #d8f2fb 100%)`,
+          color: BRAND_DARK,
+          fontFamily: "sans-serif",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
+          <div style={{ display: "flex", width: 64, height: 64, borderRadius: 32, background: BRAND, alignItems: "center", justifyContent: "center", color: "white", fontSize: 36, fontWeight: 800 }}>P</div>
+          <span style={{ fontSize: 58, fontWeight: 800 }}>PackrOn</span>
+        </div>
+      </div>
+    ),
+    { ...size }
+  )
+}
 
 function fitText(value: string, max = 54) {
   if (value.length <= max) return value
@@ -22,12 +49,21 @@ function fitText(value: string, max = 54) {
 
 export default async function Image({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const itinerary = await loadShare(id)
+  let itinerary: Itinerary
+  try {
+    const response = await fetch(`${SITE_URL}/api/share/${encodeURIComponent(id)}`, { cache: "no-store" })
+    if (!response.ok) return fallbackImage()
+    const data: { itinerary?: Itinerary } = await response.json()
+    if (!data.itinerary) return fallbackImage()
+    itinerary = data.itinerary
+  } catch {
+    return fallbackImage()
+  }
 
   const fallbackTitle = "PackrOn itinerary"
-  const title = fitText(itinerary?.title?.trim() || fallbackTitle, 52)
+  const title = fitText(itinerary.title.trim() || fallbackTitle, 52)
 
-  const allStops = itinerary?.days.flatMap((day) => day.stops ?? []) ?? []
+  const allStops = itinerary.days.flatMap((day) => day.stops ?? [])
   const highlights = allStops
     .filter((stop) => stop.category !== "notte" && stop.category !== "sosta")
     .slice(0, 3)
@@ -36,7 +72,7 @@ export default async function Image({ params }: { params: Promise<{ id: string }
     .map((stop) => fitText(stop, 18))
 
   const points: Array<{ lat: number; lng: number }> = []
-  if (typeof itinerary?.originLat === "number" && typeof itinerary?.originLng === "number") {
+  if (typeof itinerary.originLat === "number" && typeof itinerary.originLng === "number") {
     points.push({ lat: itinerary.originLat, lng: itinerary.originLng })
   }
   for (const stop of allStops) {
@@ -48,8 +84,8 @@ export default async function Image({ params }: { params: Promise<{ id: string }
   const projected = points.length > 0 ? normalizeCoordinates(points, 360, 360, 26) : []
   const pathD = projected.length > 1 ? `M ${projected.map((point) => `${point.x},${point.y}`).join(" L ")}` : ""
 
-  const modeLabel = itinerary?.mode === "road" ? "Road trip" : "City trip"
-  const daysLabel = itinerary ? `${itinerary.days.length} ${itinerary.days.length === 1 ? "day" : "days"}` : "Shared itinerary"
+  const modeLabel = itinerary.mode === "road" ? "Road trip" : "City trip"
+  const daysLabel = `${itinerary.days.length} ${itinerary.days.length === 1 ? "day" : "days"}`
 
   return new ImageResponse(
     (
