@@ -21,7 +21,6 @@ export interface SavedTrip {
   title: string
   mode: TripMode
   origin: string
-  destination: string
   data: Itinerary
   created_at: string
   updated_at: string

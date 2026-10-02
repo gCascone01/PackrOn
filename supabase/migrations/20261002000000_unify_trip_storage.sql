@@ -1,7 +1,6 @@
 -- Generated trips are public by UUID and may remain unclaimed by an account.
 alter table public.saved_trips
-  alter column user_id drop not null,
-  add column if not exists destination text not null default '';
+  alter column user_id drop not null;
 
 drop policy if exists "saved_trips_select_own" on public.saved_trips;
 drop policy if exists "saved_trips_select_public" on public.saved_trips;

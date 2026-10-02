@@ -87,7 +87,6 @@ describe("toSavedTripSummary", () => {
       title: itin.title,
       mode: itin.mode,
       origin: itin.origin,
-      destination: "",
       data: itin,
       created_at: "2026-01-01T00:00:00Z",
       updated_at: "2026-01-02T00:00:00Z",

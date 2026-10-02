@@ -21,7 +21,6 @@ export function SavedTripView({ tripId, publicView = false }: { tripId: string; 
   const { addTrip, removeTrip } = useGuestTrips()
   const [itinerary, setItinerary] = useState<Itinerary | null>(null)
   const [tripOwnerId, setTripOwnerId] = useState<string | null>(null)
-  const [destination, setDestination] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [claimIntent, setClaimIntent] = useState(false)
@@ -35,7 +34,6 @@ export function SavedTripView({ tripId, publicView = false }: { tripId: string; 
     if (!configured || (!publicView && !user)) return
     setItinerary(null)
     setTripOwnerId(null)
-    setDestination("")
     setError(null)
     let cancelled = false
     const load = async () => {
@@ -49,7 +47,6 @@ export function SavedTripView({ tripId, publicView = false }: { tripId: string; 
         if (!cancelled) {
           setItinerary(data.trip.data)
           setTripOwnerId(data.trip.user_id)
-          setDestination(data.trip.destination ?? "")
         }
       } catch (err) {
         if (!cancelled) setError(err instanceof Error ? err.message : t("tripsLoadFail"))
@@ -64,9 +61,13 @@ export function SavedTripView({ tripId, publicView = false }: { tripId: string; 
 
   useEffect(() => {
     if (publicView && !authLoading && !user && itinerary && tripOwnerId === null) {
-      addTrip({ id: tripId, title: itinerary.title, destination })
+      addTrip({
+        id: tripId,
+        title: itinerary.title,
+        destination: itinerary.mode === "city" ? itinerary.origin : "",
+      })
     }
-  }, [addTrip, authLoading, destination, itinerary, publicView, tripId, tripOwnerId, user])
+  }, [addTrip, authLoading, itinerary, publicView, tripId, tripOwnerId, user])
 
   useEffect(() => {
     if (!publicView || authLoading || !user || !itinerary || tripOwnerId !== null || !claimIntent || claimAttempted.current) {
