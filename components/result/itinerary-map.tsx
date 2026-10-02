@@ -217,9 +217,8 @@ export function ItineraryMap({
 
     validStops.forEach((s, index) => {
       const active = s.id === selectedId
-      const isHome = index === 0
-      const isDestination = !loop && index === validStops.length - 1 && !isHome
-      const icon = heroMap && !isHome && !isDestination
+      const isDestination = heroMap && !loop && index === validStops.length - 1
+      const icon = heroMap && !isDestination
         ? L.divIcon({
             className: "",
             html: '<div class="h-3 w-3 rounded-full border-2 border-blue-600 bg-white shadow-sm"></div>',
@@ -233,16 +232,14 @@ export function ItineraryMap({
               iconSize: [32, 32],
               iconAnchor: [16, 32],
             })
-          : isHome && heroMap
-            ? homeIcon
-            : L.divIcon({
+          : L.divIcon({
             className: "packron-marker",
             html: `<div class="packron-marker-pin" style="${
               active ? "background:oklch(0.72 0.15 60);transform:rotate(-45deg) scale(1.2);" : ""
             }"><span>${index + 1}</span></div>`,
             iconSize: [30, 30],
             iconAnchor: [15, 30],
-            })
+          })
       const marker = L.marker([s.lat, s.lng], { icon, interactive: interactive && !heroMap }).addTo(layer)
       if (!heroMap) {
         marker.bindTooltip(`${index + 1}. ${s.name}`, { direction: "top", offset: [0, -28] })

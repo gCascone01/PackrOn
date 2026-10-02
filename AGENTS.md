@@ -54,7 +54,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 ### Origin point on map
 - Added `originLat`/`originLng` to `Itinerary` type (from Gemini `origin_lat`/`origin_lng`)
 - Map renders origin marker (🏠) + polyline from origin → first stop
-- Hero map marker styling is isolated with `heroMap`: first stop is the home pin; round-trip remaining stops are dots; one-way final stop uses an unnumbered flag pin. It suppresses Hero tooltips/interactions; the lower itinerary map keeps numbered pins and tooltips.
+- Hero map marker styling is isolated with `heroMap`: only the itinerary origin is the home pin; round-trip stops are dots; one-way final stop uses an unnumbered flag pin. It suppresses Hero tooltips/interactions; the lower itinerary map keeps numbered pins and tooltips.
 - Distance calculation includes origin→first stop for day 1 (`withLiveDistances` in `lib/geo.ts`)
 - Rationale: User sees the full route from their actual starting point, not just between stops
 
