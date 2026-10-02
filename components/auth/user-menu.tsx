@@ -35,20 +35,41 @@ export function UserMenu() {
 
   if (!configured) {
     return (
-      <Link
-        href={localizedPath(locale, "/login")}
-        className="hidden text-xs font-medium text-muted-foreground hover:text-foreground sm:block"
-        title={t("authNotConfigured")}
-      >
-        {t("authLogin")}
-      </Link>
+      <>
+        <Link
+          href={localizedPath(locale, "/login")}
+          className="inline-flex size-9 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground md:hidden"
+          title={t("authNotConfigured")}
+          aria-label={t("authLogin")}
+        >
+          <LogIn className="size-4" />
+        </Link>
+        <Link
+          href={localizedPath(locale, "/login")}
+          className="hidden items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground md:inline-flex"
+          title={t("authNotConfigured")}
+        >
+          <LogIn className="size-4" />
+          {t("authLogin")}
+        </Link>
+      </>
     )
   }
 
   if (!user) {
     return (
       <>
-        <Button variant="outline" size="lg" onClick={() => setDialogOpen(true)}>
+        <Button
+          variant="outline"
+          size="icon"
+          className="md:hidden"
+          onClick={() => setDialogOpen(true)}
+          title={t("authLogin")}
+          aria-label={t("authLogin")}
+        >
+          <LogIn className="size-4" />
+        </Button>
+        <Button variant="outline" size="lg" className="hidden md:inline-flex" onClick={() => setDialogOpen(true)}>
           <LogIn className="size-4" />
           {t("authLogin")}
         </Button>
@@ -58,7 +79,6 @@ export function UserMenu() {
   }
 
   const label = displayName(user)
-  const initial = label.charAt(0).toUpperCase()
 
   const doSignOut = async () => {
     setSigningOut(true)
@@ -82,9 +102,9 @@ export function UserMenu() {
         onClick={() => setMenuOpen((v) => !v)}
         title={label}
         aria-label={label}
-        className="rounded-full font-bold sm:hidden"
+        className="md:hidden"
       >
-        {initial}
+        <CircleUserRound className="size-4" />
       </Button>
       <Button
         variant="outline"
@@ -93,10 +113,10 @@ export function UserMenu() {
         aria-expanded={menuOpen}
         onClick={() => setMenuOpen((v) => !v)}
         title={label}
-        className="hidden sm:inline-flex"
+        className="hidden md:inline-flex"
       >
         <CircleUserRound className="size-4" />
-        <span className="max-w-24 truncate sm:max-w-36">{label}</span>
+        <span className="max-w-36 truncate">{label}</span>
       </Button>
       {menuOpen ? (
         <div role="menu" className="absolute right-0 z-20 mt-2 w-56 rounded-xl border border-border bg-card p-1 shadow-lg">

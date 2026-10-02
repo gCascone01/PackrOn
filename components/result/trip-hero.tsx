@@ -1,6 +1,8 @@
 "use client"
 
 import dynamic from "next/dynamic"
+import { Bus, CalendarDays, CarFront, Sparkles } from "lucide-react"
+import { useI18n } from "@/components/locale-provider"
 import type { TripMode } from "@/lib/types"
 import type { MapStop, OriginPoint } from "./itinerary-map"
 
@@ -32,10 +34,13 @@ export function TripHero({
   origin,
   scrollTargetId = "itinerary-detail-view",
 }: TripHeroProps) {
+  const { t } = useI18n()
   const scrollToDetails = () => {
     const target = document.getElementById(scrollTargetId)
     target?.scrollIntoView({ behavior: "smooth", block: "start" })
   }
+  const ModeIcon = mode === "road" ? CarFront : Bus
+  const daysLabel = t(daysCount === 1 ? "dayCount" : "daysCount", { n: daysCount })
 
   return (
     <div className="relative mb-6 flex flex-col items-center justify-center overflow-hidden px-3 pt-6 pb-10 sm:px-4 sm:pt-10 md:pt-16 md:pb-16">
@@ -50,19 +55,29 @@ export function TripHero({
 
             {subtitle ? <p className="text-sm text-muted-foreground md:text-base">{subtitle}</p> : null}
 
-            <p className="text-base font-medium text-muted-foreground md:text-xl">
-              {daysCount} • {tripTypeLabel}
-            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-brand/20 bg-brand-muted/45 px-3 py-1.5 text-xs font-medium text-foreground">
+                <CalendarDays className="size-3.5 text-brand" />
+                {daysLabel}
+              </span>
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-brand/20 bg-brand-muted/45 px-3 py-1.5 text-xs font-medium text-foreground">
+                <ModeIcon className="size-3.5 text-brand" />
+                {tripTypeLabel}
+              </span>
+            </div>
 
             <div className="pt-1 md:pt-2">
               <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground md:mb-3 md:text-sm">
                 Highlights
               </p>
-              <ul className="flex max-h-28 flex-col gap-2 overflow-hidden pr-1 md:max-h-44 md:gap-2.5 md:overflow-y-auto md:custom-scrollbar">
+              <ul className="flex max-h-28 flex-wrap content-start gap-2 overflow-x-hidden overflow-y-auto pr-1 md:max-h-44 md:gap-2.5 md:custom-scrollbar">
                 {highlights.map((highlight, index) => (
-                  <li key={`${highlight}-${index}`} className="flex items-center gap-3 text-foreground/90">
-                    <span className="text-brand text-sm leading-none font-bold">{index + 1}.</span>
-                    <span className="leading-tight font-medium text-sm md:text-base">{highlight}</span>
+                  <li
+                    key={`${highlight}-${index}`}
+                    className="inline-flex max-w-full min-w-0 items-center gap-1.5 rounded-full border border-brand/15 bg-brand-muted/35 px-3 py-1.5 text-xs font-medium text-foreground/90"
+                  >
+                    <Sparkles className="size-3.5 shrink-0 text-brand" />
+                    <span className="min-w-0 truncate leading-tight">{highlight}</span>
                   </li>
                 ))}
               </ul>
