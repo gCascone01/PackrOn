@@ -1,12 +1,11 @@
 "use client"
 
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import dynamic from "next/dynamic"
 import type { Itinerary, Stop } from "@/lib/types"
 import { withLiveDistances } from "@/lib/geo"
 import { formatKm, totalDistanceKm } from "@/lib/costs"
-import { buildShareUrl, copyText, encodeItinerary } from "@/lib/share"
-import { localizedPath } from "@/lib/paths"
+import { copyText } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { SaveTripButton } from "@/components/auth/save-trip-button"
 import { Timeline } from "./timeline"
@@ -27,24 +26,28 @@ export function ResultView({
   onBack,
   onRestart,
   savedId,
+  shareUrl,
   showHero = true,
+  showSaveButton = true,
+  allowDelete = true,
 }: {
   initial: Itinerary
   onBack: () => void
   onRestart?: () => void
   /** Server id when this view shows a trip loaded from the account. */
   savedId?: string | null
+  shareUrl?: string
   showHero?: boolean
+  showSaveButton?: boolean
+  allowDelete?: boolean
 }) {
   const { t, locale } = useI18n()
   const [itinerary, setItinerary] = useState<Itinerary>(initial)
+  const [initialSnapshot] = useState(() => JSON.stringify(initial))
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [mobileTab, setMobileTab] = useState<"timeline" | "map">("timeline")
-  const [shareOpen, setShareOpen] = useState(false)
   const [copied, setCopied] = useState(false)
   const [shareError, setShareError] = useState<string | null>(null)
-  const [shareUrl, setShareUrl] = useState<string | null>(null)
-  const shareRef = useRef<HTMLDivElement>(null)
   /** Latest replacement: powers the undo toast (transient) and the pinned previous stop (persistent). */
   const [lastReplaced, setLastReplaced] = useState<{ dayId: string; stopId: string; prev: Stop } | null>(null)
   /** Previous stop per live stop id — survives StopCard remounts (keyed by stop.id). */
@@ -56,57 +59,19 @@ export function ResultView({
     return () => window.clearTimeout(timer)
   }, [lastReplaced])
 
-  useEffect(() => {
-    let cancelled = false
-    const prepare = async () => {
-      try {
-        const res = await fetch("/api/share", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(itinerary),
-        })
-        if (res.ok) {
-          const data = (await res.json()) as { id?: string }
-          if (!cancelled && data.id) {
-            setShareUrl(`${window.location.origin}${localizedPath(locale, `/i/${data.id}`)}`)
-            return
-          }
-        }
-      } catch {
-        // Fall back to embedding the itinerary in the URL.
-      }
-      try {
-        const token = await encodeItinerary(itinerary)
-        if (!cancelled) setShareUrl(buildShareUrl(window.location.origin, token, locale))
-      } catch {
-        if (!cancelled) setShareUrl(null)
-      }
-    }
-    void prepare()
-    return () => {
-      cancelled = true
-    }
-  }, [itinerary, locale])
-
-  useEffect(() => {
-    if (!shareOpen) return
-    const onPointer = (event: MouseEvent) => {
-      if (shareRef.current && !shareRef.current.contains(event.target as Node)) {
-        setShareOpen(false)
-      }
-    }
-    window.addEventListener("mousedown", onPointer)
-    return () => window.removeEventListener("mousedown", onPointer)
-  }, [shareOpen])
-
-  const copyShareLink = async () => {
+  const shareCurrentPage = async () => {
     setShareError(null)
-    if (!shareUrl) {
-      setShareError(t("shareFail"))
-      return
-    }
+    const url = shareUrl ? new URL(shareUrl, window.location.origin).href : window.location.href
     try {
-      await copyText(shareUrl)
+      if (navigator.share) {
+        try {
+          await navigator.share({ title: itinerary.title, url })
+          return
+        } catch (error) {
+          if (error instanceof DOMException && error.name === "AbortError") return
+        }
+      }
+      await copyText(url)
       setCopied(true)
       window.setTimeout(() => setCopied(false), 2000)
     } catch {
@@ -282,47 +247,22 @@ export function ResultView({
               {t("restart")}
             </Button>
           ) : null}
-          <div className="relative shrink-0" ref={shareRef}>
+          <div className="flex shrink-0 flex-col items-end gap-1.5">
             <div className="flex items-center gap-2">
-              <SaveTripButton itinerary={itinerary} savedId={savedId} />
-              <Button
-                variant="secondary"
-                size="lg"
-                className="shrink-0"
-                aria-haspopup="menu"
-                aria-expanded={shareOpen}
-                onClick={() => {
-                  setShareOpen((open) => !open)
-                  setShareError(null)
-                }}
-              >
+              {showSaveButton ? (
+                <SaveTripButton
+                  itinerary={itinerary}
+                  savedId={savedId}
+                  initialSnapshot={initialSnapshot}
+                  allowDelete={allowDelete}
+                />
+              ) : null}
+              <Button variant="secondary" size="lg" className="shrink-0" onClick={() => void shareCurrentPage()}>
                 <Share2 className="size-4" />
-                {t("share")}
+                {copied ? t("linkCopied") : t("share")}
               </Button>
             </div>
-            {shareOpen ? (
-              <div
-                role="menu"
-                className="absolute right-0 z-20 mt-2 w-52 rounded-xl border border-border bg-card p-1 shadow-lg"
-              >
-                <button
-                  type="button"
-                  role="menuitem"
-                  disabled={!shareUrl}
-                  data-share-url={shareUrl ?? undefined}
-                  onClick={copyShareLink}
-                  className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-medium text-foreground hover:bg-muted"
-                >
-                  {copied ? <Check className="size-4 text-brand" /> : <Copy className="size-4" />}
-                  {copied ? t("linkCopied") : t("copyLink")}
-                </button>
-                {shareError ? (
-                  <p role="alert" className="px-3 pb-2 text-xs text-destructive">
-                    {shareError}
-                  </p>
-                ) : null}
-              </div>
-            ) : null}
+            {shareError ? <p role="alert" className="text-xs text-destructive">{shareError}</p> : null}
           </div>
         </div>
       </div>

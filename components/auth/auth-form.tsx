@@ -19,10 +19,14 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
 export function AuthForm({
   initialMode = "login",
   onSuccess,
+  onSignupSuccess,
+  returnTo,
   compact = false,
 }: {
   initialMode?: Mode
   onSuccess?: () => void
+  onSignupSuccess?: () => void
+  returnTo?: string
   compact?: boolean
 }) {
   const { t, locale } = useI18n()
@@ -32,7 +36,6 @@ export function AuthForm({
   const [password, setPassword] = useState("")
   const [fieldError, setFieldError] = useState<string | null>(null)
   const [serverError, setServerError] = useState<string | null>(null)
-  const [info, setInfo] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
   const [passkeyPending, setPasskeyPending] = useState(false)
   // Gated in a mount effect (not the useState initializer) so server and
@@ -66,7 +69,6 @@ export function AuthForm({
     }
     setFieldError(null)
     setServerError(null)
-    setInfo(null)
     setPasskeyPending(true)
     try {
       const supabase = createClient()
@@ -95,7 +97,6 @@ export function AuthForm({
     event.preventDefault()
     setFieldError(null)
     setServerError(null)
-    setInfo(null)
 
     const cleanEmail = email.trim().toLowerCase()
     if (!EMAIL_RE.test(cleanEmail)) {
@@ -115,32 +116,19 @@ export function AuthForm({
     try {
       const supabase = createClient()
       if (mode === "signup") {
-        // Prefer the canonical site URL so confirmation links never point at
-        // localhost or a preview origin. Fall back to the current origin when
-        // the env var is unset (local dev). This exact origin must be listed
-        // in Supabase Dashboard → Authentication → URL Configuration
-        // (Site URL + Redirect URLs), otherwise Supabase falls back to the
-        // dashboard Site URL.
-        const envSiteUrl = (process.env.NEXT_PUBLIC_SITE_URL ?? "").trim().replace(/\/+$/, "")
-        const siteUrl = envSiteUrl || (typeof window !== "undefined" ? window.location.origin : "")
         const { data, error } = await supabase.auth.signUp({
           email: cleanEmail,
           password,
-          options: {
-            data: { username: defaultUsername(cleanEmail) },
-            ...(siteUrl
-              ? { emailRedirectTo: `${siteUrl}/auth/callback?next=${encodeURIComponent(localizedPath(locale, "/trips"))}` }
-              : {}),
-          },
+          options: { data: { username: defaultUsername(cleanEmail) } },
         })
         if (error) throw error
-        // When email confirmation is on, there is no session yet.
         if (data.session) {
           onSuccess?.()
-          router.push(localizedPath(locale, "/trips"))
+          onSignupSuccess?.()
+          if (!returnTo) router.push(localizedPath(locale, "/trips"))
           router.refresh()
         } else {
-          setInfo(t("authCheckEmail"))
+          setServerError(t("authGenericError"))
         }
       } else {
         const { error } = await supabase.auth.signInWithPassword({
@@ -149,7 +137,7 @@ export function AuthForm({
         })
         if (error) throw error
         onSuccess?.()
-        router.push(localizedPath(locale, "/trips"))
+        if (!returnTo) router.push(localizedPath(locale, "/trips"))
         router.refresh()
       }
     } catch (err) {
@@ -194,7 +182,6 @@ export function AuthForm({
             onClick={() => {
               setMode(m)
               setServerError(null)
-              setInfo(null)
               setFieldError(null)
             }}
             className={cn(
@@ -252,12 +239,6 @@ export function AuthForm({
             {serverError}
           </p>
         ) : null}
-        {info ? (
-          <p role="status" className="rounded-xl border border-brand/30 bg-brand/10 px-3 py-2 text-sm text-foreground">
-            {info}
-          </p>
-        ) : null}
-
         <Button type="submit" size="lg" disabled={pending || passkeyPending} className="w-full">
           {pending ? <Loader2 className="size-4 animate-spin" /> : mode === "login" ? <LogIn className="size-4" /> : <UserPlus className="size-4" />}
           {pending ? t("authWorking") : mode === "login" ? t("authLoginAction") : t("authSignupAction")}

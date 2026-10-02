@@ -1,13 +1,27 @@
 import type { Itinerary, TripMode } from "./types"
-import { isItinerary } from "./share"
 
-/** Row shape of the `saved_trips` table (RLS: owner-only). */
+export function isItinerary(value: unknown): value is Itinerary {
+  if (!value || typeof value !== "object") return false
+  const itinerary = value as Itinerary
+  return (
+    (itinerary.mode === "road" || itinerary.mode === "city") &&
+    typeof itinerary.title === "string" &&
+    typeof itinerary.origin === "string" &&
+    Array.isArray(itinerary.days) &&
+    Array.isArray(itinerary.tollNotices) &&
+    itinerary.vehicle != null &&
+    typeof itinerary.vehicle === "object"
+  )
+}
+
+/** Row shape of the `saved_trips` table (public read, nullable owner). */
 export interface SavedTrip {
   id: string
-  user_id: string
+  user_id: string | null
   title: string
   mode: TripMode
   origin: string
+  destination: string
   data: Itinerary
   created_at: string
   updated_at: string
@@ -57,6 +71,7 @@ export function isMissingTableError(error: unknown): boolean {
   if (e.code === "PGRST205" || e.code === "42P01") return true
   if (typeof e.message === "string") {
     const m = e.message.toLowerCase()
+    if (e.code === "PGRST202" && m.includes("get_public_trip")) return true
     return m.includes("saved_trips") && (m.includes("schema cache") || m.includes("does not exist"))
   }
   return false

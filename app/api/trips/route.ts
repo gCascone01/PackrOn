@@ -20,6 +20,7 @@ export async function GET() {
   const { data, error } = await supabase
     .from("saved_trips")
     .select("id,user_id,title,mode,origin,data,created_at,updated_at")
+    .eq("user_id", user.id)
     .order("updated_at", { ascending: false })
     .limit(100)
 

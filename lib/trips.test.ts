@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { isMissingTableError, toSavedTripSummary, validateSaveTripPayload, type SavedTrip } from "./trips"
+import { isItinerary, isMissingTableError, toSavedTripSummary, validateSaveTripPayload, type SavedTrip } from "./trips"
 import type { Itinerary } from "./types"
 
 function baseItinerary(): Itinerary {
@@ -34,6 +34,13 @@ function baseItinerary(): Itinerary {
   }
 }
 
+describe("isItinerary", () => {
+  it("accepts itinerary data and rejects invalid payloads", () => {
+    expect(isItinerary(baseItinerary())).toBe(true)
+    expect(isItinerary(null)).toBe(false)
+  })
+})
+
 describe("validateSaveTripPayload", () => {
   it("accepts a valid itinerary wrapped or bare", () => {
     const itin = baseItinerary()
@@ -62,6 +69,7 @@ describe("isMissingTableError", () => {
   it("detects a missing saved_trips table", () => {
     expect(isMissingTableError({ code: "PGRST205", message: "Could not find the table 'public.saved_trips' in the schema cache" })).toBe(true)
     expect(isMissingTableError({ code: "42P01", message: 'relation "saved_trips" does not exist' })).toBe(true)
+    expect(isMissingTableError({ code: "PGRST202", message: "Could not find the function get_public_trip" })).toBe(true)
   })
 
   it("ignores other failures", () => {
@@ -79,6 +87,7 @@ describe("toSavedTripSummary", () => {
       title: itin.title,
       mode: itin.mode,
       origin: itin.origin,
+      destination: "",
       data: itin,
       created_at: "2026-01-01T00:00:00Z",
       updated_at: "2026-01-02T00:00:00Z",

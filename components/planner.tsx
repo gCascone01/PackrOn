@@ -1,17 +1,21 @@
 "use client"
 
 import Image from "next/image"
+import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { useRef, useState } from "react"
-import type { GenerateTripPayload, Itinerary, TripMode } from "@/lib/types"
+import type { GenerateTripPayload, TripMode } from "@/lib/types"
 import { SiteHeader } from "./site-header"
 import { ModeSelector } from "./mode-selector"
 import { DEFAULT_ROAD_FORM, RoadTripConfigurator } from "./road-trip-configurator"
 import { DEFAULT_CITY_FORM, CityTripConfigurator } from "./city-trip-configurator"
-import { ResultView } from "./result/result-view"
 import { GeneratingSkeleton } from "./generating-skeleton"
 import { MouseDistanceCounter } from "./mouse-distance-counter"
-import { Fuel, MapPinned, Route, AlertCircle, MapPin, Plane, HelpCircle } from "lucide-react"
+import { Fuel, MapPinned, Route, AlertCircle, MapPin, Plane } from "lucide-react"
 import { useI18n } from "@/components/locale-provider"
+import { useAuth } from "@/components/auth/auth-provider"
+import { useGuestTrips } from "@/hooks/use-guest-trips"
+import { localizedPath } from "@/lib/paths"
 import type { MessageKey } from "@/lib/i18n"
 
 function ErrorExplanation({ error, t }: { error: string; t: (key: MessageKey, vars?: Record<string, string | number>) => string }) {
@@ -130,6 +134,9 @@ function ErrorExplanation({ error, t }: { error: string; t: (key: MessageKey, va
 
 export function Planner() {
   const { t, locale } = useI18n()
+  const router = useRouter()
+  const { user, loading: authLoading } = useAuth()
+  const { trips: guestTrips } = useGuestTrips()
   const [mode, setMode] = useState<TripMode>("road")
   const [roadForm, setRoadForm] = useState(DEFAULT_ROAD_FORM)
   const [cityForm, setCityForm] = useState(DEFAULT_CITY_FORM)
@@ -138,24 +145,7 @@ export function Planner() {
   const [loading, setLoading] = useState(false)
   const [generationKey, setGenerationKey] = useState(0)
   const [error, setError] = useState<string | null>(null)
-  const [result, setResult] = useState<Itinerary | null>(null)
   const wizardCardRef = useRef<HTMLDivElement>(null)
-
-  const goBack = () => {
-    setResult(null)
-    window.scrollTo({ top: 0 })
-  }
-
-  const restart = () => {
-    setRoadForm(DEFAULT_ROAD_FORM)
-    setCityForm(DEFAULT_CITY_FORM)
-    setRoadStep(0)
-    setCityStep(0)
-    setMode("road")
-    setError(null)
-    setResult(null)
-    window.scrollTo({ top: 0 })
-  }
 
   const features: Array<{ icon: typeof Route; title: MessageKey; text: MessageKey }> = [
     { icon: Route, title: "featureRouteTitle", text: "featureRouteText" },
@@ -181,31 +171,21 @@ export function Planner() {
       if (!contentType.includes("application/json")) {
         throw new Error(t("apiUnexpected"))
       }
-      let data: { itinerary?: Itinerary; error?: string }
+      let data: { id?: string; error?: string }
       try {
-        data = (await res.json()) as { itinerary?: Itinerary; error?: string }
+        data = (await res.json()) as { id?: string; error?: string }
       } catch {
         throw new Error(t("apiUnexpected"))
       }
-      if (!res.ok || !data.itinerary) {
+      if (!res.ok || !data.id) {
         throw new Error(data.error || t("generateFail"))
       }
-      setResult(data.itinerary)
-      window.scrollTo({ top: 0 })
+      router.push(localizedPath(locale, `/trip/${encodeURIComponent(data.id)}`))
     } catch (err) {
       setError(err instanceof Error ? err.message : t("generateUnexpected"))
     } finally {
       setLoading(false)
     }
-  }
-
-  if (result) {
-    return (
-      <div className="min-h-screen bg-background">
-        <SiteHeader onBrandClick={goBack} />
-        <ResultView initial={result} onBack={goBack} onRestart={restart} />
-      </div>
-    )
   }
 
   return (
@@ -304,6 +284,25 @@ export function Planner() {
                   onStepChange={setCityStep}
                 />
               )}
+
+              {!authLoading && !user && guestTrips.length > 0 ? (
+                <section className="mt-8 border-t border-border pt-6" aria-labelledby="recent-trips-heading">
+                  <h3 id="recent-trips-heading" className="text-sm font-semibold text-foreground">{t("recentTrips")}</h3>
+                  <ul className="mt-2 divide-y divide-border">
+                    {guestTrips.map((trip) => (
+                      <li key={trip.id}>
+                        <Link
+                          href={localizedPath(locale, `/trip/${encodeURIComponent(trip.id)}`)}
+                          className="flex min-w-0 items-center justify-between gap-3 py-2 text-sm text-foreground hover:text-brand"
+                        >
+                          <span className="min-w-0 truncate font-medium">{trip.title}</span>
+                          {trip.destination ? <span className="shrink-0 truncate text-xs text-muted-foreground">{trip.destination}</span> : null}
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              ) : null}
             </div>
           </div>
         </div>

@@ -1,3 +1,4 @@
+import { randomUUID } from "crypto"
 import { NextResponse } from "next/server"
 import { generateJsonWithFallback, parseJsonPayload } from "@/lib/gemini"
 import { GEMINI_TRIP_SCHEMA, type GeminiTrip } from "@/lib/gemini-schema"
@@ -6,6 +7,9 @@ import { isGeminiTrip, mapGeminiTrip } from "@/lib/map-gemini-itinerary"
 import type { GenerateTripPayload } from "@/lib/types"
 import { translate, type Locale, type MessageKey } from "@/lib/i18n"
 import { validateLocations } from "@/lib/geocode"
+import { createClient } from "@/lib/supabase/server"
+import { isSupabaseConfigured } from "@/lib/supabase/config"
+import { isMissingTableError } from "@/lib/trips"
 import {
   createGeminiDebugId,
   isGeminiDebugEnabled,
@@ -55,6 +59,10 @@ export async function POST(request: Request) {
     return apiError(locale, "apiNeedRoute", 400)
   }
 
+  if (!isSupabaseConfigured()) {
+    return NextResponse.json({ error: translate(locale, "apiGeneric") }, { status: 503 })
+  }
+
   const validation = await validateLocations(payload, locale)
   if (!validation.valid) {
     return apiError(locale, validation.errorKey!, 400)
@@ -102,8 +110,35 @@ export async function POST(request: Request) {
     }
 
     const itinerary = mapGeminiTrip(parsed as GeminiTrip, payload)
-  if (debugEnabled) logGeminiMappedItinerary(itinerary, parsed as GeminiTrip)
-    return NextResponse.json({ itinerary })
+    if (debugEnabled) logGeminiMappedItinerary(itinerary, parsed as GeminiTrip)
+
+    const supabase = await createClient()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    const destination = payload.mode === "city" ? payload.city!.trim() : payload.destination!.trim()
+    const id = randomUUID()
+    const { error } = await supabase
+      .from("saved_trips")
+      .insert({
+        id,
+        user_id: user?.id ?? null,
+        title: itinerary.title.trim().slice(0, 160),
+        mode: itinerary.mode,
+        origin: itinerary.origin.slice(0, 200),
+        destination: destination.slice(0, 200),
+        data: itinerary,
+      })
+
+    if (error) {
+      console.error("[generate-trip] trip persistence failed:", error)
+      return NextResponse.json(
+        { error: translate(locale, "apiGeneric"), ...(error && isMissingTableError(error) ? { code: "setup_required" } : {}) },
+        { status: 500 },
+      )
+    }
+
+    return NextResponse.json({ id })
   } catch (error) {
     const message = error instanceof Error && error.message !== "MISSING_KEY"
       ? error.message

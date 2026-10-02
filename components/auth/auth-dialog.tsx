@@ -6,7 +6,19 @@ import { X } from "lucide-react"
 import { AuthForm } from "./auth-form"
 import { useI18n } from "@/components/locale-provider"
 
-export function AuthDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+export function AuthDialog({
+  open,
+  onClose,
+  initialMode,
+  returnTo,
+  onSignupSuccess,
+}: {
+  open: boolean
+  onClose: () => void
+  initialMode?: "login" | "signup"
+  returnTo?: string
+  onSignupSuccess?: () => void
+}) {
   const { t } = useI18n()
   const [mounted, setMounted] = useState(false)
 
@@ -58,7 +70,13 @@ export function AuthDialog({ open, onClose }: { open: boolean; onClose: () => vo
           </button>
           <h2 className="font-display text-xl font-bold tracking-tight text-foreground">{t("authTitle")}</h2>
           <p className="mb-5 mt-1 text-sm text-muted-foreground">{t("authSubtitle")}</p>
-          <AuthForm compact onSuccess={onClose} />
+          <AuthForm
+            compact
+            initialMode={initialMode}
+            returnTo={returnTo}
+            onSuccess={onClose}
+            onSignupSuccess={onSignupSuccess}
+          />
         </div>
       </div>
     </div>,

@@ -24,9 +24,13 @@ import { Button } from "@/components/ui/button"
 export function SaveTripButton({
   itinerary,
   savedId: initialSavedId,
+  initialSnapshot,
+  allowDelete = true,
 }: {
   itinerary: Itinerary
   savedId?: string | null
+  initialSnapshot?: string
+  allowDelete?: boolean
 }) {
   const { t } = useI18n()
   const { user, configured } = useAuth()
@@ -34,7 +38,7 @@ export function SaveTripButton({
   const [pending, setPending] = useState(false)
   const [savedId, setSavedId] = useState<string | null>(initialSavedId ?? null)
   const [snapshot, setSnapshot] = useState<string | null>(() =>
-    initialSavedId ? JSON.stringify(itinerary) : null,
+    initialSavedId ? initialSnapshot ?? JSON.stringify(itinerary) : null,
   )
   const [error, setError] = useState<string | null>(null)
 
@@ -132,7 +136,7 @@ export function SaveTripButton({
         variant={checked ? "default" : "outline"}
         size="lg"
         onClick={checked ? remove : save}
-        disabled={pending}
+        disabled={pending || (checked && !allowDelete)}
         title={checked ? t("tripSaved") : t("tripSave")}
       >
         {pending ? (

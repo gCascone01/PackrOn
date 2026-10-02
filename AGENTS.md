@@ -14,20 +14,28 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 # Project Decisions & Rationale
 
-### Shared Trip Hero (2026-10-02)
-- Extracted the itinerary hero into a reusable `TripHero` component in `components/result/trip-hero.tsx` so both the generated itinerary view and the shared itinerary route use the same UI contract.
-- The component accepts explicit props for title, subtitle, trip mode, days count, highlight list, map stops, and origin point instead of pulling page data internally.
-- The hero sits above the itinerary map/timeline on the main generation result page and uses a scroll target id to send the chevron back to the dense itinerary section.
-- The shared route page now passes the fetched itinerary data into `TripHero` as props so the share flow keeps the same layout without duplicating the hero markup.
-- Shared itinerary pages render the outer `TripHero` once and pass `showHero={false}` to the nested `ResultView`; all other `ResultView` uses keep the default hero.
-- Rationale: a shared hero keeps the layout consistent across routes while letting each page pass its own data and scroll anchors without coupling the UI to a single page.
+### Public trip view (2026-10-02)
+- Generated and shared itineraries now use the localized `/{locale}/trip/{id}` route backed by `saved_trips`; `SavedTripView` loads the public row and renders the normal `ResultView`/`TripHero` once.
+- The old localized `/i/{id}` path redirects to the matching `/trip/{id}` URL; the compressed itinerary-token route is removed.
+- Rationale: there is one canonical trip page and one UUID across generation, sharing, guest retention, and account claiming.
 
 ### Dynamic social previews (2026-10-02)
-- Added a dedicated OG image route at `app/share/[id]/opengraph-image.tsx` for shared itinerary links and aligned the locale-specific preview route with the same brand palette and route-map composition.
+- The dynamic OG image for a public trip lives at `app/[locale]/trip/[id]/opengraph-image.tsx` and uses the same brand palette and route-map composition as the previous shared-trip preview.
 - The social preview uses the PackrOn blue brand color and orange accent color converted from the app’s OKLCH design tokens, while avoiding CSS variable references because `ImageResponse` needs fixed hex values.
 - The preview includes the trip title, day count/mode, highlight chips, and a compact route map that starts from the trip origin house marker and follows the itinerary path.
-- Both preview routes use the default Node.js runtime and request-time image generation. They fetch itinerary data from the absolute same-origin `/api/share/{id}` URL built from request-scoped forwarded host/protocol headers, with the canonical site URL as fallback. Fetch failures and missing data are logged and return a generic branded image; the API route reads the filesystem-backed share store.
+- The preview uses the default Node.js runtime and request-time image generation. It calls the UUID-scoped `get_public_trip` Supabase function directly and validates the returned itinerary; query failures, missing rows, and invalid payloads are logged and return a generic branded image.
 - Rationale: chat apps such as WhatsApp only render the social metadata image, so a dynamic OG preview gives a usable card even when the live app page is not rendered inline.
+
+### Unified trip storage and guest claiming (2026-10-02)
+- Every successful `/api/generate-trip` request inserts the mapped itinerary into Supabase `saved_trips` before returning. `user_id` comes only from the request's Supabase session, or remains null for a guest; the response includes the generated row UUID.
+- The client navigates to `/{locale}/trip/{id}`. `GET /api/trips/{id}` resolves one public UUID through the `get_public_trip` security-definer function; direct table reads, updates, and deletes remain owner-only. Sharing calls Web Share when available and otherwise copies the public trip URL (the canonical current URL on public pages, mapped from account-library views); no second share record or encoded-itinerary URL is created.
+- Because RLS now permits public trip reads, `GET /api/trips` also filters explicitly by the authenticated `user.id`; public lookup must not broaden the account's My Trips list.
+- Migration `20261002000000_unify_trip_storage.sql` makes `user_id` nullable, adds the requested destination field, allows anonymous inserts only with null ownership, exposes one row by UUID through a narrowly scoped function (not a table-wide public SELECT policy), and allows authenticated users to claim null-owner rows while setting ownership to `auth.uid()`.
+- Guest page views are deduplicated in the `packron-guest-trips` localStorage list (capped at 20) and shown as Recent Trips on the planner. A guest viewing an orphaned trip can open the signup dialog; signup requires Supabase to return a session immediately, then automatically calls `POST /api/trips/claim`. Email confirmation flows and `claim` query parameters are intentionally unsupported.
+- `ResultView` preserves its original itinerary snapshot while a guest edits; if the save control appears after signup/claim, it still detects those edits against the database version.
+- Claim API input is a trip UUID only. RLS and the update filter both require a null current owner, and the API always supplies the logged-in user's ID from the server session.
+- Legacy `/api/share` and filesystem storage (`fs`, `.data`, `/tmp`, `PACKRON_SHARE_DIR`) have been removed. The old localized `/i/{id}` URL redirects to the database-backed `/trip/{id}` route.
+- Rationale: one database row is the canonical editable, saved, and shareable trip; guest retention and null-owner claiming bridge anonymous generation to account ownership without a second storage system.
 
 ## Architecture
 
@@ -194,7 +202,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 ## SEO (`app/sitemap.ts`, `app/robots.ts`)
 - Sitemap lists the 6 canonical locale URLs: `/{en,it}`, `/{en,it}/how-it-works`, `/{en,it}/examples` — derived from `LOCALES` in `lib/i18n.ts`
 - Legacy slugs `/come-funziona` and `/esempi` are NOT in the sitemap (they 302-redirect in `proxy.ts`); listing redirecting URLs hurts SEO
-- Dynamic/shared routes (`/[locale]/i`, `/[locale]/i/[id]`) excluded — no indexable content; also disallowed in `robots.ts` alongside `/api/`
+- Dynamic trip routes (`/[locale]/trip/[id]`) excluded — itineraries are user-generated and must not be indexed; legacy `/i/{id}` redirects to the current route.
 - Base URL from `NEXT_PUBLIC_SITE_URL` env with fallback to `https://packron.vercel.app` — set the env var when the production domain changes instead of editing code
 - Rationale: sitemap must match the real `[locale]` route structure, not the pre-i18n slugs
 - Every sitemap URL carries `alternates.languages` (`en`/`it`/`x-default`, absolute URLs) → Next renders `<xhtml:link hreflang>` entries, mirroring the hreflang link tags in metadata so Google serves the right locale
@@ -251,9 +259,9 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - **Auth**: Supabase Auth (GoTrue) via `@supabase/ssr` + `@supabase/supabase-js`. Passwords go over TLS straight to Supabase (bcrypt-hashed server-side); the app never sees, hashes, or stores passwords — so no `bcrypt`/`jose`/custom JWT code in this repo.
 - **Sessions**: httpOnly (`sb-*-auth-token`), Secure in production, SameSite=Lax cookies managed by `@supabase/ssr`; PKCE flow; no tokens in localStorage (XSS-proof). `proxy.ts` calls `updateSession()` on every request to refresh cookies.
 - **Encryption**: TLS 1.2+ in transit, AES-256 at rest (Supabase-managed). Only `NEXT_PUBLIC_SUPABASE_URL` + the public key (`NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, with legacy `NEXT_PUBLIC_SUPABASE_ANON_KEY` fallback via `getSupabasePublishableKey()`) are exposed (public by design — RLS enforces access). No secret/service-role key anywhere in the app.
-- **Authorization**: `saved_trips` table with RLS `auth.uid() = user_id` on SELECT/INSERT/UPDATE/DELETE (`supabase/migrations/20260911000000_create_saved_trips.sql`). API routes (`app/api/trips/route.ts`, `app/api/trips/[id]/route.ts`) take `user_id` from the server-side session only — never from client input (prevents IDOR). Payloads re-validated server-side with `isItinerary()` + 500KB cap + 160-char title cap (`lib/trips.ts`, tested in `lib/trips.test.ts`).
-- **Graceful pre-Supabase state**: until env vars are set, `isSupabaseConfigured()` / `AuthProvider.configured` degrade (auth UI explains setup, trip saving returns 503) while the rest of the app builds and runs. No dead imports, no crashes. Setup = create project → run migration → set the two env vars → enable email confirmation redirect to `/auth/callback`.
-- **Confirmation redirect (2026-09)**: signup passes `emailRedirectTo` preferring `NEXT_PUBLIC_SITE_URL` (canonical production URL, required in prod) with `window.location.origin` fallback for local dev. Supabase ignores any `emailRedirectTo` not listed in Dashboard → Authentication → URL Configuration (Site URL + Redirect URLs) and falls back to the dashboard Site URL — which is why production emails pointed at `localhost:3000` while the dashboard Site URL was still the dev default. Dashboard fix: Site URL = production URL, Redirect URLs must include `<prod>/auth/callback` (+ localhost variant for dev). Emails sent before the fix keep the old link.
+- **Authorization**: base owner policies in `20260911000000_create_saved_trips.sql` are extended by `20261002000000_unify_trip_storage.sql`: trip reads are public by UUID, anonymous inserts must have null `user_id`, authenticated inserts/updates use `auth.uid()`, and only authenticated users can claim null-owner rows. `app/api/trips/claim/route.ts` and save routes derive ownership from the server-side session, never client input. Payloads remain re-validated server-side with `isItinerary()` + 500KB cap + 160-char title cap (`lib/trips.ts`).
+- **Graceful pre-Supabase state**: until env vars are set, `isSupabaseConfigured()` / `AuthProvider.configured` degrade (auth UI explains setup, trip saving returns 503) while the rest of the app builds and runs. No dead imports, no crashes. Supabase Auth Email confirmation must be disabled so signups return a session immediately.
+- **Immediate-session signup (2026-10)**: signup does not set `emailRedirectTo` or display a confirmation prompt. `onSignupSuccess` and guest-trip claiming run only when `signUp()` returns a session; a missing session is treated as a generic signup error. `app/auth/callback/route.ts` remains for other PKCE callback workflows, not signup verification.
 - Rationale: anything hand-rolled (password hashing, JWT issuance, session cookies, per-user DB filtering) would duplicate — and likely weaken — what Supabase already provides audited and maintained.
 
 ### Key files
@@ -266,7 +274,9 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - `supabase/migrations/20260911000000_create_saved_trips.sql` — table + RLS + `updated_at` trigger
 - `app/auth/callback/route.ts` — PKCE code exchange (not locale-prefixed)
 - `app/api/trips/route.ts` — GET list (summaries), POST save (201 + `{id}`)
-- `app/api/trips/[id]/route.ts` — GET one, PUT overwrite (re-saving an edited trip updates the same record, no duplicates), DELETE (401 logged-out / 404 foreign-or-missing, no existence leak)
+- `app/api/trips/[id]/route.ts` — public GET by UUID; owner-only PUT overwrite and DELETE
+- `app/api/trips/claim/route.ts` — authenticated claim of a null-owner trip
+- `supabase/migrations/20261002000000_unify_trip_storage.sql` — nullable guest ownership, destination, public reads, and claim RLS
 - `components/auth/auth-provider.tsx` — session context (`AuthProvider` in `components/providers.tsx`)
 - `components/auth/auth-form.tsx` — login/signup tabs, client validation (email regex, min 8 chars), friendly Supabase error mapping
 - `components/auth/auth-dialog.tsx` — modal used by header/save button (Esc + backdrop close, focus-safe). Rendered via `createPortal` to `document.body`: callers live inside filtered ancestors (sticky blurred header) that would otherwise trap `position: fixed` and break viewport centering; `min-h-full` flex wrapper keeps it centered and scrollable on small screens.
@@ -277,7 +287,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - `app/[locale]/trips/[id]/page.tsx` + `components/trips/saved-trip-view.tsx` — reopen a saved itinerary in `ResultView`
 
 ### i18n keys added
-- `authTitle`, `authSubtitle`, `authLogin`, `authSignup`, `authLoginAction`, `authSignupAction`, `authEmail`, `authPassword`, `authPasswordHint`, `authWorking`, `authClose`, `authInvalidEmail`, `authPasswordShort`, `authNotConfigured`, `authGenericError`, `authWrongCredentials`, `authAlreadyRegistered`, `authRateLimited`, `authEmailRateLimited`, `authCheckEmail`, `authSecurityNote`, `authLogout`, `authAccount`, `authMyTrips`, `authLoginRequired`, `tripSave`, `tripSaving`, `tripSaved`, `tripSaveFail`, `tripsTitle`, `tripsSubtitle`, `tripsEmpty`, `tripsEmptyAction`, `tripsOpen`, `tripsDelete`, `tripsDeleting`, `tripsDeleteFail`, `tripsLoadFail`, `tripsDeleteConfirm`, `tripsSignInPrompt`, `tripsSetupRequired`, `accountTitle`, `accountSubtitle`, `accountEmail`, `accountUsername`, `accountUsernameHint`, `accountNewPassword`, `accountNewPasswordHint`, `accountConfirmPassword`, `accountSave`, `accountSaving`, `accountSaved`, `accountSaveFail`, `accountPasswordMismatch`, `accountInvalidUsername`, `accountSetupRequired`, `authPasskeyOr`, `authPasskeyButton`, `authPasskeyWorking`, `authPasskeyUnavailable`, `authPasskeyUnsupported`, `authPasskeyNotFound`, `accountPasskeysTitle`, `accountPasskeysBody`, `accountPasskeyAdd`, `accountPasskeyAdding`, `accountPasskeyAdded`, `accountPasskeyRemoved`, `accountPasskeyEmpty`, `accountPasskeyRemove`, `accountPasskeyRemoving`, `accountPasskeyFail`, `accountPasskeyConfirmEmail`, `accountPasskeyExists`, `accountPasskeyRename`, `accountPasskeySave`, `accountPasskeyCancel`, `accountPasskeyRenamed` (both locales)
+- `authTitle`, `authSubtitle`, `authLogin`, `authSignup`, `authLoginAction`, `authSignupAction`, `authEmail`, `authPassword`, `authPasswordHint`, `authWorking`, `authClose`, `authInvalidEmail`, `authPasswordShort`, `authNotConfigured`, `authGenericError`, `authWrongCredentials`, `authAlreadyRegistered`, `authRateLimited`, `authEmailRateLimited`, `authSecurityNote`, `authLogout`, `authAccount`, `authMyTrips`, `authLoginRequired`, `tripSave`, `tripSaving`, `tripSaved`, `tripSaveFail`, `tripsTitle`, `tripsSubtitle`, `tripsEmpty`, `tripsEmptyAction`, `tripsOpen`, `tripsDelete`, `tripsDeleting`, `tripsDeleteFail`, `tripsLoadFail`, `tripsDeleteConfirm`, `tripsSignInPrompt`, `tripsSetupRequired`, `accountTitle`, `accountSubtitle`, `accountEmail`, `accountUsername`, `accountUsernameHint`, `accountNewPassword`, `accountNewPasswordHint`, `accountConfirmPassword`, `accountSave`, `accountSaving`, `accountSaved`, `accountSaveFail`, `accountPasswordMismatch`, `accountInvalidUsername`, `accountSetupRequired`, `authPasskeyOr`, `authPasskeyButton`, `authPasskeyWorking`, `authPasskeyUnavailable`, `authPasskeyUnsupported`, `authPasskeyNotFound`, `accountPasskeysTitle`, `accountPasskeysBody`, `accountPasskeyAdd`, `accountPasskeyAdding`, `accountPasskeyAdded`, `accountPasskeyRemoved`, `accountPasskeyEmpty`, `accountPasskeyRemove`, `accountPasskeyRemoving`, `accountPasskeyFail`, `accountPasskeyConfirmEmail`, `accountPasskeyExists`, `accountPasskeyRename`, `accountPasskeySave`, `accountPasskeyCancel`, `accountPasskeyRenamed` (both locales)
 - Auth rate limits (2026-09): Supabase returns 429 for distinct limits — `over_email_send_rate_limit` (built-in provider: 2 emails/hour project-wide) vs generic IP/request limits. `AuthForm` inspects both `error.code` and message (old code only checked `message`, missing the code) and shows `authEmailRateLimited` vs `authRateLimited` (wait a minute). `authEmailRateLimited` copy stays end-user friendly ("too many signups, try again later") with no Supabase/SMTP detail — the 2/hour + custom-SMTP fix lives only in the code comment and here. Rationale: "wait a minute" is wrong for the email cap and users kept retrying, extending the block.
 
 ### Missing-table diagnosis (2026-09: live debug)
@@ -286,7 +296,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 ### SEO
 - `/login`, `/signup` (all locales) ARE in `app/sitemap.ts` (priority 0.5, public auth entry points) and allowed in `app/robots.ts`.
-- `/trips`, `/trips/[id]`, `/account` (all locales) + `/auth/*` + `/api/` + `/*/i/` are `disallow`ed in `app/robots.ts` and excluded from `app/sitemap.ts` — private/auth routes must never be indexed.
+- `/trips`, `/trips/[id]`, `/trip/[id]`, `/account` (all locales) + `/auth/*` + `/api/` are `disallow`ed in `app/robots.ts` and excluded from `app/sitemap.ts` — account and user-generated trip routes must never be indexed.
 
 ### Username & account page
 - Username lives in Supabase Auth `user_metadata.username` (no extra table — avoids a second source of truth and extra RLS surface).

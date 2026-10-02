@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Loader2 } from "lucide-react"
 import { SiteHeader } from "@/components/site-header"
@@ -9,26 +9,33 @@ import { AuthDialog } from "@/components/auth/auth-dialog"
 import { useAuth } from "@/components/auth/auth-provider"
 import { useI18n } from "@/components/locale-provider"
 import { localizedPath } from "@/lib/paths"
-import { isItinerary } from "@/lib/share"
 import type { Itinerary } from "@/lib/types"
-import type { SavedTrip } from "@/lib/trips"
+import { isItinerary, type SavedTrip } from "@/lib/trips"
 import { Button } from "@/components/ui/button"
+import { useGuestTrips } from "@/hooks/use-guest-trips"
 
-export function SavedTripView({ tripId }: { tripId: string }) {
+export function SavedTripView({ tripId, publicView = false }: { tripId: string; publicView?: boolean }) {
   const { t, locale } = useI18n()
   const router = useRouter()
   const { user, loading: authLoading, configured } = useAuth()
+  const { addTrip, removeTrip } = useGuestTrips()
   const [itinerary, setItinerary] = useState<Itinerary | null>(null)
+  const [tripOwnerId, setTripOwnerId] = useState<string | null>(null)
+  const [destination, setDestination] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [claimIntent, setClaimIntent] = useState(false)
+  const claimAttempted = useRef(false)
 
   const homeHref = localizedPath(locale, "/")
   const tripsHref = localizedPath(locale, "/trips")
 
   useEffect(() => {
     if (authLoading) return
-    if (!configured || !user) return
+    if (!configured || (!publicView && !user)) return
     setItinerary(null)
+    setTripOwnerId(null)
+    setDestination("")
     setError(null)
     let cancelled = false
     const load = async () => {
@@ -39,7 +46,11 @@ export function SavedTripView({ tripId }: { tripId: string }) {
           if (data.error === "setup_required") throw new Error(t("tripsSetupRequired"))
           throw new Error(res.status === 404 ? t("sharedInvalid") : t("tripsLoadFail"))
         }
-        if (!cancelled) setItinerary(data.trip.data)
+        if (!cancelled) {
+          setItinerary(data.trip.data)
+          setTripOwnerId(data.trip.user_id)
+          setDestination(data.trip.destination ?? "")
+        }
       } catch (err) {
         if (!cancelled) setError(err instanceof Error ? err.message : t("tripsLoadFail"))
       }
@@ -49,7 +60,37 @@ export function SavedTripView({ tripId }: { tripId: string }) {
       cancelled = true
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authLoading, configured, user, tripId])
+  }, [authLoading, configured, publicView, user, tripId])
+
+  useEffect(() => {
+    if (publicView && !authLoading && !user && itinerary && tripOwnerId === null) {
+      addTrip({ id: tripId, title: itinerary.title, destination })
+    }
+  }, [addTrip, authLoading, destination, itinerary, publicView, tripId, tripOwnerId, user])
+
+  useEffect(() => {
+    if (!publicView || authLoading || !user || !itinerary || tripOwnerId !== null || !claimIntent || claimAttempted.current) {
+      return
+    }
+    claimAttempted.current = true
+    const claim = async () => {
+      try {
+        const response = await fetch("/api/trips/claim", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ tripId }),
+        })
+        if (!response.ok) throw new Error("Trip claim failed")
+        setTripOwnerId(user.id)
+        removeTrip(tripId)
+        setClaimIntent(false)
+      } catch {
+        claimAttempted.current = false
+        console.error("[trips] claim request failed")
+      }
+    }
+    void claim()
+  }, [authLoading, claimIntent, itinerary, publicView, removeTrip, tripId, tripOwnerId, user])
 
   if (authLoading) {
     return (
@@ -75,7 +116,7 @@ export function SavedTripView({ tripId }: { tripId: string }) {
     )
   }
 
-  if (!user) {
+  if (!user && !publicView) {
     return (
       <div className="min-h-screen bg-background">
         <SiteHeader />
@@ -118,11 +159,29 @@ export function SavedTripView({ tripId }: { tripId: string }) {
   return (
     <div className="min-h-screen bg-background">
       <SiteHeader onBrandClick={() => router.push(homeHref)} />
+      {publicView && !user && tripOwnerId === null ? (
+        <div className="sticky top-20 z-30 mx-auto flex max-w-6xl items-center justify-between gap-4 border-b border-brand/20 bg-brand-muted/95 px-4 py-3 backdrop-blur sm:px-6">
+          <p className="min-w-0 text-sm font-medium text-foreground">{t("guestTripBanner")}</p>
+          <Button size="sm" className="shrink-0" onClick={() => setDialogOpen(true)}>{t("authSignup")}</Button>
+        </div>
+      ) : null}
+      {publicView ? (
+        <AuthDialog
+          open={dialogOpen}
+          onClose={() => setDialogOpen(false)}
+          initialMode="signup"
+          returnTo={localizedPath(locale, `/trip/${encodeURIComponent(tripId)}`)}
+          onSignupSuccess={() => setClaimIntent(true)}
+        />
+      ) : null}
       <ResultView
         key={tripId}
         initial={itinerary}
-        onBack={() => router.push(tripsHref)}
+        onBack={() => router.push(publicView ? homeHref : tripsHref)}
         savedId={tripId}
+        shareUrl={localizedPath(locale, `/trip/${encodeURIComponent(tripId)}`)}
+        showSaveButton={!publicView || Boolean(user)}
+        allowDelete={!publicView}
       />
     </div>
   )

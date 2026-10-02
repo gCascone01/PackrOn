@@ -7,25 +7,16 @@ function unauthorized() {
   return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 }
 
-/**
- * GET /api/trips/[id] — load one saved itinerary (owner only, via RLS).
- */
+/** GET /api/trips/[id] — load a trip by its unguessable public UUID. */
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   if (!isSupabaseConfigured()) {
     return NextResponse.json({ error: "Auth not configured" }, { status: 503 })
   }
   const { id } = await params
   const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) return unauthorized()
-
   const { data, error } = await supabase
-    .from("saved_trips")
-    .select("id,user_id,title,mode,origin,data,created_at,updated_at")
-    .eq("id", id)
-    .single()
+    .rpc("get_public_trip", { p_trip_id: id })
+    .maybeSingle()
 
   if (error || !data) {
     if (error) console.error("[trips] get failed:", error)

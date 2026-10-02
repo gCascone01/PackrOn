@@ -5,8 +5,7 @@ const SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, '') ?? 'https://packron.vercel.app'
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  // Public pages only. Private routes (/*/trips, /auth/*) and shared
-  // itineraries (/*/i/*) are excluded — they must never be indexed.
+  // Public pages only. Account routes, auth callbacks, and trip URLs are excluded.
   // /login + /signup are public auth entry points (lower priority).
   // Each URL carries xhtml hreflang alternates (en/it/x-default) so Google
   // serves the right locale — mirrors the hreflang link tags in metadata.

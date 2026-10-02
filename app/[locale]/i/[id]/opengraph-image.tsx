@@ -1,7 +1,8 @@
 import { ImageResponse } from "next/og"
-import { headers } from "next/headers"
 import type { Itinerary } from "@/lib/types"
 import { normalizeCoordinates } from "@/lib/map-svg"
+import { createClient } from "@/lib/supabase/server"
+import { isItinerary } from "@/lib/trips"
 
 export const dynamic = "force-dynamic"
 export const alt = "PackrOn itinerary preview"
@@ -16,16 +17,6 @@ const CARD = "#ffffff"
 const TEXT = "#0f172a"
 const MUTED = "#47657d"
 const BORDER = "rgba(15, 23, 42, 0.08)"
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ?? "https://packron.vercel.app"
-
-async function getRequestOrigin() {
-  const requestHeaders = await headers()
-  const host = requestHeaders.get("x-forwarded-host")?.split(",")[0].trim() || requestHeaders.get("host")
-  if (!host) return SITE_URL
-  const protocol = requestHeaders.get("x-forwarded-proto")?.split(",")[0].trim() || (host.startsWith("localhost") ? "http" : "https")
-  return `${protocol}://${host}`
-}
-
 function fallbackImage() {
   return new ImageResponse(
     (
@@ -60,14 +51,16 @@ export default async function Image({ params }: { params: Promise<{ locale: stri
   const { id } = await params
   let itinerary: Itinerary
   try {
-    const url = new URL(`/api/share/${encodeURIComponent(id)}`, await getRequestOrigin())
-    const response = await fetch(url, { cache: "no-store" })
-    if (!response.ok) throw new Error(`Share API returned ${response.status}`)
-    const data: { itinerary?: Itinerary } = await response.json()
-    if (!data.itinerary) throw new Error(`Shared itinerary ${id} was not found`)
-    itinerary = data.itinerary
+    const supabase = await createClient()
+    const { data, error } = await supabase
+      .rpc("get_public_trip", { p_trip_id: id })
+      .maybeSingle()
+    if (error) throw error
+    const tripData = (data as { data?: unknown } | null)?.data
+    if (!isItinerary(tripData)) throw new Error(`Trip ${id} was not found`)
+    itinerary = tripData
   } catch (error) {
-    console.error("OG Image Fetch Error:", error)
+    console.error("OG Image Load Error:", error)
     return fallbackImage()
   }
 

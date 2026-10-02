@@ -18,7 +18,7 @@ AI travel planner for **road trips** and **city trips**. Fill in a short wizard,
 - **City trips**: walkable/public-transport itineraries within a single city.
 - **Editable results**: reorder/remove stops (distances recompute live), replace a stop from 3 Gemini alternatives with undo toast + pinnable previous choice.
 - **Lazy stop details**: on-demand description (Gemini) + real photo (Wikipedia, freely licensed) in a modal.
-- **Sharing**: short links (`/{locale}/i/{id}`) stored server-side, with gzipped-URL fallback when storage is unavailable.
+- **Sharing**: every generated trip is stored in Supabase and shared with its public UUID route (`/{locale}/trip/{id}`). Guest trips can be claimed by signing up.
 - **Accounts & saved trips**: email/password auth, passkeys (WebAuthn), username profile, saved-trip library with edit-overwrite, account deletion.
 - **SEO**: locale sitemap with hreflang, canonical URLs, Open Graph/Twitter cards, JSON-LD, robots rules.
 
@@ -50,20 +50,19 @@ Open [http://localhost:3000](http://localhost:3000). Middleware redirects `/` to
 | `GEMINI_MODEL` | No | Default `gemini-3.1-flash-lite` (fallback is built-in) |
 | `NEXT_PUBLIC_SUPABASE_URL` | Yes, for auth/saved trips | Supabase project URL |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Yes, for auth/saved trips | Public `sb_publishable_…` key (legacy `NEXT_PUBLIC_SUPABASE_ANON_KEY` still works as fallback). Never add a secret/service-role key |
-| `NEXT_PUBLIC_SITE_URL` | Required in prod | Canonical URL; used for email-confirmation redirects, sitemap, canonical/OG tags |
+| `NEXT_PUBLIC_SITE_URL` | Required in prod | Canonical URL used for sitemap, canonical URLs, and social metadata |
 | `NEXT_PUBLIC_BOOKING_AFFILIATE_ID` | No | Omitted from Booking URLs until set to a real aid |
 | `NEXT_PUBLIC_GETYOURGUIDE_PARTNER_ID` | No | Optional `partner_id` on GetYourGuide searches |
-| `PACKRON_SHARE_DIR` | No | Directory for short share IDs (default `.data/shares` locally, `/tmp` on Vercel) |
-
-Without the Supabase vars the app still builds and runs, but auth UI explains setup and trip saving returns 503.
+Without the Supabase vars the app still builds and runs, but auth UI explains setup and trip generation/storage returns 503.
 
 ### Supabase setup
 
-1. Create a project, then run both migrations in the SQL editor (in order):
+1. Create a project, then run all migrations in the SQL editor (in order):
    - `supabase/migrations/20260911000000_create_saved_trips.sql` (table + RLS)
    - `supabase/migrations/20260912000000_delete_own_account.sql` (self-service account deletion)
+   - `supabase/migrations/20261002000000_unify_trip_storage.sql` (guest rows + public trip reads)
 2. Set `NEXT_PUBLIC_SUPABASE_URL` + key, and `NEXT_PUBLIC_SITE_URL` in prod.
-3. Dashboard → Authentication → URL Configuration: Site URL = production URL; Redirect URLs must include `<prod>/auth/callback` (+ `http://localhost:3000/auth/callback` for dev).
+3. Dashboard → Authentication → Providers → Email: disable email confirmation so signup returns an active session immediately. Set the Site URL to the production URL; this app does not send signup confirmation links.
 4. Optional, for passkeys: Authentication → Passkeys → enable, RP display name `PackrOn`, RP ID = bare production domain. RP ID binds credentials, so localhost needs its own RP ID/project for testing.
 
 ## Routes
@@ -75,8 +74,8 @@ Pages (all under `/it` + `/en`):
 - `/examples` — example itineraries (legacy `/esempi` 302-redirects here)
 - `/login`, `/signup` — public auth entry points (in sitemap)
 - `/trips`, `/trips/[id]` — private saved-trip library (never indexed)
+- `/trip/[id]` — public itinerary by database UUID (never indexed)
 - `/account` — private profile, passkeys, delete account (never indexed)
-- `/i`, `/i/[id]` — shared itineraries (never indexed)
 
 API:
 
@@ -84,22 +83,22 @@ API:
 - `POST /api/suggest-stops` — three nearby alternatives (Gemini, mock fallback)
 - `POST /api/describe-stop` — lazy description + Wikipedia photo
 - `GET /api/reverse-geocode` — Nominatim, then BigDataCloud
-- `POST /api/share`, `GET /api/share/:id` — short share links (file store)
 - `GET /api/trips`, `POST /api/trips` — list / save (auth required)
-- `GET /api/trips/[id]`, `PUT /api/trips/[id]`, `DELETE /api/trips/[id]` — read / overwrite / delete own trip
+- `GET /api/trips/[id]` — public trip read; `PUT` / `DELETE` remain owner-only
+- `POST /api/trips/claim` — attach a guest trip to the authenticated user
 - `DELETE /api/account` — delete own account (confirmation by typing username)
 - `GET /auth/callback` — Supabase PKCE code exchange (not locale-prefixed)
 
 ## Sharing vs saved trips
 
-- **Sharing** is account-free: the UI stores the itinerary as a JSON file (`PACKRON_SHARE_DIR`, ephemeral `/tmp` on Vercel) and copies `/{locale}/i/{id}`. If storage fails, it falls back to a gzipped itinerary in the query string/hash (`/{locale}/i?d=…`).
-- **Saved trips** require login: rows in the Supabase `saved_trips` table guarded by RLS (`auth.uid() = user_id`). The client never sends a user id; the server takes it from the session.
+- Every generated itinerary is inserted into `saved_trips`; authenticated generations include the server-derived user ID and guest generations keep `user_id` null. The trip UUID route is the same public URL used by the share action.
+- Guest trip IDs are also retained in browser local storage for the Recent Trips list. The guest can claim an orphaned row by creating an account while viewing it; the claim endpoint accepts only null-owner rows and derives ownership from the session.
 
 ## Key files
 
 - `lib/gemini.ts`, `lib/gemini-prompt.ts`, `lib/gemini-schema.ts` — model call + fallback, prompt rules, response schema
 - `lib/geocode.ts`, `lib/geo.ts` — required-field check, haversine distances, live recompute
-- `lib/trips.ts`, `lib/share*.ts` — saved-trip validation, share validation/store
+- `lib/trips.ts` — saved-trip validation and row summaries
 - `lib/supabase/` — browser/server clients, session refresh
 - `lib/i18n.ts` — all user-facing strings (`it`/`en`, `MessageKey` type-safe)
 - `components/planner.tsx`, `components/result/` — wizard + editable result view
