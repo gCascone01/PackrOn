@@ -160,12 +160,6 @@ export function SavedTripView({ tripId, publicView = false }: { tripId: string; 
   return (
     <div className="min-h-screen bg-background">
       <SiteHeader onBrandClick={() => router.push(homeHref)} />
-      {publicView && !user && tripOwnerId === null ? (
-        <div className="sticky top-20 z-30 mx-auto flex max-w-6xl items-center justify-between gap-4 border-b border-brand/20 bg-brand-muted/95 px-4 py-3 backdrop-blur sm:px-6">
-          <p className="min-w-0 text-sm font-medium text-foreground">{t("guestTripBanner")}</p>
-          <Button size="sm" className="shrink-0" onClick={() => setDialogOpen(true)}>{t("authSignup")}</Button>
-        </div>
-      ) : null}
       {publicView ? (
         <AuthDialog
           open={dialogOpen}
@@ -184,6 +178,12 @@ export function SavedTripView({ tripId, publicView = false }: { tripId: string; 
         showSaveButton={!publicView || Boolean(user)}
         allowDelete={!publicView}
       />
+      {publicView && !user && tripOwnerId === null ? (
+        <div className="fixed bottom-5 left-1/2 z-50 flex w-max max-w-[calc(100vw_-_2rem)] -translate-x-1/2 items-center justify-between gap-3 rounded-full border border-border bg-background/90 px-4 py-3 shadow-2xl backdrop-blur-md sm:bottom-8 sm:gap-4 sm:px-6">
+          <p className="min-w-0 text-xs font-medium text-foreground sm:text-sm">{t("guestTripBanner")}</p>
+          <Button size="sm" className="shrink-0" onClick={() => setDialogOpen(true)}>{t("authSignup")}</Button>
+        </div>
+      ) : null}
     </div>
   )
 }

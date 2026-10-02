@@ -46,7 +46,7 @@ export function TripHero({
     <div className="relative mb-6 flex flex-col items-center justify-center overflow-hidden px-3 pt-6 pb-10 sm:px-4 sm:pt-10 md:pt-16 md:pb-16">
       <div className="pointer-events-none absolute left-1/2 top-1/2 h-[60vw] max-h-[600px] w-[60vw] max-w-[600px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-brand/20 blur-[120px]" />
 
-      <div className="relative z-10 flex w-full max-w-6xl flex-col items-stretch gap-4 rounded-2xl border border-border/50 bg-background/80 p-4 shadow-2xl backdrop-blur-md md:flex-row md:gap-8 md:p-8 md:rounded-3xl">
+      <div className="relative z-10 flex w-full max-w-6xl flex-col items-stretch gap-4 rounded-2xl border border-border/50 bg-gradient-to-br from-background to-cyan-50/40 p-4 shadow-xl shadow-blue-900/5 backdrop-blur-md dark:to-cyan-950/20 md:flex-row md:gap-8 md:rounded-3xl md:p-8">
         <div className="flex flex-1 flex-col justify-center">
           <div className="flex flex-col gap-3 text-left md:gap-4">
             <h1 className="text-2xl font-extrabold tracking-tight text-foreground text-balance sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl">
@@ -67,7 +67,7 @@ export function TripHero({
             </div>
 
             <div className="pt-1 md:pt-2">
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground md:mb-3 md:text-sm">
+              <p className="mb-2 text-xs font-bold tracking-widest text-slate-500 uppercase dark:text-slate-400 md:mb-3">
                 Highlights
               </p>
               <ul className="flex max-h-28 flex-wrap content-start gap-2 overflow-x-hidden overflow-y-auto pr-1 md:max-h-44 md:gap-2.5 md:custom-scrollbar">
@@ -87,7 +87,15 @@ export function TripHero({
 
         <div className="relative min-h-[220px] w-full overflow-hidden rounded-2xl border border-border/50 bg-background md:min-h-[320px] md:w-[40%]">
           <div className="absolute inset-0">
-            <ItineraryMap stops={stops} selectedId={null} onSelect={() => {}} mode={mode} origin={origin} />
+            <ItineraryMap
+              stops={stops}
+              selectedId={null}
+              onSelect={() => {}}
+              mode={mode}
+              origin={origin}
+              zoomControl={false}
+              attributionControl={false}
+            />
           </div>
         </div>
       </div>

@@ -22,12 +22,16 @@ export function ItineraryMap({
   onSelect,
   mode = "city",
   origin,
+  zoomControl = true,
+  attributionControl = true,
 }: {
   stops: MapStop[]
   selectedId: string | null
   onSelect: (id: string) => void
   mode?: TripMode
   origin?: OriginPoint
+  zoomControl?: boolean
+  attributionControl?: boolean
 }) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<LeafletMap | null>(null)
@@ -117,9 +121,9 @@ export function ItineraryMap({
       const map = L.map(containerRef.current, {
         zoomControl: false,
         scrollWheelZoom: true,
-        attributionControl: true,
+        attributionControl,
       }).setView(mode === "city" ? [37.39, -5.99] : [48.2, 16.37], mode === "city" ? 13 : 7)
-      L.control.zoom({ position: "bottomright" }).addTo(map)
+      if (zoomControl) L.control.zoom({ position: "bottomright" }).addTo(map)
       L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
         attribution: '&copy; OpenStreetMap contributors',
         maxZoom: 19,
