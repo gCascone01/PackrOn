@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react"
 import dynamic from "next/dynamic"
 import type { Itinerary, Stop } from "@/lib/types"
 import { withLiveDistances } from "@/lib/geo"
-import { formatKm, totalDistanceKm } from "@/lib/costs"
+import { totalDistanceKm } from "@/lib/costs"
 import { copyText } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { SaveTripButton } from "@/components/auth/save-trip-button"
@@ -13,7 +13,7 @@ import { CostSummary } from "./cost-summary"
 import { NavLauncher } from "./nav-launcher"
 import { TripHero } from "./trip-hero"
 import type { MapStop, OriginPoint } from "./itinerary-map"
-import { ArrowLeft, CalendarDays, Check, Copy, List, Map as MapIcon, RotateCcw, Share2, Undo2 } from "lucide-react"
+import { ArrowLeft, Check, Copy, List, Map as MapIcon, RotateCcw, Share2, Undo2 } from "lucide-react"
 import { useI18n } from "@/components/locale-provider"
 
 const ItineraryMap = dynamic(() => import("./itinerary-map").then((m) => m.ItineraryMap), {
@@ -214,32 +214,36 @@ export function ResultView({
   return (
     <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6">
       {showHero ? (
+        <div className="mb-3 flex items-center">
+          <Button variant="outline" size="icon-lg" onClick={onBack} aria-label={t("backToConfig")}>
+            <ArrowLeft className="size-4" />
+          </Button>
+        </div>
+      ) : null}
+      {showHero ? (
         <TripHero
           title={liveItinerary.title}
           subtitle={liveItinerary.subtitle}
-          daysCount={liveItinerary.days.length}
-          tripTypeLabel={liveItinerary.mode === "road" ? t("modeRoadTitle") : t("modeCityTitle")}
-          highlights={liveItinerary.days.map((day) => day.title)}
+          days={liveItinerary.days}
+          totalDistanceKm={totalKm}
+          totalStops={totalStops}
+          onShare={() => void shareCurrentPage()}
+          shareLabel={copied ? t("linkCopied") : t("share")}
+          shareError={shareError}
           mode={liveItinerary.mode}
           loop={liveItinerary.loop}
           stops={mapStops}
           origin={originPoint}
-          scrollTargetId="itinerary-detail-view"
         />
       ) : null}
 
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
-          <Button variant="outline" size="icon-lg" onClick={onBack} aria-label={t("backToConfig")}>
-            <ArrowLeft className="size-4" />
-          </Button>
-          <div className="flex flex-wrap items-center gap-2 text-xs">
-            <Meta icon={<CalendarDays className="size-3.5" />} text={t("daysCount", { n: liveItinerary.days.length })} />
-            <Meta icon={<List className="size-3.5" />} text={t("stopsCount", { n: totalStops })} />
-            {liveItinerary.mode === "road" ? (
-              <Meta icon={<MapIcon className="size-3.5" />} text={formatKm(totalKm, locale)} />
-            ) : null}
-          </div>
+          {!showHero ? (
+            <Button variant="outline" size="icon-lg" onClick={onBack} aria-label={t("backToConfig")}>
+              <ArrowLeft className="size-4" />
+            </Button>
+          ) : null}
         </div>
         <div className="flex shrink-0 items-center gap-2">
           {onRestart ? (
@@ -258,12 +262,14 @@ export function ResultView({
                   allowDelete={allowDelete}
                 />
               ) : null}
-              <Button variant="secondary" size="lg" className="shrink-0" onClick={() => void shareCurrentPage()}>
-                <Share2 className="size-4" />
-                {copied ? t("linkCopied") : t("share")}
-              </Button>
+              {!showHero ? (
+                <Button variant="secondary" size="lg" className="shrink-0" onClick={() => void shareCurrentPage()}>
+                  <Share2 className="size-4" />
+                  {copied ? t("linkCopied") : t("share")}
+                </Button>
+              ) : null}
             </div>
-            {shareError ? <p role="alert" className="text-xs text-destructive">{shareError}</p> : null}
+            {!showHero && shareError ? <p role="alert" className="text-xs text-destructive">{shareError}</p> : null}
           </div>
         </div>
       </div>
@@ -307,15 +313,6 @@ export function ResultView({
         </div>
       ) : null}
     </div>
-  )
-}
-
-function Meta({ icon, text }: { icon: React.ReactNode; text: string }) {
-  return (
-    <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-2.5 py-1 font-medium text-muted-foreground">
-      {icon}
-      {text}
-    </span>
   )
 }
 

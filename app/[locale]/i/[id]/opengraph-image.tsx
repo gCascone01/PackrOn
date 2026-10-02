@@ -1,6 +1,8 @@
 import { ImageResponse } from "next/og"
 import type { Itinerary } from "@/lib/types"
 import { normalizeCoordinates } from "@/lib/map-svg"
+import { formatKm, totalDistanceKm } from "@/lib/costs"
+import { isLocale } from "@/lib/i18n"
 import { createClient } from "@/lib/supabase/server"
 import { isItinerary } from "@/lib/trips"
 
@@ -48,7 +50,8 @@ function fitText(value: string, max = 54) {
 }
 
 export default async function Image({ params }: { params: Promise<{ locale: string; id: string }> }) {
-  const { id } = await params
+  const { id, locale: localeParam } = await params
+  const locale = isLocale(localeParam) ? localeParam : "en"
   let itinerary: Itinerary
   try {
     const supabase = await createClient()
@@ -90,6 +93,7 @@ export default async function Image({ params }: { params: Promise<{ locale: stri
 
   const modeLabel = itinerary.mode === "road" ? "Road trip" : "City trip"
   const daysLabel = `${itinerary.days.length} ${itinerary.days.length === 1 ? "day" : "days"}`
+  const distanceLabel = formatKm(totalDistanceKm(itinerary), locale)
 
   return new ImageResponse(
     (
@@ -138,6 +142,7 @@ export default async function Image({ params }: { params: Promise<{ locale: stri
                 }}
               />
               <span style={{ fontSize: 21, fontWeight: 800, letterSpacing: 1.4, color: BRAND_DARK }}>PACKRON</span>
+              <span style={{ fontSize: 14, fontWeight: 700, letterSpacing: 1.2, color: MUTED }}>THE ROAD AHEAD</span>
             </div>
 
             <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
@@ -155,7 +160,7 @@ export default async function Image({ params }: { params: Promise<{ locale: stri
                   letterSpacing: 0.6,
                 }}
               >
-                {modeLabel} • {daysLabel}
+                {modeLabel}
               </div>
 
               <h1 style={{ margin: 0, fontSize: 58, lineHeight: 1.02, fontWeight: 800, color: TEXT, maxWidth: 560 }}>
@@ -188,7 +193,9 @@ export default async function Image({ params }: { params: Promise<{ locale: stri
               )}
 
               <div style={{ display: "flex", alignItems: "center", gap: 12, color: MUTED, fontSize: 22, fontWeight: 600 }}>
-                <span>Trip starts at home</span>
+                <span>{daysLabel}</span>
+                <span style={{ color: ACCENT, fontSize: 28 }}>•</span>
+                <span>{distanceLabel}</span>
                 <span style={{ color: ACCENT, fontSize: 28 }}>•</span>
                 <span>{allStops.length} stops</span>
               </div>

@@ -2,7 +2,7 @@
 
 import "leaflet/dist/leaflet.css"
 import { useEffect, useRef, useState } from "react"
-import type { Map as LeafletMap, LayerGroup } from "leaflet"
+import type { Map as LeafletMap, LayerGroup, Polyline } from "leaflet"
 import type { Stop, TripMode } from "@/lib/types"
 
 export interface MapStop extends Stop {
@@ -127,16 +127,32 @@ export function ItineraryMap({
       const map = L.map(containerRef.current, {
         zoomControl: false,
         dragging: interactive,
-        scrollWheelZoom: interactive,
+        scrollWheelZoom: heroMap ? false : interactive,
         doubleClickZoom: interactive,
         touchZoom: interactive,
         boxZoom: interactive,
         keyboard: interactive,
         attributionControl,
       }).setView(mode === "city" ? [37.39, -5.99] : [48.2, 16.37], mode === "city" ? 13 : 7)
+      if (heroMap) map.attributionControl?.setPrefix(false)
+      if (heroMap) {
+        const endpointPane = map.createPane("heroEndpointPane")
+        endpointPane.style.zIndex = "650"
+        endpointPane.style.pointerEvents = "none"
+      }
       if (zoomControl) L.control.zoom({ position: "bottomright" }).addTo(map)
-      L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        attribution: '&copy; OpenStreetMap contributors',
+      const cartoApiKey = heroMap ? process.env.NEXT_PUBLIC_CARTO_BASEMAPS_KEY : undefined
+      const tileUrl = cartoApiKey
+        ? `https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png?key=${encodeURIComponent(cartoApiKey)}`
+        : "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+      const tileAttribution = cartoApiKey
+        ? '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+        : heroMap
+          ? '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          : '&copy; OpenStreetMap contributors'
+      L.tileLayer(tileUrl, {
+        attribution: tileAttribution,
+        ...(cartoApiKey ? { subdomains: ["a", "b", "c", "d"] } : {}),
         maxZoom: 19,
       }).addTo(map)
       layerRef.current = L.layerGroup().addTo(map)
@@ -180,58 +196,80 @@ export function ItineraryMap({
     }
 
     const polylineStyles = {
-      color: "oklch(0.55 0.216 264)",
-      weight: mode === "road" ? 4 : 3,
-      opacity: mode === "road" ? 0.9 : 0.75,
-      dashArray: mode === "road" ? undefined : "1 8",
+      color: heroMap ? "#0891b2" : "oklch(0.55 0.216 264)",
+      weight: heroMap || mode === "road" ? 4 : 3,
+      opacity: heroMap ? 0.95 : mode === "road" ? 0.9 : 0.75,
+      dashArray: heroMap || mode === "road" ? undefined : "1 8",
       lineCap: "round" as const,
+      ...(heroMap ? { lineJoin: "round" as const } : {}),
+    }
+    let heroRoute: Polyline | null = null
+    const addRouteLine = (points: [number, number][]) => {
+      if (heroMap) {
+        L.polyline(points, { ...polylineStyles, color: "#ffffff", weight: 8, opacity: 0.55 }).addTo(layer)
+      }
+      const route = L.polyline(points, polylineStyles).addTo(layer)
+      if (heroMap) heroRoute = route
+      return route
     }
 
     if (routeGeometries) {
-      L.polyline(routeGeometries, polylineStyles).addTo(layer)
+      addRouteLine(routeGeometries)
     }
 
     const homeIcon = L.divIcon({
-      className: "packron-marker",
-      html: `<div class="packron-marker-pin" style="background:oklch(0.55 0.216 264);transform:rotate(-45deg);"><span class="text-xs font-bold">🏠</span></div>`,
-      iconSize: [30, 30],
-      iconAnchor: [15, 30],
+      className: heroMap ? "" : "packron-marker",
+      html: heroMap
+        ? '<div class="flex h-7 w-7 items-center justify-center rounded-full border-2 border-cyan-600 bg-white shadow-md"><span class="h-2.5 w-2.5 rounded-full bg-cyan-600"></span></div>'
+        : '<div class="packron-marker-pin" style="background:oklch(0.55 0.216 264);transform:rotate(-45deg);"><span class="text-xs font-bold">🏠</span></div>',
+      iconSize: heroMap ? [28, 28] : [30, 30],
+      iconAnchor: heroMap ? [14, 14] : [15, 30],
     })
 
     // Add origin point and line from origin to first stop
     if (origin && typeof origin.lat === "number" && typeof origin.lng === "number" && !isNaN(origin.lat) && !isNaN(origin.lng)) {
       const originLatLng: [number, number] = [origin.lat, origin.lng]
       
-      if (!routeGeometries) {
+      if (!routeGeometries && !heroMap) {
         // Draw line from origin to first stop
         L.polyline([originLatLng, latlngs[0]], polylineStyles).addTo(layer)
       }
 
-      const originMarker = L.marker(originLatLng, { icon: homeIcon, interactive: interactive && !heroMap }).addTo(layer)
+      const originMarker = L.marker(originLatLng, {
+        icon: homeIcon,
+        interactive: interactive && !heroMap,
+        pane: heroMap ? "heroEndpointPane" : "markerPane",
+        zIndexOffset: heroMap ? 1000 : 0,
+      }).addTo(layer)
       if (!heroMap) originMarker.bindTooltip(`${origin.name || "Start"}`, { direction: "top", offset: [0, -28] })
     }
 
     if (!routeGeometries) {
-      L.polyline(latlngs, polylineStyles).addTo(layer)
+      addRouteLine(heroMap && origin && Number.isFinite(origin.lat) && Number.isFinite(origin.lng)
+        ? [[origin.lat, origin.lng], ...latlngs]
+        : latlngs)
     }
 
     validStops.forEach((s, index) => {
       const active = s.id === selectedId
       const isDestination = heroMap && !loop && index === validStops.length - 1
-      const icon = heroMap && !isDestination
+      const isStart = heroMap && !origin && index === 0
+      const icon = heroMap && !isDestination && !isStart
         ? L.divIcon({
             className: "",
-            html: '<div class="h-3 w-3 rounded-full border-2 border-blue-600 bg-white shadow-sm"></div>',
-            iconSize: [12, 12],
-            iconAnchor: [6, 6],
+            html: '<div class="h-2.5 w-2.5 rounded-full bg-cyan-600 ring-2 ring-white"></div>',
+            iconSize: [10, 10],
+            iconAnchor: [5, 5],
           })
         : heroMap && isDestination
           ? L.divIcon({
               className: "",
-              html: '<div class="flex h-8 w-8 -rotate-45 items-center justify-center rounded-full rounded-br-none border-2 border-white bg-blue-600 shadow-md"><svg class="h-4 w-4 rotate-45" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22V4m0 0h12l-3 4 3 4H4"/></svg></div>',
-              iconSize: [32, 32],
-              iconAnchor: [16, 32],
+              html: '<div class="flex h-7 w-7 items-center justify-center rounded-full border-2 border-white bg-cyan-600 shadow-md"><span class="h-2.5 w-2.5 rounded-full border-2 border-white"></span></div>',
+              iconSize: [28, 28],
+              iconAnchor: [14, 14],
             })
+          : heroMap && isStart
+            ? homeIcon
           : L.divIcon({
             className: "packron-marker",
             html: `<div class="packron-marker-pin" style="${
@@ -240,7 +278,13 @@ export function ItineraryMap({
             iconSize: [30, 30],
             iconAnchor: [15, 30],
           })
-      const marker = L.marker([s.lat, s.lng], { icon, interactive: interactive && !heroMap }).addTo(layer)
+      const isHeroEndpoint = isDestination || isStart
+      const marker = L.marker([s.lat, s.lng], {
+        icon,
+        interactive: interactive && !heroMap,
+        pane: isHeroEndpoint ? "heroEndpointPane" : "markerPane",
+        zIndexOffset: isHeroEndpoint ? 1000 : 0,
+      }).addTo(layer)
       if (!heroMap) {
         marker.bindTooltip(`${index + 1}. ${s.name}`, { direction: "top", offset: [0, -28] })
         marker.on("click", () => selectRef.current(s.id))
@@ -267,10 +311,14 @@ export function ItineraryMap({
       requestAnimationFrame(() => {
         map.invalidateSize()
         try {
-          map.fitBounds(paddedBounds, {
-            animate: false,
-            maxZoom: mode === "city" ? 15 : undefined,
-          })
+          if (heroMap && heroRoute) {
+            map.fitBounds(heroRoute.getBounds(), { padding: [35, 35], animate: false })
+          } else {
+            map.fitBounds(paddedBounds, {
+              animate: false,
+              maxZoom: mode === "city" ? 15 : undefined,
+            })
+          }
         } catch (e) {
           // Ignora errori di bounds
         }

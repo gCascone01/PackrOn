@@ -22,8 +22,9 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 ### Dynamic social previews (2026-10-02)
 - The dynamic OG image for a public trip lives at `app/[locale]/trip/[id]/opengraph-image.tsx` and uses the same brand palette and route-map composition as the previous shared-trip preview.
 - The social preview uses the PackrOn blue brand color and orange accent color converted from the app’s OKLCH design tokens, while avoiding CSS variable references because `ImageResponse` needs fixed hex values.
-- The preview includes the trip title, day count/mode, highlight chips, and a compact route map that starts from the trip origin house marker and follows the itinerary path.
+- The 1200×630 preview includes “THE ROAD AHEAD” branding, trip title, mode, day/distance/stop statistics, highlight chips, and a compact route map that starts from the trip origin house marker and follows the itinerary path.
 - The preview uses the default Node.js runtime and request-time image generation. It calls the UUID-scoped `get_public_trip` Supabase function directly and validates the returned itinerary; query failures, missing rows, and invalid payloads are logged and return a generic branded image.
+- `/trip/[id]/page.tsx` generates localized trip title/description metadata from the same public-trip RPC and explicitly points both `openGraph.images` and `twitter.images` to the dynamic 1200×630 image route.
 - Rationale: chat apps such as WhatsApp only render the social metadata image, so a dynamic OG preview gives a usable card even when the live app page is not rendered inline.
 
 ### Unified trip storage and guest claiming (2026-10-02)
@@ -54,7 +55,15 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 ### Origin point on map
 - Added `originLat`/`originLng` to `Itinerary` type (from Gemini `origin_lat`/`origin_lng`)
 - Map renders origin marker (🏠) + polyline from origin → first stop
-- Hero map marker styling is isolated with `heroMap`: only the itinerary origin is the home pin; round-trip stops are dots; one-way final stop uses an unnumbered flag pin. It suppresses Hero tooltips/interactions; the lower itinerary map keeps numbered pins and tooltips.
+- Hero map marker styling is isolated with `heroMap`: the origin is a white cyan-dot badge, intermediate stops are small cyan dots, and a one-way destination is a cyan target badge. The route is solid cyan with a translucent white halo; tooltips/interactions are suppressed, and the lower itinerary map keeps its existing numbered pins, tooltips, and styling.
+- Hero origin and destination markers use the dedicated `heroEndpointPane` above Leaflet's regular marker pane, plus a high `zIndexOffset`, so intermediate stop markers cannot cover them. If no separate origin is available, the first stop uses the start badge and endpoint pane.
+- Always pass a valid pane name to `L.marker`; use `markerPane` for ordinary markers rather than `undefined`, since Leaflet then cannot resolve the icon container when adding the marker.
+- Omit optional `L.tileLayer` settings such as `subdomains` when unused; passing `undefined` overwrites Leaflet's defaults and can crash tile selection while reading `.length`.
+- The Hero map uses CARTO Voyager when `NEXT_PUBLIC_CARTO_BASEMAPS_KEY` is configured, passing it as `?key=` and showing linked OpenStreetMap/CARTO attribution. CARTO requests without a key show a watermark, so the Hero no-key fallback is the public OpenStreetMap tile endpoint with linked attribution. The lower itinerary map remains on OpenStreetMap with its original attribution and interaction settings. Hero camera fitting uses the route bounds with 35px padding, and Hero scroll-wheel zoom is disabled.
+- The Hero map hides Leaflet's default attribution prefix with `map.attributionControl.setPrefix(false)`; required OpenStreetMap/CARTO tile credits remain visible. The lower itinerary map retains Leaflet's default prefix.
+- Hero card uses a responsive 1200:630 desktop aspect ratio with a 7/5 content-to-map grid and a content-driven mobile layout. Its slate/white editorial palette uses the configured brand accent for icons and sign-off; the balanced title uses tight 1.12 leading, and the discreet localized PackrOn creator badge is text-only, with a brand-tinted frame and crisp slate text. The card then uses localized `What to expect` copy and a compact days/distance/stops metric strip below the subtitle; it shows up to the first three days as a vertical timeline with a subtle brand-color trail behind the day dots, followed by a remaining-days count and adventure sign-off. The lower result toolbar does not repeat those metrics. The map wrapper clips overflow, uses bottom-only rounding on mobile, and right-only rounding with no left divider border on desktop.
+- With the Hero visible, Share is in the Hero top bar and Back sits above the card in the page header; restart/save remain in the lower toolbar. When the Hero is hidden, Share and Back remain in the toolbar.
+- Cost Summary uses white bordered stat cards, a light brand-tinted total card, a compact amber toll-alert badge, and localized vehicle-aware estimate microcopy instead of the raw calculation formula.
 - Distance calculation includes origin→first stop for day 1 (`withLiveDistances` in `lib/geo.ts`)
 - Rationale: User sees the full route from their actual starting point, not just between stops
 

@@ -18,6 +18,8 @@ export function CostSummary({ itinerary }: { itinerary: Itinerary }) {
   const totalLabel = itinerary.estimatedFuelCostRange
     ? itinerary.estimatedFuelCostRange
     : formatEur(computedTotal, locale)
+  const hasTollAlerts = tolls <= 0 && itinerary.tollNotices.length > 0
+  const estimateKey = isEv ? "fuelEstimateEnergy" : "fuelEstimateFuel"
 
   return (
     <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
@@ -32,17 +34,14 @@ export function CostSummary({ itinerary }: { itinerary: Itinerary }) {
         <Stat
           icon={<Ticket className="size-4" />}
           label={t("costTolls")}
-          value={tolls > 0 ? formatEur(tolls, locale) : itinerary.tollNotices.length ? t("seeAlerts") : formatEur(0, locale)}
+          value={hasTollAlerts ? t("seeAlerts") : tolls > 0 ? formatEur(tolls, locale) : formatEur(0, locale)}
+          badge={hasTollAlerts}
         />
         <Stat icon={<Receipt className="size-4" />} label={t("costTotal")} value={totalLabel} highlight />
       </div>
 
-      <p className="mt-3 rounded-lg bg-muted px-3 py-2 text-xs leading-relaxed text-muted-foreground">
-        {t("fuelFormula")}{" "}
-        <span className="font-medium text-foreground">
-          ({formatKm(km, locale)} / 100) × {consumption} {energyUnit} × {formatEur(fuelPrice, locale)}/{energyUnit}
-        </span>{" "}
-        = {formatEur(fuel, locale)}
+      <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
+        {t(estimateKey, { consumption, unit: energyUnit, price: formatEur(fuelPrice, locale) })}
       </p>
 
       {itinerary.tollNotices.length > 0 && (
@@ -75,25 +74,29 @@ function Stat({
   label,
   value,
   highlight,
+  badge,
 }: {
   icon: React.ReactNode
   label: string
   value: string
   highlight?: boolean
+  badge?: boolean
 }) {
   return (
     <div
       className={
         highlight
-          ? "rounded-xl bg-brand p-3 text-brand-foreground"
-          : "rounded-xl border border-border bg-background p-3"
+          ? "rounded-xl border border-brand/30 bg-brand/10 p-4 text-brand"
+          : "rounded-xl border border-slate-200 bg-white p-4 text-slate-900"
       }
     >
-      <div className={`flex items-center gap-1.5 text-xs ${highlight ? "text-brand-foreground/80" : "text-muted-foreground"}`}>
+      <div className={`flex items-center gap-1.5 text-xs ${highlight ? "text-brand/80" : "text-slate-500"}`}>
         {icon}
         {label}
       </div>
-      <div className="mt-1 font-display text-lg font-bold tabular-nums">{value}</div>
+      <div className={badge ? "mt-1" : "mt-1 font-display text-lg font-bold tabular-nums"}>
+        {badge ? <span className="inline-flex rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-800">{value}</span> : value}
+      </div>
     </div>
   )
 }

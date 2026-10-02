@@ -48,6 +48,7 @@ Open [http://localhost:3000](http://localhost:3000). Middleware redirects `/` to
 |---|---|---|
 | `GEMINI_API_KEY` | Yes, for generation | Also used for stop alternatives + descriptions |
 | `GEMINI_MODEL` | No | Default `gemini-3.1-flash-lite` (fallback is built-in) |
+| `NEXT_PUBLIC_CARTO_BASEMAPS_KEY` | No | Optional CARTO Voyager tiles; without it, maps use public OpenStreetMap tiles. Restrict the key to your site referrers |
 | `NEXT_PUBLIC_SUPABASE_URL` | Yes, for auth/saved trips | Supabase project URL |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Yes, for auth/saved trips | Public `sb_publishable_…` key (legacy `NEXT_PUBLIC_SUPABASE_ANON_KEY` still works as fallback). Never add a secret/service-role key |
 | `NEXT_PUBLIC_SITE_URL` | Required in prod | Canonical URL used for sitemap, canonical URLs, and social metadata |
