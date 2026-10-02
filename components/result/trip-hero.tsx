@@ -96,6 +96,7 @@ export function TripHero({
               zoomControl={false}
               attributionControl={false}
               interactive={false}
+              heroMap
             />
           </div>
         </div>

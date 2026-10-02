@@ -25,6 +25,7 @@ export function ItineraryMap({
   zoomControl = true,
   attributionControl = true,
   interactive = true,
+  heroMap = false,
 }: {
   stops: MapStop[]
   selectedId: string | null
@@ -34,6 +35,7 @@ export function ItineraryMap({
   zoomControl?: boolean
   attributionControl?: boolean
   interactive?: boolean
+  heroMap?: boolean
 }) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<LeafletMap | null>(null)
@@ -203,8 +205,8 @@ export function ItineraryMap({
         iconSize: [30, 30],
         iconAnchor: [15, 30],
       })
-      L.marker(originLatLng, { icon: originIcon }).addTo(layer)
-        .bindTooltip(`${origin.name || "Start"}`, { direction: "top", offset: [0, -28] })
+      const originMarker = L.marker(originLatLng, { icon: originIcon, interactive: interactive && !heroMap }).addTo(layer)
+      if (!heroMap) originMarker.bindTooltip(`${origin.name || "Start"}`, { direction: "top", offset: [0, -28] })
     }
 
     if (!routeGeometries) {
@@ -213,19 +215,27 @@ export function ItineraryMap({
 
     validStops.forEach((s, index) => {
       const active = s.id === selectedId
-      const icon = L.divIcon({
-        className: "packron-marker",
-        html: `<div class="packron-marker-pin" style="${
-          active ? "background:oklch(0.72 0.15 60);transform:rotate(-45deg) scale(1.2);" : ""
-        }"><span>${index + 1}</span></div>`,
-        iconSize: [30, 30],
-        iconAnchor: [15, 30],
-      })
-      const marker = L.marker([s.lat, s.lng], { icon }).addTo(layer)
-      marker.bindTooltip(`${index + 1}. ${s.name}`, { direction: "top", offset: [0, -28] })
-      
-      // I pin rimangono sempre cliccabili su qualsiasi dispositivo
-      marker.on("click", () => selectRef.current(s.id))
+      const isEndpoint = index === 0 || index === validStops.length - 1
+      const icon = heroMap && !isEndpoint
+        ? L.divIcon({
+            className: "",
+            html: '<div class="h-3 w-3 rounded-full border-2 border-blue-600 bg-white shadow-sm"></div>',
+            iconSize: [12, 12],
+            iconAnchor: [6, 6],
+          })
+        : L.divIcon({
+            className: "packron-marker",
+            html: `<div class="packron-marker-pin" style="${
+              active ? "background:oklch(0.72 0.15 60);transform:rotate(-45deg) scale(1.2);" : ""
+            }"><span>${index + 1}</span></div>`,
+            iconSize: [30, 30],
+            iconAnchor: [15, 30],
+          })
+      const marker = L.marker([s.lat, s.lng], { icon, interactive: interactive && !heroMap }).addTo(layer)
+      if (!heroMap) {
+        marker.bindTooltip(`${index + 1}. ${s.name}`, { direction: "top", offset: [0, -28] })
+        marker.on("click", () => selectRef.current(s.id))
+      }
     })
 
     // Controlla se il container della mappa ha dimensioni (visibile a schermo)
