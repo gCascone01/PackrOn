@@ -116,7 +116,6 @@ export async function POST(request: Request) {
     const {
       data: { user },
     } = await supabase.auth.getUser()
-    const destination = payload.mode === "city" ? payload.city!.trim() : payload.destination!.trim()
     const id = randomUUID()
     const { error } = await supabase
       .from("saved_trips")
@@ -126,7 +125,6 @@ export async function POST(request: Request) {
         title: itinerary.title.trim().slice(0, 160),
         mode: itinerary.mode,
         origin: itinerary.origin.slice(0, 200),
-        destination: destination.slice(0, 200),
         data: itinerary,
       })
 
