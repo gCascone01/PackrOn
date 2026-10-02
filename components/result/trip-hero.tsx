@@ -18,6 +18,7 @@ export interface TripHeroProps {
   tripTypeLabel: string
   highlights: string[]
   mode: TripMode
+  loop: boolean
   stops: MapStop[]
   origin?: OriginPoint
   scrollTargetId?: string
@@ -30,6 +31,7 @@ export function TripHero({
   tripTypeLabel,
   highlights,
   mode,
+  loop,
   stops,
   origin,
   scrollTargetId = "itinerary-detail-view",
@@ -92,6 +94,7 @@ export function TripHero({
               selectedId={null}
               onSelect={() => {}}
               mode={mode}
+              loop={loop}
               origin={origin}
               zoomControl={false}
               attributionControl={false}

@@ -26,6 +26,7 @@ export function ItineraryMap({
   attributionControl = true,
   interactive = true,
   heroMap = false,
+  loop = false,
 }: {
   stops: MapStop[]
   selectedId: string | null
@@ -36,6 +37,7 @@ export function ItineraryMap({
   attributionControl?: boolean
   interactive?: boolean
   heroMap?: boolean
+  loop?: boolean
 }) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<LeafletMap | null>(null)
@@ -189,6 +191,13 @@ export function ItineraryMap({
       L.polyline(routeGeometries, polylineStyles).addTo(layer)
     }
 
+    const homeIcon = L.divIcon({
+      className: "packron-marker",
+      html: `<div class="packron-marker-pin" style="background:oklch(0.55 0.216 264);transform:rotate(-45deg);"><span class="text-xs font-bold">🏠</span></div>`,
+      iconSize: [30, 30],
+      iconAnchor: [15, 30],
+    })
+
     // Add origin point and line from origin to first stop
     if (origin && typeof origin.lat === "number" && typeof origin.lng === "number" && !isNaN(origin.lat) && !isNaN(origin.lng)) {
       const originLatLng: [number, number] = [origin.lat, origin.lng]
@@ -198,14 +207,7 @@ export function ItineraryMap({
         L.polyline([originLatLng, latlngs[0]], polylineStyles).addTo(layer)
       }
 
-      // Add origin marker
-      const originIcon = L.divIcon({
-        className: "packron-marker",
-        html: `<div class="packron-marker-pin" style="background:oklch(0.55 0.216 264);transform:rotate(-45deg);"><span class="text-xs font-bold">🏠</span></div>`,
-        iconSize: [30, 30],
-        iconAnchor: [15, 30],
-      })
-      const originMarker = L.marker(originLatLng, { icon: originIcon, interactive: interactive && !heroMap }).addTo(layer)
+      const originMarker = L.marker(originLatLng, { icon: homeIcon, interactive: interactive && !heroMap }).addTo(layer)
       if (!heroMap) originMarker.bindTooltip(`${origin.name || "Start"}`, { direction: "top", offset: [0, -28] })
     }
 
@@ -215,22 +217,32 @@ export function ItineraryMap({
 
     validStops.forEach((s, index) => {
       const active = s.id === selectedId
-      const isEndpoint = index === 0 || index === validStops.length - 1
-      const icon = heroMap && !isEndpoint
+      const isHome = index === 0
+      const isDestination = !loop && index === validStops.length - 1 && !isHome
+      const icon = heroMap && !isHome && !isDestination
         ? L.divIcon({
             className: "",
             html: '<div class="h-3 w-3 rounded-full border-2 border-blue-600 bg-white shadow-sm"></div>',
             iconSize: [12, 12],
             iconAnchor: [6, 6],
           })
-        : L.divIcon({
+        : heroMap && isDestination
+          ? L.divIcon({
+              className: "",
+              html: '<div class="flex h-8 w-8 -rotate-45 items-center justify-center rounded-full rounded-br-none border-2 border-white bg-blue-600 shadow-md"><svg class="h-4 w-4 rotate-45" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22V4m0 0h12l-3 4 3 4H4"/></svg></div>',
+              iconSize: [32, 32],
+              iconAnchor: [16, 32],
+            })
+          : isHome && heroMap
+            ? homeIcon
+            : L.divIcon({
             className: "packron-marker",
             html: `<div class="packron-marker-pin" style="${
               active ? "background:oklch(0.72 0.15 60);transform:rotate(-45deg) scale(1.2);" : ""
             }"><span>${index + 1}</span></div>`,
             iconSize: [30, 30],
             iconAnchor: [15, 30],
-          })
+            })
       const marker = L.marker([s.lat, s.lng], { icon, interactive: interactive && !heroMap }).addTo(layer)
       if (!heroMap) {
         marker.bindTooltip(`${index + 1}. ${s.name}`, { direction: "top", offset: [0, -28] })

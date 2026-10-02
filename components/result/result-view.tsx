@@ -221,6 +221,7 @@ export function ResultView({
           tripTypeLabel={liveItinerary.mode === "road" ? t("modeRoadTitle") : t("modeCityTitle")}
           highlights={liveItinerary.days.map((day) => day.title)}
           mode={liveItinerary.mode}
+          loop={liveItinerary.loop}
           stops={mapStops}
           origin={originPoint}
           scrollTargetId="itinerary-detail-view"
