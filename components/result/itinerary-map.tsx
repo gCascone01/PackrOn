@@ -24,6 +24,7 @@ export function ItineraryMap({
   origin,
   zoomControl = true,
   attributionControl = true,
+  interactive = true,
 }: {
   stops: MapStop[]
   selectedId: string | null
@@ -32,6 +33,7 @@ export function ItineraryMap({
   origin?: OriginPoint
   zoomControl?: boolean
   attributionControl?: boolean
+  interactive?: boolean
 }) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<LeafletMap | null>(null)
@@ -120,7 +122,12 @@ export function ItineraryMap({
       leafletRef.current = L
       const map = L.map(containerRef.current, {
         zoomControl: false,
-        scrollWheelZoom: true,
+        dragging: interactive,
+        scrollWheelZoom: interactive,
+        doubleClickZoom: interactive,
+        touchZoom: interactive,
+        boxZoom: interactive,
+        keyboard: interactive,
         attributionControl,
       }).setView(mode === "city" ? [37.39, -5.99] : [48.2, 16.37], mode === "city" ? 13 : 7)
       if (zoomControl) L.control.zoom({ position: "bottomright" }).addTo(map)

@@ -86,7 +86,7 @@ export function TripHero({
         </div>
 
         <div className="relative min-h-[220px] w-full overflow-hidden rounded-2xl border border-border/50 bg-background md:min-h-[320px] md:w-[40%]">
-          <div className="absolute inset-0">
+          <div className="pointer-events-none absolute inset-0">
             <ItineraryMap
               stops={stops}
               selectedId={null}
@@ -95,6 +95,7 @@ export function TripHero({
               origin={origin}
               zoomControl={false}
               attributionControl={false}
+              interactive={false}
             />
           </div>
         </div>
