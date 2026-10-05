@@ -153,6 +153,11 @@ export function ResultView({
     let seq = 1
     for (const day of liveItinerary.days) {
       for (const stop of day.stops) {
+        // Drive legs are hidden from the timeline (Gemini emits them only
+        // for some legs), so they get no display number either — list, map
+        // pins, and the hero count share one continuous numbering over
+        // visitable stops only.
+        if (stop.kind === "drive") continue
         map.set(stop.id, seq)
         stops.push({ ...stop, seq, dayNumber: day.dayNumber })
         seq++

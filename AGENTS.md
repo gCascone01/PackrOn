@@ -224,15 +224,17 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - Falls back gracefully if Gemini unavailable
 
 ### `components/result/timeline.tsx`
-- Shows `Footprints` icon (walking) for day distance < 15km
-- Shows `Car` icon for ≥ 15km
-- Rationale: Short distances in road trips often mean city exploration, not driving
+- Day icon is content-aware via `dayHasDriving()`: `Footprints` only when no driving is planned that day (no budgeted `drivingTimeMinutes`, no explicit `drive` leg, and < 15 km actually routed); otherwise `Car` — a 6 km transfer with 25 min of driving is still a driving day
+- The per-day totals strip is stats-only (icon + km/time, fuel row on driving days): it carries no destination label because the day header already shows Gemini's title, and prefixing it produced nonsense like "Drive towards Vienna to Znojmo: Crossing into Moravia" (`transitTo`/`exploreDay` keys removed)
+- The old day-header pills (driving-time + distance, `driving` key removed) duplicated the strip, so they are gone — the strip is the single per-day summary. Exploration strips also show the visitable stop count (`stopsCount`), so walking days read e.g. "🚶 12 km · 5 tappe" instead of a bare distance
+- Rationale: the old pure `< 15km` threshold mislabeled short transfer days as walking
+- `type=drive` main stops are hidden from the list (`day.stops.filter(kind !== "drive")`): Gemini emits them inconsistently — only some legs get one (e.g. a morning departure) while others don't — so showing them produced random full-size cards between days. The per-day totals strip ("Guida verso X" + km/time/fuel, computed deterministically from coordinates) is the single driving summary. Drive data is kept in the itinerary (schedule continuity), only display filters it.
 
 ### `components/result/itinerary-map.tsx`
 - Accepts optional `origin: OriginPoint` prop
 - Renders origin marker + line to first stop
 - Validates coords before rendering (NaN checks)
-- Numbered pins and tooltips use the stop's global `seq` (from `ResultView`), not the index in the coordinate-filtered `validStops` array — drive legs have null coords by design and are skipped on the map, so `index + 1` shifted every later pin while the list kept counting them
+- Numbered pins and tooltips use the stop's global `seq` (from `ResultView`), not the index in the coordinate-filtered `validStops` array. `seq` counts visitable stops only — drive legs (`kind === "drive"`, null coords by design) are skipped when numbering, so list, map pins, and the hero stop count share one continuous numbering with no gaps.
 
 ### `components/result/stop-card.tsx`
 - Added "Description" button with lazy-loaded modal
@@ -403,7 +405,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 ### Timed main stops and substops (2026-09)
 - Gemini emits English itinerary content regardless of the selected UI locale. Days contain relative day numbers only, and each top-level stop is a timed MAIN STOP with explicit `start_time`/`end_time`, description, and nested `sub_stops`; substops have names and optional item-specific `booking_query`/`getyourguide_query`, never their own schedule.
 - Main stop types now include `drive` and `breakfast`; lunch/dinner remain `pasto`. Meals keep regional dishes in the main description and have no substops. Sightseeing details belong inside the parent experience's substops instead of duplicating the experience as several top-level stops.
-- Drive entries combine departure with the first leg, omit coordinates, and remain timeline items without map/navigation actions. Distance calculations and map markers use only coordinate-bearing stops, connecting located stops across intervening drive rows. Overnight stops retain their check-in time window but omit duration; their exact hotel/B&B name is the displayed name and their booking search includes the city.
+- Drive entries combine departure with the first leg, omit coordinates, and remain data items without map/navigation actions (hidden from the timeline display, see `timeline.tsx`). Distance calculations and map markers use only coordinate-bearing stops, connecting located stops across intervening drive rows. Overnight stops retain their check-in time window but omit duration; their exact hotel/B&B name is the displayed name and their booking search includes the city.
 - `Stop` carries optional `endTime`, optional `duration`, nullable coordinates, `kind`, and nested `substops`. These fields serialize through existing saved/shared itinerary JSON without separate migrations. `StopCard` renders substop names and their own search links; generic parent activity links are suppressed when item-specific links are available.
 - Substops are presented under the "Included in this stop" label as compact nested cards: icon/name/Maps action in the top row, description directly beneath, and applicable booking/ticket pills at bottom right. No inner divider is used. The road prompt and response schema require a substop type and concise English description; direct booking URL and existing query fields remain optional. Parent stop actions are separated below with a divider, and generic parent experiences remain suppressed when substops exist.
 - Rationale: precise continuous schedules and nested attraction details make the itinerary scannable and actionable while preserving one map/timeline item per real-world experience and preventing drive legs from corrupting coordinate-derived distances.
