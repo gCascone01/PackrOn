@@ -11,7 +11,8 @@ import { DEFAULT_ROAD_FORM, RoadTripConfigurator, type RoadFormValue } from "./r
 import { DEFAULT_CITY_FORM, CityTripConfigurator, type CityFormValue } from "./city-trip-configurator"
 import { GeneratingSkeleton } from "./generating-skeleton"
 import { MouseDistanceCounter } from "./mouse-distance-counter"
-import { Fuel, MapPinned, Route, AlertCircle, MapPin, Plane } from "lucide-react"
+import { Fuel, MapPinned, Route, AlertCircle, MapPin, Plane, RotateCcw } from "lucide-react"
+import { Button } from "@/components/ui/button"
 import { useI18n } from "@/components/locale-provider"
 import { useAuth } from "@/components/auth/auth-provider"
 import { useGuestTrips } from "@/hooks/use-guest-trips"
@@ -271,6 +272,29 @@ export function Planner() {
     persistDraft({ cityStep: next })
   }
 
+  // Start over: clear both drafts (and their stored copy) back to defaults.
+  const resetDraft = () => {
+    const fresh: PlannerDraft = {
+      mode: "road",
+      roadForm: DEFAULT_ROAD_FORM,
+      cityForm: DEFAULT_CITY_FORM,
+      roadStep: 0,
+      cityStep: 0,
+    }
+    draftRef.current = fresh
+    setMode(fresh.mode)
+    setRoadForm(fresh.roadForm)
+    setCityForm(fresh.cityForm)
+    setRoadStep(fresh.roadStep)
+    setCityStep(fresh.cityStep)
+    setError(null)
+    try {
+      window.localStorage.setItem(PLANNER_DRAFT_KEY, JSON.stringify(fresh))
+    } catch {
+      // Quota/private mode — in-memory reset is enough.
+    }
+  }
+
   const features: Array<{ icon: typeof Route; title: MessageKey; text: MessageKey }> = [
     { icon: Route, title: "featureRouteTitle", text: "featureRouteText" },
     { icon: Fuel, title: "featureFuelTitle", text: "featureFuelText" },
@@ -369,9 +393,23 @@ export function Planner() {
             ) : null}
 
             <div className={loading ? "invisible" : undefined}>
-              <div className="mb-8 flex flex-col gap-2">
-                <h2 className="font-display text-xl font-bold tracking-tight text-foreground">{t("configTitle")}</h2>
-                <p className="max-w-lg text-sm leading-relaxed text-muted-foreground">{t("configSubtitle")}</p>
+              <div className="mb-8 flex items-start justify-between gap-3">
+                <div className="flex min-w-0 flex-col gap-2">
+                  <h2 className="font-display text-xl font-bold tracking-tight text-foreground">{t("configTitle")}</h2>
+                  <p className="max-w-lg text-sm leading-relaxed text-muted-foreground">{t("configSubtitle")}</p>
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={resetDraft}
+                  disabled={loading}
+                  aria-label={t("resetForm")}
+                  className="shrink-0 text-muted-foreground hover:text-foreground"
+                >
+                  <RotateCcw className="size-4" />
+                  {t("resetForm")}
+                </Button>
               </div>
 
               {(mode === "road" ? roadStep : cityStep) === 0 ? (
