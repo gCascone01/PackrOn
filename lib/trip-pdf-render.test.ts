@@ -1,6 +1,6 @@
-import { createElement } from "react"
+import { createElement, type ReactElement } from "react"
 import { describe, expect, it } from "vitest"
-import { renderToBuffer } from "@react-pdf/renderer"
+import { renderToBuffer, type DocumentProps } from "@react-pdf/renderer"
 import { TripPdfDocument } from "@/components/result/trip-pdf-document"
 import { buildCityTripItinerary, buildRoadTripItinerary } from "@/lib/mock-itinerary"
 import { totalDistanceKm } from "@/lib/costs"
@@ -12,7 +12,7 @@ function render(itinerary: ReturnType<typeof buildRoadTripItinerary>, locale: "e
       locale,
       totalKm: totalDistanceKm(itinerary),
       totalStops: itinerary.days.flatMap((d) => d.stops).length,
-    }),
+    }) as ReactElement<DocumentProps>,
   )
 }
 

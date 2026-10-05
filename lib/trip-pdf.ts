@@ -1,17 +1,16 @@
 /**
- * Slugify a trip title for the exported PDF filename:
- * `packron-seville-in-3-days.pdf`. Diacritics are stripped, anything
- * non-alphanumeric becomes a dash, capped at 60 chars. Falls back to
- * `packron-trip.pdf` for empty/punctuation-only titles.
+ * Human-friendly filename for the exported PDF, built from the trip title:
+ * `PackrOn - Seville in 3 days.pdf`. The title keeps its original casing and
+ * spaces; only characters that are illegal in filenames (`\ / : * ? " < > |`)
+ * are removed and runs of whitespace are collapsed. Capped at 60 chars of
+ * title. Falls back to `PackrOn - Trip.pdf` for empty titles.
  */
 export function tripPdfFilename(title: string): string {
-  const slug = title
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
+  const clean = title
+    .replace(/[\\/:*?"<>|]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
     .slice(0, 60)
-    .replace(/-+$/, "")
-  return `packron-${slug || "trip"}.pdf`
+    .trim()
+  return `PackrOn - ${clean || "Trip"}.pdf`
 }

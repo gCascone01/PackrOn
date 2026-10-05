@@ -1,8 +1,9 @@
-import { Document, Page, StyleSheet, Text, View } from "@react-pdf/renderer"
+import { Circle, Document, Page, Path, Rect, StyleSheet, Svg, Text, View } from "@react-pdf/renderer"
 import type { Itinerary, VehicleType } from "@/lib/types"
 import { CATEGORY_KEYS, translate } from "@/lib/i18n"
 import type { Locale } from "@/lib/i18n"
 import type { MessageKey } from "@/lib/i18n"
+import { normalizeCoordinates } from "@/lib/map-svg"
 import {
   formatDurationMinutes,
   formatEur,
@@ -56,6 +57,13 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: MUTED,
     marginTop: 8,
+  },
+  mapBox: {
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: HAIRLINE,
+    borderRadius: 6,
+    overflow: "hidden",
   },
   sectionTitle: {
     fontSize: 13,
@@ -209,6 +217,35 @@ export function TripPdfDocument({
   const hasTollAlerts = !hasLiveTolls && tolls <= 0 && itinerary.tollNotices.length > 0
   const tollRoute = (itinerary.tollCountries ?? []).join(" → ")
 
+  // Black & white route map: the road origin (when present) followed by every
+  // located stop, projected to the content width. Pure SVG, so it stays crisp
+  // in print and needs no external tile service.
+  const MAP_W = 515
+  const MAP_H = 190
+  const hasOriginPoint =
+    isRoad && typeof itinerary.originLat === "number" && typeof itinerary.originLng === "number"
+  const mapPoints: Array<{ lat: number; lng: number }> = []
+  if (hasOriginPoint) {
+    mapPoints.push({ lat: itinerary.originLat as number, lng: itinerary.originLng as number })
+  }
+  for (const day of itinerary.days) {
+    for (const stop of day.stops) {
+      if (
+        typeof stop.lat === "number" &&
+        typeof stop.lng === "number" &&
+        Number.isFinite(stop.lat) &&
+        Number.isFinite(stop.lng)
+      ) {
+        mapPoints.push({ lat: stop.lat, lng: stop.lng })
+      }
+    }
+  }
+  const projected = mapPoints.length >= 2 ? normalizeCoordinates(mapPoints, MAP_W, MAP_H, 24) : []
+  const routePath =
+    projected.length >= 2
+      ? `M ${projected.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" L ")}`
+      : ""
+
   return (
     <Document title={itinerary.title} author="PackrOn">
       <Page size="A4" style={styles.page}>
@@ -227,6 +264,37 @@ export function TripPdfDocument({
           {translate(locale, "stopsCount", { n: totalStops })}
           {isRoad ? `  ·  ${translate(locale, VEHICLE_KEY[itinerary.vehicle.type])}` : ""}
         </Text>
+
+        {projected.length >= 2 ? (
+          <View style={styles.mapBox}>
+            <Svg width={MAP_W} height={MAP_H} viewBox={`0 0 ${MAP_W} ${MAP_H}`}>
+              <Rect x={0} y={0} width={MAP_W} height={MAP_H} fill="#ffffff" />
+              <Path d={routePath} stroke="#111111" strokeWidth={2} fill="none" />
+              {projected.map((point, index) =>
+                hasOriginPoint && index === 0 ? (
+                  <Rect
+                    key={`map-origin-${index}`}
+                    x={point.x - 5}
+                    y={point.y - 5}
+                    width={10}
+                    height={10}
+                    fill="#111111"
+                  />
+                ) : (
+                  <Circle
+                    key={`map-stop-${index}`}
+                    cx={point.x}
+                    cy={point.y}
+                    r={4}
+                    fill="#ffffff"
+                    stroke="#111111"
+                    strokeWidth={2}
+                  />
+                ),
+              )}
+            </Svg>
+          </View>
+        ) : null}
 
         {isRoad ? (
           <View>
