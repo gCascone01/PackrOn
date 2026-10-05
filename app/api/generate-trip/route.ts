@@ -70,13 +70,12 @@ export async function POST(request: Request) {
     return apiError(locale, validation.errorKey!, 400)
   }
 
-  // Live price lookups start before generation so their latency hides
-  // inside the slow Gemini call. Both never throw (null on failure).
+  // The energy lookup starts before generation so its latency hides inside
+  // the slow Gemini call. The toll lookup runs after mapping instead: it
+  // routes through Gemini's concrete day titles (real places), which prices
+  // far more accurately than the user's free-text destination ("Tuscany and
+  // Umbria..." geocodes poorly and underprices the route). Both never throw.
   const energyPromise = getEnergyPrice(validation.countryCode, payload.vehicle ?? "diesel")
-  const tollsPromise =
-    payload.mode === "road" && !payload.avoidTolls && payload.origin?.trim() && payload.destination?.trim()
-      ? getRouteTolls(payload.origin, payload.destination, vehicleClassForTolls(payload.vehicle ?? "diesel"))
-      : Promise.resolve(null)
 
   try {
     const prompt = buildTripPrompt(payload)
@@ -121,7 +120,7 @@ export async function POST(request: Request) {
 
     // Country-dependent live energy price (fuel or household electricity
     // for EVs). Never blocks generation: falls back to built-in defaults.
-    const [energy, tolls] = await Promise.all([energyPromise, tollsPromise])
+    const energy = await energyPromise
     const itinerary = mapGeminiTrip(parsed as GeminiTrip, payload, {
       priceEur: energy.priceEur,
       countryCode: energy.countryCode ?? undefined,
@@ -134,10 +133,20 @@ export async function POST(request: Request) {
         // missing data. Gemini alerts still list anything unavoidable.
         itinerary.tollAvoided = true
         itinerary.tollTotalEur = 0
-      } else if (tolls) {
-        itinerary.tollTotalEur = tolls.totalEur
-        itinerary.tollCountries = tolls.countries
-        itinerary.tollSource = tolls.source
+      } else {
+        const origin = payload.origin?.trim()
+        const dayTitles = (parsed as GeminiTrip).days.map((d) => d.title)
+        const waypoints = [...(origin ? [origin] : []), ...dayTitles]
+        if (payload.loop && origin) waypoints.push(origin)
+        const tolls = await getRouteTolls(
+          waypoints,
+          vehicleClassForTolls(payload.vehicle ?? "diesel"),
+        )
+        if (tolls) {
+          itinerary.tollTotalEur = tolls.totalEur
+          itinerary.tollCountries = tolls.countries
+          itinerary.tollSource = tolls.source
+        }
       }
     }
     if (debugEnabled) logGeminiMappedItinerary(itinerary, parsed as GeminiTrip)

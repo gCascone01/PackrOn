@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { clearTollCache, getRouteTolls, parseRouteTolls, vehicleClassForTolls } from "./tolls"
+import { clearTollCache, getRouteTolls, parseRouteTolls, sanitizeWaypoints, vehicleClassForTolls } from "./tolls"
 
 afterEach(() => {
   clearTollCache()
@@ -49,6 +49,17 @@ describe("parseRouteTolls", () => {
   })
 })
 
+describe("sanitizeWaypoints", () => {
+  it("trims, drops blanks, dedupes repeats, and caps at 10", () => {
+    expect(sanitizeWaypoints([" Rome ", "", "Rome", "Milan", null, undefined, "x"])).toEqual([
+      "Rome",
+      "Milan",
+    ])
+    const many = Array.from({ length: 15 }, (_, i) => `City${i}`)
+    expect(sanitizeWaypoints(many)).toHaveLength(10)
+  })
+})
+
 describe("getRouteTolls", () => {
   it("returns the estimate and caches it", async () => {
     const fetchMock = vi.fn(async () => ({
@@ -56,13 +67,14 @@ describe("getRouteTolls", () => {
       json: async () => ({ total_eur: 48.81, route_countries: ["IT"], partial: false }),
     }))
     vi.stubGlobal("fetch", fetchMock)
-    const first = await getRouteTolls("Rome", "Milan", "car")
+    const first = await getRouteTolls(["Rome", "Florence", "Milan"], "car")
     expect(first?.totalEur).toBeCloseTo(48.81, 2)
-    const second = await getRouteTolls("Rome", "Milan", "car")
+    const second = await getRouteTolls(["Rome", "Florence", "Milan"], "car")
     expect(second).toEqual(first)
     expect(fetchMock).toHaveBeenCalledTimes(1)
     const firstUrl = String((fetchMock.mock.calls[0] as unknown[])[0])
     expect(firstUrl).toMatch(/vehicle_class=car/)
+    expect(firstUrl).toMatch(/Florence/)
   })
 
   it("never throws: network failure resolves to null", async () => {
@@ -72,13 +84,14 @@ describe("getRouteTolls", () => {
         throw new Error("offline")
       }),
     )
-    await expect(getRouteTolls("Rome", "Paris", "car")).resolves.toBeNull()
+    await expect(getRouteTolls(["Rome", "Paris"], "car")).resolves.toBeNull()
   })
 
-  it("rejects blank waypoints without fetching", async () => {
+  it("needs at least two usable waypoints, without fetching", async () => {
     const fetchMock = vi.fn()
     vi.stubGlobal("fetch", fetchMock)
-    await expect(getRouteTolls("", "Paris", "car")).resolves.toBeNull()
+    await expect(getRouteTolls(["", "Paris"], "car")).resolves.toBeNull()
+    await expect(getRouteTolls(["Rome"], "car")).resolves.toBeNull()
     expect(fetchMock).not.toHaveBeenCalled()
   })
 })

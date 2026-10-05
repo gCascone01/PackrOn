@@ -63,25 +63,39 @@ export function parseRouteTolls(json: unknown): RouteTollEstimate | null {
 }
 
 /**
- * Live toll total for origin → destination in EUR. Never throws.
+ * Sanitize waypoint names for the route API: trimmed, at least 2 chars,
+ * consecutive duplicates removed, max 10 (API limit is 2-10 places).
+ */
+export function sanitizeWaypoints(waypoints: readonly (string | null | undefined)[]): string[] {
+  const out: string[] = []
+  for (const raw of waypoints) {
+    const w = (raw ?? "").trim()
+    if (w.length < 2) continue
+    if (out.length > 0 && out[out.length - 1].toLowerCase() === w.toLowerCase()) continue
+    out.push(w)
+    if (out.length >= 10) break
+  }
+  return out
+}
+
+/**
+ * Live toll total for a waypoint route in EUR. Never throws.
  * Returns null when the API is unreachable or has no usable data.
  */
 export async function getRouteTolls(
-  origin: string,
-  destination: string,
+  waypoints: readonly (string | null | undefined)[],
   vehicleClass: TollVehicleClass,
 ): Promise<RouteTollEstimate | null> {
-  const from = origin.trim()
-  const to = destination.trim()
-  if (from.length < 2 || to.length < 2) return null
-  const key = `tolls:${from.toLowerCase()}|${to.toLowerCase()}|${vehicleClass}`
+  const points = sanitizeWaypoints(waypoints)
+  if (points.length < 2) return null
+  const key = `tolls:${points.map((p) => p.toLowerCase()).join("|")}|${vehicleClass}`
   const cached = cache.get(key)
   if (cached && cached.expires > Date.now()) return cached.value
   if (cached) cache.delete(key)
 
   try {
     const url = new URL(TOLLS_ROUTE_API)
-    url.searchParams.set("waypoints", `${from}|${to}`)
+    url.searchParams.set("waypoints", points.join("|"))
     url.searchParams.set("vehicle_class", vehicleClass)
     url.searchParams.set("locale", "en")
     url.searchParams.set("source", "packron.app")
