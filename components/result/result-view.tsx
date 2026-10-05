@@ -8,6 +8,7 @@ import { totalDistanceKm } from "@/lib/costs"
 import { copyText } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { FavoriteTripButton } from "@/components/auth/favorite-trip-button"
+import { SaveCopyButton } from "@/components/auth/save-copy-button"
 import { useAuth } from "@/components/auth/auth-provider"
 import { Timeline } from "./timeline"
 import { CostSummary } from "./cost-summary"
@@ -31,6 +32,9 @@ export function ResultView({
   shareUrl,
   showHero = true,
   showFavoriteButton = true,
+  showSaveCopyButton = false,
+  onSaveCopy,
+  showEditsNotSavedNotice = false,
 }: {
   initial: Itinerary
   onBack: () => void
@@ -42,6 +46,12 @@ export function ResultView({
   shareUrl?: string
   showHero?: boolean
   showFavoriteButton?: boolean
+  /** Foreign-owned row: offer "save an owned copy" instead of the toggle. */
+  showSaveCopyButton?: boolean
+  /** Fired with the new row id once the copy exists. */
+  onSaveCopy?: (id: string) => void
+  /** Foreign-owned row: warn that local edits can't be persisted. */
+  showEditsNotSavedNotice?: boolean
 }) {
   const { t, locale } = useI18n()
   const { user, configured } = useAuth()
@@ -69,11 +79,14 @@ export function ResultView({
   const [autosaveError, setAutosaveError] = useState<string | null>(null)
   const [claimTick, setClaimTick] = useState(0)
   const baselineRef = useRef<string>(JSON.stringify(initial))
+  /** Local edits diverging from the last persisted snapshot. */
+  const [hasUnsavedEdits, setHasUnsavedEdits] = useState(false)
 
   useEffect(() => {
     if (!savedId || !configured) return
     const current = JSON.stringify(itinerary)
     if (current === baselineRef.current) return
+    setHasUnsavedEdits(true)
     setAutosave("saving")
     setAutosaveError(null)
     const timer = window.setTimeout(() => {
@@ -93,6 +106,7 @@ export function ResultView({
             throw new Error(data?.error === "setup_required" ? t("tripsSetupRequired") : t("tripAutosaveFail"))
           }
           baselineRef.current = current
+          setHasUnsavedEdits(false)
           setAutosave("saved")
           window.setTimeout(() => setAutosave((s) => (s === "saved" ? "idle" : s)), 2500)
         } catch (err) {
@@ -139,6 +153,11 @@ export function ResultView({
     let seq = 1
     for (const day of liveItinerary.days) {
       for (const stop of day.stops) {
+        // Drive legs are hidden from the timeline (Gemini emits them only
+        // for some legs), so they get no display number either — list, map
+        // pins, and the hero count share one continuous numbering over
+        // visitable stops only.
+        if (stop.kind === "drive") continue
         map.set(stop.id, seq)
         stops.push({ ...stop, seq, dayNumber: day.dayNumber })
         seq++
@@ -298,6 +317,9 @@ export function ResultView({
                   onClaimed={() => setClaimTick((n) => n + 1)}
                 />
               ) : null}
+              {showSaveCopyButton && onSaveCopy ? (
+                <SaveCopyButton itinerary={liveItinerary} onSaved={onSaveCopy} />
+              ) : null}
               {!showHero ? (
                 <Button variant="secondary" size="lg" className="shrink-0" onClick={() => void shareCurrentPage()}>
                   <Share2 className="size-4" />
@@ -317,6 +339,9 @@ export function ResultView({
             ) : null}
             {autosave === "error" && autosaveError ? (
               <p role="alert" className="text-xs text-destructive">{autosaveError}</p>
+            ) : null}
+            {showEditsNotSavedNotice && hasUnsavedEdits ? (
+              <p role="note" className="max-w-64 text-right text-xs text-muted-foreground">{t("tripEditsNotSaved")}</p>
             ) : null}
             {!showHero && shareError ? <p role="alert" className="text-xs text-destructive">{shareError}</p> : null}
           </div>

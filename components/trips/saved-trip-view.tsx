@@ -197,9 +197,12 @@ export function SavedTripView({ tripId, publicView = false }: { tripId: string; 
         initialIsFavorite={isFavorite}
         shareUrl={localizedPath(locale, `/trip/${encodeURIComponent(tripId)}`)}
         // A foreign-owned row can never be favourited (PATCH is owner-only):
-        // hide the toggle instead of showing the owner's flag + NOT_FOUND.
-        // Orphans stay toggleable — the button claims them on first tap.
+        // offer "save an owned copy" instead of the toggle. Orphans stay
+        // toggleable — the button claims them on first tap.
         showFavoriteButton={(!publicView || Boolean(user)) && (tripOwnerId === null || tripOwnerId === user?.id)}
+        showSaveCopyButton={tripOwnerId !== null && tripOwnerId !== user?.id && Boolean(user)}
+        onSaveCopy={(id) => router.push(localizedPath(locale, `/trips/${encodeURIComponent(id)}`))}
+        showEditsNotSavedNotice={tripOwnerId !== null && tripOwnerId !== user?.id && Boolean(user)}
       />
       {publicView && !user && tripOwnerId === null && !bannerDismissed ? (
         <div className="fixed bottom-5 left-1/2 z-50 flex w-max max-w-[calc(100vw_-_2rem)] -translate-x-1/2 items-center justify-between gap-3 rounded-full border border-border bg-background/90 px-4 py-3 shadow-2xl backdrop-blur-md sm:bottom-8 sm:gap-4 sm:px-6">
