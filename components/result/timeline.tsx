@@ -97,9 +97,6 @@ export function Timeline({
                   </span>
                 </div>
               </div>
-              <span className="hidden shrink-0 items-center rounded-full border border-brand/20 bg-card px-2 py-1 font-medium text-brand sm:inline-flex">
-                {t("transitTolls")}
-              </span>
             </div>
           ) : null}
 

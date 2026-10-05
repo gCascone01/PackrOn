@@ -7,6 +7,8 @@ import { isGeminiTrip, mapGeminiTrip } from "@/lib/map-gemini-itinerary"
 import type { GenerateTripPayload } from "@/lib/types"
 import { translate, type Locale, type MessageKey } from "@/lib/i18n"
 import { validateLocations } from "@/lib/geocode"
+import { getEnergyPrice } from "@/lib/energy-prices"
+import { buildTollWaypoints, getRouteTolls, vehicleClassForTolls } from "@/lib/tolls"
 import { createClient } from "@/lib/supabase/server"
 import { isSupabaseConfigured } from "@/lib/supabase/config"
 import { isMissingTableError } from "@/lib/trips"
@@ -68,6 +70,13 @@ export async function POST(request: Request) {
     return apiError(locale, validation.errorKey!, 400)
   }
 
+  // The energy lookup starts before generation so its latency hides inside
+  // the slow Gemini call. The toll lookup runs after mapping instead: it
+  // routes through the itinerary's own stop coordinates, which never fail
+  // geocoding — unlike free-text names or flowery day titles, either of
+  // which 422s the whole toll request. Both never throw.
+  const energyPromise = getEnergyPrice(validation.countryCode, payload.vehicle ?? "diesel")
+
   try {
     const prompt = buildTripPrompt(payload)
     const debugEnabled = isGeminiDebugEnabled()
@@ -109,7 +118,48 @@ export async function POST(request: Request) {
       return apiError(locale, "apiBadSchema", 502)
     }
 
-    const itinerary = mapGeminiTrip(parsed as GeminiTrip, payload)
+    // Country-dependent live energy price (fuel or household electricity
+    // for EVs). Never blocks generation: falls back to built-in defaults.
+    const energy = await energyPromise
+    const itinerary = mapGeminiTrip(parsed as GeminiTrip, payload, {
+      priceEur: energy.priceEur,
+      countryCode: energy.countryCode ?? undefined,
+      source: energy.source,
+      fallback: energy.fallback,
+    })
+    if (payload.mode === "road") {
+      if (payload.avoidTolls) {
+        // The route is planned to avoid toll roads — €0 by choice, not by
+        // missing data. Gemini alerts still list anything unavoidable.
+        itinerary.tollAvoided = true
+        itinerary.tollTotalEur = 0
+      } else {
+        const waypoints = buildTollWaypoints({
+          origin:
+            itinerary.originLat != null && itinerary.originLng != null
+              ? { lat: itinerary.originLat, lng: itinerary.originLng }
+              : null,
+          originName: payload.origin,
+          destinationName: payload.destination,
+          days: itinerary.days,
+          loop: payload.loop ?? false,
+        })
+        const tolls = await getRouteTolls(
+          waypoints,
+          vehicleClassForTolls(payload.vehicle ?? "diesel"),
+        )
+        if (tolls) {
+          itinerary.tollTotalEur = tolls.totalEur
+          itinerary.tollCountries = tolls.countries
+          itinerary.tollSource = tolls.source
+          itinerary.tollBreakdown = tolls.lines
+        } else {
+          console.warn("[generate-trip] toll lookup returned no estimate", {
+            waypointCount: waypoints.length,
+          })
+        }
+      }
+    }
     if (debugEnabled) logGeminiMappedItinerary(itinerary, parsed as GeminiTrip)
 
     const supabase = await createClient()

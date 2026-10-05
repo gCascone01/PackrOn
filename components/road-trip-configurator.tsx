@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { locateCityMessageKey, resolveCurrentCity } from "@/lib/current-city"
 import {
   Chip,
@@ -117,22 +117,76 @@ export function RoadTripConfigurator({
   const setPace = (pace: string) => patch({ pace })
   const setBasecamp = (basecamp: boolean) => patch({ basecamp })
   const setCrew = (crew: string[]) => patch({ crew })
+  // Whether the consumption field still holds an automatic value (default
+  // or auto-prefilled on a previous vehicle switch) rather than something
+  // the user typed. Both the ref (cleared on manual edit) and the value
+  // itself must agree: this also covers rehydrated drafts, whose manual
+  // values arrive without the ref ever being touched.
+  const consumptionAuto = useRef(true)
+  const isAutoConsumption = (c: string) =>
+    consumptionAuto.current && (c === "" || c === DEFAULT_CONSUMPTION_FOSSIL || c === DEFAULT_CONSUMPTION_EV)
   const setVehicle = (next: VehicleType) => {
-    // Switching to electric with the fossil default (or empty) still in the
-    // field would ask for "6.5 kWh/100km" nonsense — prefill the EV default.
-    // One-directional on purpose: never clobber a value the user may have
-    // typed deliberately when switching back to a fuel vehicle.
-    if (next === "elettrica" && (consumption === "" || consumption === DEFAULT_CONSUMPTION_FOSSIL)) {
-      patch({ vehicle: next, consumption: DEFAULT_CONSUMPTION_EV })
+    // Swap defaults in both directions while the field is automatic, so
+    // neither "6.5 kWh/100km" nor "18 L/100km" nonsense survives a switch.
+    // A manually typed value is always respected and never clobbered.
+    if (isAutoConsumption(consumption)) {
+      patch({ vehicle: next, consumption: next === "elettrica" ? DEFAULT_CONSUMPTION_EV : DEFAULT_CONSUMPTION_FOSSIL })
     } else {
       patch({ vehicle: next })
     }
   }
-  const setConsumption = (consumption: string) => patch({ consumption })
+  const setConsumption = (consumption: string) => {
+    consumptionAuto.current = false
+    patch({ consumption })
+  }
   const setAvoidTolls = (avoidTolls: boolean) => patch({ avoidTolls })
   const [locating, setLocating] = useState(false)
   const [locationError, setLocationError] = useState<string | null>(null)
   const [stepError, setStepError] = useState<string | null>(null)
+  const [livePrice, setLivePrice] = useState<{
+    priceEur: number
+    unit: string
+    countryCode: string | null
+    source: string
+    fallback: boolean
+  } | null>(null)
+  const [liveLoading, setLiveLoading] = useState(false)
+  const liveReq = useRef(0)
+
+  // Country-dependent live fuel/electricity price for the origin country.
+  // Debounced so typing the origin does not spam the API; never blocks submit.
+  useEffect(() => {
+    const query = origin.trim()
+    if (query.length < 3) {
+      setLivePrice(null)
+      setLiveLoading(false)
+      return
+    }
+    const id = ++liveReq.current
+    setLiveLoading(true)
+    const timer = setTimeout(async () => {
+      try {
+        const url = new URL("/api/energy-prices", window.location.origin)
+        url.searchParams.set("origin", query)
+        url.searchParams.set("vehicle", vehicle)
+        const res = await fetch(url.toString())
+        if (!res.ok) throw new Error("price lookup failed")
+        const data = (await res.json()) as {
+          priceEur: number
+          unit: string
+          countryCode: string | null
+          source: string
+          fallback: boolean
+        }
+        if (liveReq.current === id) setLivePrice(data)
+      } catch {
+        if (liveReq.current === id) setLivePrice(null)
+      } finally {
+        if (liveReq.current === id) setLiveLoading(false)
+      }
+    }, 500)
+    return () => clearTimeout(timer)
+  }, [origin, vehicle])
 
   const steps = [t("roadStep1"), t("roadStep2"), t("roadStep3")]
   const paceOptions = [
@@ -195,7 +249,7 @@ export function RoadTripConfigurator({
 
   return (
     <div className="flex flex-col gap-7">
-      <StepProgress steps={steps} current={step} />
+      <StepProgress steps={steps} current={step} onSelect={changeStep} />
 
       <WizardPreview
         mode="road"
@@ -352,6 +406,18 @@ export function RoadTripConfigurator({
               />
               <span className="text-sm text-muted-foreground">{vehicle === "elettrica" ? "kWh / 100 km" : "L / 100 km"}</span>
             </div>
+            {liveLoading ? (
+              <p className="text-xs text-muted-foreground">{t("fuelPriceLoading")}</p>
+            ) : livePrice && !livePrice.fallback && livePrice.countryCode ? (
+              <p className="text-xs text-muted-foreground">
+                {t("fuelPriceLive", {
+                  country: livePrice.countryCode,
+                  price: `€${livePrice.priceEur.toFixed(livePrice.unit === "kWh" ? 3 : 2)}`,
+                  unit: livePrice.unit,
+                  source: livePrice.source,
+                })}
+              </p>
+            ) : null}
           </Field>
 
           <Field label={t("tolls")} icon={<ReceiptText className="size-4" />}>

@@ -3,15 +3,16 @@
 import Image from "next/image"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import type { GenerateTripPayload, TripMode } from "@/lib/types"
 import { SiteHeader } from "./site-header"
 import { ModeSelector } from "./mode-selector"
-import { DEFAULT_ROAD_FORM, RoadTripConfigurator } from "./road-trip-configurator"
-import { DEFAULT_CITY_FORM, CityTripConfigurator } from "./city-trip-configurator"
+import { DEFAULT_ROAD_FORM, RoadTripConfigurator, type RoadFormValue } from "./road-trip-configurator"
+import { DEFAULT_CITY_FORM, CityTripConfigurator, type CityFormValue } from "./city-trip-configurator"
 import { GeneratingSkeleton } from "./generating-skeleton"
 import { MouseDistanceCounter } from "./mouse-distance-counter"
-import { Fuel, MapPinned, Route, AlertCircle, MapPin, Plane } from "lucide-react"
+import { Fuel, MapPinned, Route, AlertCircle, MapPin, Plane, RotateCcw } from "lucide-react"
+import { Button } from "@/components/ui/button"
 import { useI18n } from "@/components/locale-provider"
 import { useAuth } from "@/components/auth/auth-provider"
 import { useGuestTrips } from "@/hooks/use-guest-trips"
@@ -132,6 +133,66 @@ function ErrorExplanation({ error, t }: { error: string; t: (key: MessageKey, va
   )
 }
 
+const PLANNER_DRAFT_KEY = "packron-planner-draft"
+
+interface PlannerDraft {
+  mode: TripMode
+  roadForm: RoadFormValue
+  cityForm: CityFormValue
+  roadStep: number
+  cityStep: number
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null
+}
+
+function sanitizeDraft(raw: unknown): PlannerDraft {
+  const fallback: PlannerDraft = {
+    mode: "road",
+    roadForm: DEFAULT_ROAD_FORM,
+    cityForm: DEFAULT_CITY_FORM,
+    roadStep: 0,
+    cityStep: 0,
+  }
+  if (!isRecord(raw)) return fallback
+  const draft: PlannerDraft = { ...fallback }
+  if (raw.mode === "road" || raw.mode === "city") draft.mode = raw.mode
+  if (isRecord(raw.roadForm)) {
+    draft.roadForm = {
+      origin: typeof raw.roadForm.origin === "string" ? raw.roadForm.origin : DEFAULT_ROAD_FORM.origin,
+      destination: typeof raw.roadForm.destination === "string" ? raw.roadForm.destination : DEFAULT_ROAD_FORM.destination,
+      loop: typeof raw.roadForm.loop === "boolean" ? raw.roadForm.loop : DEFAULT_ROAD_FORM.loop,
+      days: typeof raw.roadForm.days === "number" && raw.roadForm.days >= 2 && raw.roadForm.days <= 30
+        ? Math.round(raw.roadForm.days)
+        : DEFAULT_ROAD_FORM.days,
+      routeTags: Array.isArray(raw.roadForm.routeTags) ? raw.roadForm.routeTags.filter((v): v is string => typeof v === "string") : DEFAULT_ROAD_FORM.routeTags,
+      pace: typeof raw.roadForm.pace === "string" ? raw.roadForm.pace : DEFAULT_ROAD_FORM.pace,
+      basecamp: typeof raw.roadForm.basecamp === "boolean" ? raw.roadForm.basecamp : DEFAULT_ROAD_FORM.basecamp,
+      crew: Array.isArray(raw.roadForm.crew) ? raw.roadForm.crew.filter((v): v is string => typeof v === "string") : DEFAULT_ROAD_FORM.crew,
+      vehicle: raw.roadForm.vehicle === "benzina" || raw.roadForm.vehicle === "diesel" || raw.roadForm.vehicle === "elettrica" || raw.roadForm.vehicle === "camper" || raw.roadForm.vehicle === "moto"
+        ? raw.roadForm.vehicle
+        : DEFAULT_ROAD_FORM.vehicle,
+      consumption: typeof raw.roadForm.consumption === "string" ? raw.roadForm.consumption : DEFAULT_ROAD_FORM.consumption,
+      avoidTolls: typeof raw.roadForm.avoidTolls === "boolean" ? raw.roadForm.avoidTolls : DEFAULT_ROAD_FORM.avoidTolls,
+    }
+  }
+  if (isRecord(raw.cityForm)) {
+    draft.cityForm = {
+      city: typeof raw.cityForm.city === "string" ? raw.cityForm.city : DEFAULT_CITY_FORM.city,
+      days: typeof raw.cityForm.days === "number" && raw.cityForm.days >= 1 && raw.cityForm.days <= 30
+        ? Math.round(raw.cityForm.days)
+        : DEFAULT_CITY_FORM.days,
+      interests: Array.isArray(raw.cityForm.interests) ? raw.cityForm.interests.filter((v): v is string => typeof v === "string") : DEFAULT_CITY_FORM.interests,
+      pace: typeof raw.cityForm.pace === "string" ? raw.cityForm.pace : DEFAULT_CITY_FORM.pace,
+      notes: typeof raw.cityForm.notes === "string" ? raw.cityForm.notes : DEFAULT_CITY_FORM.notes,
+    }
+  }
+  if (typeof raw.roadStep === "number" && raw.roadStep >= 0 && raw.roadStep <= 2) draft.roadStep = Math.round(raw.roadStep)
+  if (typeof raw.cityStep === "number" && raw.cityStep >= 0 && raw.cityStep <= 1) draft.cityStep = Math.round(raw.cityStep)
+  return draft
+}
+
 export function Planner() {
   const { t, locale } = useI18n()
   const router = useRouter()
@@ -146,6 +207,93 @@ export function Planner() {
   const [generationKey, setGenerationKey] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const wizardCardRef = useRef<HTMLDivElement>(null)
+  const draftRef = useRef<PlannerDraft>({
+    mode: "road",
+    roadForm: DEFAULT_ROAD_FORM,
+    cityForm: DEFAULT_CITY_FORM,
+    roadStep: 0,
+    cityStep: 0,
+  })
+  const didLoadDraftRef = useRef(false)
+
+  // Generation navigates to /trip/[id] (unmounting Planner), so drafts are
+  // persisted to localStorage: Back from a trip restores the inputs instead
+  // of a fresh blank form. Rehydrate in an effect (not the useState
+  // initializer) to avoid a server/client hydration mismatch.
+  useEffect(() => {
+    if (didLoadDraftRef.current) return
+    didLoadDraftRef.current = true
+    try {
+      const raw = window.localStorage.getItem(PLANNER_DRAFT_KEY)
+      if (!raw) return
+      const draft = sanitizeDraft(JSON.parse(raw))
+      draftRef.current = draft
+      setMode(draft.mode)
+      setRoadForm(draft.roadForm)
+      setCityForm(draft.cityForm)
+      setRoadStep(draft.roadStep)
+      setCityStep(draft.cityStep)
+    } catch {
+      // Corrupt draft or blocked storage — fall back to defaults.
+    }
+  }, [])
+
+  // Write-through persistence: every user change saves synchronously in the
+  // event handler. There is deliberately NO persist effect — an effect that
+  // writes on mount would store blank defaults before the rehydrated values
+  // land, and dev double-effects would then re-read that clobbered blank
+  // draft (this is what broke the first version of this fix).
+  const persistDraft = (patch: Partial<PlannerDraft>) => {
+    draftRef.current = { ...draftRef.current, ...patch }
+    try {
+      window.localStorage.setItem(PLANNER_DRAFT_KEY, JSON.stringify(draftRef.current))
+    } catch {
+      // Quota/private mode — the planner works without persistence.
+    }
+  }
+  const handleMode = (next: TripMode) => {
+    setMode(next)
+    persistDraft({ mode: next })
+  }
+  const handleRoadForm = (next: RoadFormValue) => {
+    setRoadForm(next)
+    persistDraft({ roadForm: next })
+  }
+  const handleCityForm = (next: CityFormValue) => {
+    setCityForm(next)
+    persistDraft({ cityForm: next })
+  }
+  const handleRoadStep = (next: number) => {
+    setRoadStep(next)
+    persistDraft({ roadStep: next })
+  }
+  const handleCityStep = (next: number) => {
+    setCityStep(next)
+    persistDraft({ cityStep: next })
+  }
+
+  // Start over: clear both drafts (and their stored copy) back to defaults.
+  const resetDraft = () => {
+    const fresh: PlannerDraft = {
+      mode: "road",
+      roadForm: DEFAULT_ROAD_FORM,
+      cityForm: DEFAULT_CITY_FORM,
+      roadStep: 0,
+      cityStep: 0,
+    }
+    draftRef.current = fresh
+    setMode(fresh.mode)
+    setRoadForm(fresh.roadForm)
+    setCityForm(fresh.cityForm)
+    setRoadStep(fresh.roadStep)
+    setCityStep(fresh.cityStep)
+    setError(null)
+    try {
+      window.localStorage.setItem(PLANNER_DRAFT_KEY, JSON.stringify(fresh))
+    } catch {
+      // Quota/private mode — in-memory reset is enough.
+    }
+  }
 
   const features: Array<{ icon: typeof Route; title: MessageKey; text: MessageKey }> = [
     { icon: Route, title: "featureRouteTitle", text: "featureRouteText" },
@@ -245,18 +393,30 @@ export function Planner() {
             ) : null}
 
             <div className={loading ? "invisible" : undefined}>
-              <div className="mb-8 flex flex-col gap-2">
-                <h2 className="font-display text-xl font-bold tracking-tight text-foreground">{t("configTitle")}</h2>
-                <p className="max-w-lg text-sm leading-relaxed text-muted-foreground">{t("configSubtitle")}</p>
+              <div className="mb-8 flex items-start justify-between gap-3">
+                <div className="flex min-w-0 flex-col gap-2">
+                  <h2 className="font-display text-xl font-bold tracking-tight text-foreground">{t("configTitle")}</h2>
+                  <p className="max-w-lg text-sm leading-relaxed text-muted-foreground">{t("configSubtitle")}</p>
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={resetDraft}
+                  disabled={loading}
+                  aria-label={t("resetForm")}
+                  className="shrink-0 text-muted-foreground hover:text-foreground"
+                >
+                  <RotateCcw className="size-4" />
+                  {t("resetForm")}
+                </Button>
               </div>
 
               {(mode === "road" ? roadStep : cityStep) === 0 ? (
                 <div className="mb-8">
                   <ModeSelector
                     mode={mode}
-                    onChange={(nextMode) => {
-                      setMode(nextMode)
-                    }}
+                    onChange={handleMode}
                   />
                 </div>
               ) : null}
@@ -270,18 +430,18 @@ export function Planner() {
                   onGenerate={generate}
                   loading={loading}
                   value={roadForm}
-                  onChange={setRoadForm}
+                  onChange={handleRoadForm}
                   step={roadStep}
-                  onStepChange={setRoadStep}
+                  onStepChange={handleRoadStep}
                 />
               ) : (
                 <CityTripConfigurator
                   onGenerate={generate}
                   loading={loading}
                   value={cityForm}
-                  onChange={setCityForm}
+                  onChange={handleCityForm}
                   step={cityStep}
-                  onStepChange={setCityStep}
+                  onStepChange={handleCityStep}
                 />
               )}
 

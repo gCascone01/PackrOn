@@ -37,12 +37,39 @@ const VEHICLE_FROM_LABEL: Record<string, VehicleType> = {
   Motorcycle: "moto",
 }
 
-const DEFAULT_FUEL_PRICE: Record<VehicleType, number> = {
+/** Built-in fallback prices (EUR/L or EUR/kWh) when live APIs are unreachable. */
+export const DEFAULT_FUEL_PRICE: Record<VehicleType, number> = {
   benzina: 1.8,
   diesel: 1.72,
   elettrica: 0.4,
   camper: 1.85,
   moto: 1.8,
+}
+
+/**
+ * Negative toll alerts ("No vignettes for passenger cars", "No tolls on
+ * this route") state the absence of an action — they are noise, not advice,
+ * now that real charges appear as priced breakdown lines. Drop them, but
+ * keep any alert that also names a price ("No vignette, but the tunnel
+ * costs €9"), since that half is actionable.
+ */
+const NEGATIVE_TOLL_PATTERNS = [
+  /no vignettes?/i,
+  /no tolls?/i,
+  /not required/i,
+  /nessuna vignetta/i,
+  /nessun pedaggio/i,
+  /non (è|e') richiest[aoie]/i,
+  /non sono richiest[ei]/i,
+]
+
+const TOLL_PRICE_HINT = /€|\beur\b|\bchf\b|\bcost\b|\bprice\b|\bpay\b|£|\$|\bczk\b|\bhuf\b|\bpln\b|\bron\b|\bsek\b|\bnok\b|\bdkk\b/i
+
+export function isActionableTollAlert(label: string): boolean {
+  const text = (label ?? "").trim()
+  if (!text) return false
+  if (!NEGATIVE_TOLL_PATTERNS.some((re) => re.test(text))) return true
+  return TOLL_PRICE_HINT.test(text)
 }
 
 let idCounter = 0
@@ -55,12 +82,26 @@ function padTime(totalMinutes: number): string {
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`
 }
 
-export function vehicleFromPayload(payload: GenerateTripPayload): Vehicle {
+export function vehicleFromPayload(
+  payload: GenerateTripPayload,
+  priceOverride?: { priceEur: number; countryCode?: string; source?: string; fallback?: boolean },
+): Vehicle {
   const type = VEHICLE_FROM_LABEL[payload.vehicle ?? ""] ?? "diesel"
+  if (priceOverride && Number.isFinite(priceOverride.priceEur) && priceOverride.priceEur > 0) {
+    return {
+      type,
+      consumption: Number.isFinite(payload.consumption) ? Number(payload.consumption) : type === "elettrica" ? 18 : 6.5,
+      fuelPrice: priceOverride.priceEur,
+      ...(priceOverride.countryCode ? { fuelCountryCode: priceOverride.countryCode } : {}),
+      ...(priceOverride.source ? { fuelPriceSource: priceOverride.source } : {}),
+      ...(priceOverride.fallback != null ? { fuelPriceFallback: priceOverride.fallback } : {}),
+    }
+  }
   return {
     type,
     consumption: Number.isFinite(payload.consumption) ? Number(payload.consumption) : type === "elettrica" ? 18 : 6.5,
     fuelPrice: DEFAULT_FUEL_PRICE[type],
+    fuelPriceFallback: true,
   }
 }
 
@@ -81,7 +122,11 @@ export function isGeminiTrip(value: unknown): value is GeminiTrip {
   )
 }
 
-export function mapGeminiTrip(raw: GeminiTrip, payload: GenerateTripPayload): Itinerary {
+export function mapGeminiTrip(
+  raw: GeminiTrip,
+  payload: GenerateTripPayload,
+  priceOverride?: { priceEur: number; countryCode?: string; source?: string; fallback?: boolean },
+): Itinerary {
   idCounter = 0
   const origin = payload.mode === "city" ? (payload.city ?? "") : (payload.origin ?? "")
   const dayCount = raw.days.length || 1
@@ -144,15 +189,17 @@ export function mapGeminiTrip(raw: GeminiTrip, payload: GenerateTripPayload): It
     originLat: raw.origin_lat,
     originLng: raw.origin_lng,
     loop: payload.loop ?? false,
-    vehicle: vehicleFromPayload(payload),
+    vehicle: vehicleFromPayload(payload, priceOverride),
     days,
-    tollNotices: (raw.toll_and_vignette_alerts ?? []).map((label, i) => ({
-      id: `toll-${i}`,
-      country: translate(payload.locale === "it" ? "it" : "en", "notice"),
-      label,
-      cost: 0,
-      kind: /vignett|bollin/i.test(label) ? "vignette" : "toll",
-    })),
+    tollNotices: (raw.toll_and_vignette_alerts ?? [])
+      .filter((label) => isActionableTollAlert(label))
+      .map((label, i) => ({
+        id: `toll-${i}`,
+        country: translate(payload.locale === "it" ? "it" : "en", "notice"),
+        label,
+        cost: 0,
+        kind: /vignett|bollin/i.test(label) ? "vignette" : "toll",
+      })),
     totalKmEstimated: Number(raw.total_km_estimated) || kmPerDay * dayCount,
     estimatedFuelCostRange: raw.estimated_fuel_cost_range,
   }

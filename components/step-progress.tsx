@@ -4,25 +4,21 @@ import { Check } from "lucide-react"
 export function StepProgress({
   steps,
   current,
+  onSelect,
 }: {
   steps: string[]
   current: number
+  /** Jump to a step (forward jumps run the same validation as Continue). */
+  onSelect?: (index: number) => void
 }) {
   return (
     <ol className="flex items-center rounded-2xl border border-border bg-muted/30 p-2 sm:p-2.5">
       {steps.map((label, i) => {
         const done = i < current
         const active = i === current
-        return (
-          <li
-            key={label}
-            aria-current={active ? "step" : undefined}
-            className={cn(
-              "relative flex min-w-0 flex-1 items-center rounded-xl px-1.5 py-1.5 transition-all duration-300 sm:px-2",
-              active && "bg-card shadow-sm ring-1 ring-brand/15",
-              done && !active && "bg-brand-muted/45",
-            )}
-          >
+        const clickable = Boolean(onSelect) && !active
+        const content = (
+          <>
             <div className="flex min-w-0 items-center gap-2">
               <span
                 className={cn(
@@ -50,6 +46,30 @@ export function StepProgress({
                 <span className={cn("absolute inset-y-0 left-0 rounded-full bg-brand transition-all duration-500", done ? "w-full" : "w-0")} />
               </span>
             ) : null}
+          </>
+        )
+        return (
+          <li
+            key={label}
+            aria-current={active ? "step" : undefined}
+            className={cn(
+              "relative flex min-w-0 flex-1 items-center rounded-xl px-1.5 py-1.5 transition-all duration-300 sm:px-2",
+              active && "bg-card shadow-sm ring-1 ring-brand/15",
+              done && !active && "bg-brand-muted/45",
+            )}
+          >
+            {clickable ? (
+              <button
+                type="button"
+                onClick={() => onSelect?.(i)}
+                aria-label={label}
+                className="flex min-w-0 flex-1 cursor-pointer items-center rounded-lg transition hover:bg-card/70 hover:shadow-sm hover:ring-1 hover:ring-brand/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+              >
+                {content}
+              </button>
+            ) : (
+              content
+            )}
           </li>
         )
       })}

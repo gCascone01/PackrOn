@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { mapGeminiTrip } from "./map-gemini-itinerary"
+import { isActionableTollAlert, mapGeminiTrip } from "./map-gemini-itinerary"
 import { GEMINI_TRIP_SCHEMA, type GeminiTrip } from "./gemini-schema"
 import type { GenerateTripPayload } from "./types"
 
@@ -207,6 +207,30 @@ describe("mapGeminiTrip", () => {
       bookingQuery: undefined,
       getYourGuideQuery: "Arch of Trajan guided visit",
     }])
+  })
+
+  it("drops purely-negative toll alerts but keeps actionable ones", () => {
+    expect(isActionableTollAlert("No vignettes for passenger cars in Italy")).toBe(false)
+    expect(isActionableTollAlert("No tolls on this route")).toBe(false)
+    expect(isActionableTollAlert("Nessuna vignetta richiesta per le auto")).toBe(false)
+    expect(isActionableTollAlert("")).toBe(false)
+    expect(isActionableTollAlert("Vignette required in Austria (10 days, €12.80)")).toBe(true)
+    expect(isActionableTollAlert("No vignette needed, but the Karawanken tunnel costs €9")).toBe(true)
+    expect(isActionableTollAlert("Mont Blanc Tunnel carries a surcharge")).toBe(true)
+
+    const itinerary = mapGeminiTrip(
+      {
+        ...trip,
+        toll_and_vignette_alerts: [
+          "No vignettes for passenger cars in Italy",
+          "Vignette required in Austria (10 days, €12.80)",
+        ],
+      },
+      payload,
+    )
+    expect(itinerary.tollNotices.map((n) => n.label)).toEqual([
+      "Vignette required in Austria (10 days, €12.80)",
+    ])
   })
 
   it("adds the city when a lodging result has no explicit booking query", () => {

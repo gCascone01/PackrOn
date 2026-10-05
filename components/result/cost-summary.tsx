@@ -14,11 +14,16 @@ export function CostSummary({ itinerary }: { itinerary: Itinerary }) {
   const { consumption, fuelPrice } = itinerary.vehicle
   const isEv = itinerary.vehicle.type === "elettrica"
   const energyUnit = isEv ? "kWh" : "L"
-  const fuelLabel = itinerary.estimatedFuelCostRange || formatEur(fuel, locale)
-  const totalLabel = itinerary.estimatedFuelCostRange
-    ? itinerary.estimatedFuelCostRange
-    : formatEur(computedTotal, locale)
-  const hasTollAlerts = tolls <= 0 && itinerary.tollNotices.length > 0
+  // Both rows are deterministic: (km/100) x consumption x live price.
+  // Gemini's estimatedFuelCostRange is deliberately NOT shown — it is a
+  // free-text guess that routinely contradicts its own km estimate (e.g.
+  // "450€ - 550€" next to a computed €157), which made every total look
+  // broken. The field stays in the type/DB for compatibility.
+  const fuelLabel = formatEur(fuel, locale)
+  const totalLabel = formatEur(computedTotal, locale)
+  const hasLiveTolls = typeof itinerary.tollTotalEur === "number"
+  const hasTollAlerts = !hasLiveTolls && tolls <= 0 && itinerary.tollNotices.length > 0
+  const tollRoute = (itinerary.tollCountries ?? []).join(" → ")
   const estimateKey = isEv ? "fuelEstimateEnergy" : "fuelEstimateFuel"
 
   return (
@@ -43,6 +48,53 @@ export function CostSummary({ itinerary }: { itinerary: Itinerary }) {
       <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
         {t(estimateKey, { consumption, unit: energyUnit, price: formatEur(fuelPrice, locale) })}
       </p>
+      {hasLiveTolls && !itinerary.tollAvoided && itinerary.tollSource ? (
+        <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+          {tollRoute
+            ? t("tollEstimateLive", {
+                route: tollRoute,
+                price: formatEur(tolls, locale),
+                source: itinerary.tollSource,
+              })
+            : t("tollEstimateLiveNoRoute", { price: formatEur(tolls, locale), source: itinerary.tollSource })}
+        </p>
+      ) : null}
+      {itinerary.tollAvoided ? (
+        <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{t("tollAvoided")}</p>
+      ) : null}
+      {itinerary.vehicle.fuelCountryCode && itinerary.vehicle.fuelPriceSource && !itinerary.vehicle.fuelPriceFallback ? (
+        <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+          {t("fuelPriceLive", {
+            country: itinerary.vehicle.fuelCountryCode,
+            price: formatEur(fuelPrice, locale),
+            unit: energyUnit,
+            source: itinerary.vehicle.fuelPriceSource,
+          })}
+        </p>
+      ) : null}
+
+      {itinerary.tollBreakdown && itinerary.tollBreakdown.length > 0 ? (
+        <div className="mt-4 flex flex-col gap-2">
+          <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            {t("tollBreakdownTitle")}
+          </span>
+          {itinerary.tollBreakdown.map((line, i) => (
+            <div
+              key={`${line.country}-${line.label}-${i}`}
+              className="flex items-start justify-between gap-3 rounded-lg border border-border bg-background px-3 py-2"
+            >
+              <div className="min-w-0 flex-1 text-xs leading-relaxed text-foreground">
+                {line.kind === "perKm"
+                  ? t("tollBreakdownPerKm", { country: line.country, km: line.km ?? 0 })
+                  : `${line.label} · ${line.country}`}
+              </div>
+              <span className="shrink-0 text-xs font-semibold tabular-nums text-foreground">
+                {formatEur(line.amountEur, locale)}
+              </span>
+            </div>
+          ))}
+        </div>
+      ) : null}
 
       {itinerary.tollNotices.length > 0 && (
         <div className="mt-4 flex flex-col gap-2">

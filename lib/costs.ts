@@ -23,6 +23,11 @@ export function fuelCost(itinerary: Itinerary): number {
 }
 
 export function tollsCost(itinerary: Itinerary): number {
+  // Prefer the live route estimate when present: Gemini notices are
+  // informational labels with cost 0, so summing them is always €0.
+  if (typeof itinerary.tollTotalEur === "number" && Number.isFinite(itinerary.tollTotalEur)) {
+    return Math.max(0, itinerary.tollTotalEur)
+  }
   return itinerary.tollNotices.reduce((sum, t) => sum + t.cost, 0)
 }
 

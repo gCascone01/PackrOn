@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { fuelCost, formatDurationMinutes, formatEur, totalCost, totalDistanceKm } from "./costs"
+import { fuelCost, formatDurationMinutes, formatEur, tollsCost, totalCost, totalDistanceKm } from "./costs"
 import type { Itinerary } from "./types"
 
 const itinerary: Itinerary = {
@@ -31,6 +31,11 @@ describe("costs", () => {
 
   it("adds tolls to the trip total", () => {
     expect(totalCost(itinerary)).toBeCloseTo(28.27, 2)
+  })
+
+  it("prefers the live toll estimate over notice costs", () => {
+    expect(tollsCost({ ...itinerary, tollTotalEur: 50 })).toBe(50)
+    expect(totalCost({ ...itinerary, tollTotalEur: 50 })).toBeCloseTo(16.77 + 50, 2)
   })
 
   it("formats euro and duration", () => {
