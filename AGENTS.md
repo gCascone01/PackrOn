@@ -287,7 +287,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - `app/api/trips/route.ts` — GET list (summaries), POST save (201 + `{id}`)
 - `app/api/trips/[id]/route.ts` — public GET by UUID; owner-only PUT overwrite, PATCH favourite flag (`{is_favorite: boolean}`, claim-first for orphans), and DELETE
 - `app/api/trips/claim/route.ts` — authenticated claim of a null-owner trip
-- `supabase/migrations/20261002000000_unify_trip_storage.sql` — nullable guest ownership, destination, public reads, and claim RLS
+- `supabase/migrations/20261002000000_unify_trip_storage.sql` — nullable guest ownership, destination, public reads, and claim RLS. Every policy create is preceded by drops of both the old and the new policy name, so the file is safe to re-run (without that, a second run failed with 42710 `saved_trips_insert_guest_or_own already exists`).
 - `supabase/migrations/20261005000000_trip_favorites.sql` — `is_favorite boolean NOT NULL DEFAULT false` + `(user_id, is_favorite, updated_at)` index. No RLS change (covered by existing policies); `GET /api/trips` selects `*` so pre-migration rows still read (`toSavedTripSummary` defaults the flag to false).
 - `components/auth/auth-provider.tsx` — session context (`AuthProvider` in `components/providers.tsx`)
 - `components/auth/auth-form.tsx` — login/signup tabs, client validation (email regex, min 8 chars), friendly Supabase error mapping
