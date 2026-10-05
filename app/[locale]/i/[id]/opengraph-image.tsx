@@ -79,7 +79,9 @@ export default async function Image({ params }: { params: Promise<{ locale: stri
     .map((stop) => fitText(stop, 18))
 
   const points: Array<{ lat: number; lng: number }> = []
-  if (typeof itinerary.originLat === "number" && typeof itinerary.originLng === "number") {
+  // Road-only: city trips have no departure origin, so never prepend the
+  // stored origin point (legacy rows may still carry originLat/Lng).
+  if (itinerary.mode === "road" && typeof itinerary.originLat === "number" && typeof itinerary.originLng === "number") {
     points.push({ lat: itinerary.originLat, lng: itinerary.originLng })
   }
   for (const stop of allStops) {
