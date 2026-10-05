@@ -192,8 +192,10 @@ export function mapGeminiTrip(
     title: raw.trip_title,
     subtitle: raw.summary,
     origin,
-    originLat: raw.origin_lat,
-    originLng: raw.origin_lng,
+    // City trips have no departure origin: the city itself is the area
+    // being explored, so storing origin_lat/lng would render a bogus
+    // house marker (and origin leg) on top of the first stop.
+    ...(payload.mode === "road" ? { originLat: raw.origin_lat, originLng: raw.origin_lng } : {}),
     loop: payload.loop ?? false,
     vehicle: vehicleFromPayload(payload, priceOverride),
     days,

@@ -14,6 +14,7 @@ import { Timeline } from "./timeline"
 import { CostSummary } from "./cost-summary"
 import { NavLauncher } from "./nav-launcher"
 import { TripHero } from "./trip-hero"
+import { ExportPdfButton } from "./export-pdf-button"
 import type { MapStop, OriginPoint } from "./itinerary-map"
 import { ArrowLeft, Check, Copy, List, Loader2, Map as MapIcon, RotateCcw, Share2, Undo2 } from "lucide-react"
 import { useI18n } from "@/components/locale-provider"
@@ -85,8 +86,16 @@ export function ResultView({
   useEffect(() => {
     if (!savedId || !configured) return
     const current = JSON.stringify(itinerary)
-    if (current === baselineRef.current) return
+    if (current === baselineRef.current) {
+      // Back to the persisted snapshot (e.g. undo): clear the divergence flag.
+      setHasUnsavedEdits(false)
+      return
+    }
     setHasUnsavedEdits(true)
+    // Foreign-owned rows reject PUT (owner-only RLS → 404), so never flash
+    // "Saving…" for a request that cannot succeed — the edits-not-saved
+    // notice covers this case instead.
+    if (showEditsNotSavedNotice) return
     setAutosave("saving")
     setAutosaveError(null)
     const timer = window.setTimeout(() => {
@@ -117,7 +126,7 @@ export function ResultView({
     }, 800)
     return () => window.clearTimeout(timer)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [itinerary, savedId, configured, user?.id, claimTick])
+  }, [itinerary, savedId, configured, user?.id, claimTick, showEditsNotSavedNotice])
 
   const shareCurrentPage = async () => {
     setShareError(null)
@@ -142,7 +151,15 @@ export function ResultView({
   const liveItinerary = useMemo<Itinerary>(
     () => ({
       ...itinerary,
-      days: withLiveDistances(itinerary.days, itinerary.originLat && itinerary.originLng ? { lat: itinerary.originLat, lng: itinerary.originLng } : undefined),
+      // Origin legs only exist for road trips. City trips explore the city
+      // itself, so never add an origin→first-stop distance (it inflates km
+      // and backs the house marker).
+      days: withLiveDistances(
+        itinerary.days,
+        itinerary.mode === "road" && itinerary.originLat && itinerary.originLng
+          ? { lat: itinerary.originLat, lng: itinerary.originLng }
+          : undefined,
+      ),
     }),
     [itinerary],
   )
@@ -171,6 +188,9 @@ export function ResultView({
   const totalKm = totalDistanceKm(liveItinerary)
 
   const originPoint = useMemo<OriginPoint | undefined>(() => {
+    // Road-only: city itineraries have no departure point, so no house marker
+    // — even for legacy rows that stored originLat/Lng before the mapping fix.
+    if (liveItinerary.mode !== "road") return undefined
     if (liveItinerary.originLat && liveItinerary.originLng) {
       return { lat: liveItinerary.originLat, lng: liveItinerary.originLng, name: liveItinerary.origin }
     }
@@ -320,6 +340,7 @@ export function ResultView({
               {showSaveCopyButton && onSaveCopy ? (
                 <SaveCopyButton itinerary={liveItinerary} onSaved={onSaveCopy} />
               ) : null}
+              <ExportPdfButton itinerary={liveItinerary} totalKm={totalKm} totalStops={totalStops} />
               {!showHero ? (
                 <Button variant="secondary" size="lg" className="shrink-0" onClick={() => void shareCurrentPage()}>
                   <Share2 className="size-4" />
@@ -341,7 +362,7 @@ export function ResultView({
               <p role="alert" className="text-xs text-destructive">{autosaveError}</p>
             ) : null}
             {showEditsNotSavedNotice && hasUnsavedEdits ? (
-              <p role="note" className="max-w-64 text-right text-xs text-muted-foreground">{t("tripEditsNotSaved")}</p>
+              <p role="note" className="max-w-80 whitespace-pre-line text-right text-xs text-muted-foreground sm:max-w-none">{t(user ? "tripEditsNotSaved" : "tripEditsNotSavedGuest")}</p>
             ) : null}
             {!showHero && shareError ? <p role="alert" className="text-xs text-destructive">{shareError}</p> : null}
           </div>

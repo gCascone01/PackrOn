@@ -295,4 +295,23 @@ describe("mapGeminiTrip", () => {
 
     expect(lodging.bookingQuery).toBe("Palazzo Gattini Luxury Hotel, Matera")
   })
+
+  it("omits origin coordinates for city trips so no house marker is rendered", () => {
+    const cityPayload: GenerateTripPayload = {
+      mode: "city",
+      city: "Sevilla",
+      days: 1,
+      pace: "balanced",
+      locale: "en",
+    }
+    const cityItinerary = mapGeminiTrip(trip, cityPayload)
+
+    expect(cityItinerary.origin).toBe("Sevilla")
+    expect(cityItinerary.originLat).toBeUndefined()
+    expect(cityItinerary.originLng).toBeUndefined()
+
+    const roadItinerary = mapGeminiTrip(trip, payload)
+    expect(roadItinerary.originLat).toBe(trip.origin_lat)
+    expect(roadItinerary.originLng).toBe(trip.origin_lng)
+  })
 })

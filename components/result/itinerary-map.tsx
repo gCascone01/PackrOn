@@ -49,6 +49,11 @@ export function ItineraryMap({
   const [routeGeometries, setRouteGeometries] = useState<[number, number][] | null>(null)
   const lastRouteQueryRef = useRef<string | null>(null)
 
+  // Origin (house marker + origin leg) is road-only: city trips explore the
+  // city itself, so ignore any origin passed for city mode — including
+  // legacy rows saved with originLat/Lng.
+  const effectiveOrigin = mode === "road" ? origin : undefined
+
   // Fetch real routes from OSRM
   useEffect(() => {
     let cancelled = false
@@ -66,8 +71,8 @@ export function ItineraryMap({
       }
 
       const points = []
-      if (origin && typeof origin.lat === "number" && typeof origin.lng === "number" && Number.isFinite(origin.lat) && Number.isFinite(origin.lng)) {
-        points.push({ lat: origin.lat, lng: origin.lng })
+      if (effectiveOrigin && typeof effectiveOrigin.lat === "number" && typeof effectiveOrigin.lng === "number" && Number.isFinite(effectiveOrigin.lat) && Number.isFinite(effectiveOrigin.lng)) {
+        points.push({ lat: effectiveOrigin.lat, lng: effectiveOrigin.lng })
       }
       points.push(...validStops)
 
@@ -191,7 +196,7 @@ export function ItineraryMap({
   useEffect(() => {
     renderLayers()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stops, selectedId, routeGeometries])
+  }, [stops, selectedId, routeGeometries, effectiveOrigin])
 
   function renderLayers() {
     const L = leafletRef.current
@@ -211,8 +216,8 @@ export function ItineraryMap({
     const latlngs = validStops.map((s) => [s.lat, s.lng] as [number, number])
     const boundsLatLngs = [...latlngs]
 
-    if (origin && typeof origin.lat === "number" && typeof origin.lng === "number" && Number.isFinite(origin.lat) && Number.isFinite(origin.lng)) {
-      boundsLatLngs.push([origin.lat, origin.lng] as [number, number])
+    if (effectiveOrigin && typeof effectiveOrigin.lat === "number" && typeof effectiveOrigin.lng === "number" && Number.isFinite(effectiveOrigin.lat) && Number.isFinite(effectiveOrigin.lng)) {
+      boundsLatLngs.push([effectiveOrigin.lat, effectiveOrigin.lng] as [number, number])
     }
 
     const polylineStyles = {
@@ -246,9 +251,9 @@ export function ItineraryMap({
       iconAnchor: heroMap ? [14, 14] : [15, 30],
     })
 
-    // Add origin point and line from origin to first stop
-    if (origin && typeof origin.lat === "number" && typeof origin.lng === "number" && !isNaN(origin.lat) && !isNaN(origin.lng)) {
-      const originLatLng: [number, number] = [origin.lat, origin.lng]
+    // Add origin point and line from origin to first stop (road trips only)
+    if (effectiveOrigin && typeof effectiveOrigin.lat === "number" && typeof effectiveOrigin.lng === "number" && !isNaN(effectiveOrigin.lat) && !isNaN(effectiveOrigin.lng)) {
+      const originLatLng: [number, number] = [effectiveOrigin.lat, effectiveOrigin.lng]
       
       if (!routeGeometries && !heroMap) {
         // Draw line from origin to first stop
@@ -261,19 +266,19 @@ export function ItineraryMap({
         pane: heroMap ? "heroEndpointPane" : "markerPane",
         zIndexOffset: heroMap ? 1000 : 0,
       }).addTo(layer)
-      if (!heroMap) originMarker.bindTooltip(`${origin.name || "Start"}`, { direction: "top", offset: [0, -28] })
+      if (!heroMap) originMarker.bindTooltip(`${effectiveOrigin.name || "Start"}`, { direction: "top", offset: [0, -28] })
     }
 
     if (!routeGeometries) {
-      addRouteLine(heroMap && origin && Number.isFinite(origin.lat) && Number.isFinite(origin.lng)
-        ? [[origin.lat, origin.lng], ...latlngs]
+      addRouteLine(heroMap && effectiveOrigin && Number.isFinite(effectiveOrigin.lat) && Number.isFinite(effectiveOrigin.lng)
+        ? [[effectiveOrigin.lat, effectiveOrigin.lng], ...latlngs]
         : latlngs)
     }
 
     validStops.forEach((s, index) => {
       const active = s.id === selectedId
       const isDestination = heroMap && !loop && index === validStops.length - 1
-      const isStart = heroMap && !origin && index === 0
+      const isStart = heroMap && !effectiveOrigin && index === 0
       const icon = heroMap && !isDestination && !isStart
         ? L.divIcon({
             className: "",
