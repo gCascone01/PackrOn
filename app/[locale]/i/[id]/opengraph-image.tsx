@@ -112,8 +112,11 @@ export default async function Image({ params }: { params: Promise<{ locale: stri
         <div
           style={{
             position: "absolute",
-            inset: 0,
-            background: `radial-gradient(circle at top right, ${ACCENT}22 0%, transparent 32%), radial-gradient(circle at bottom left, ${BRAND}33 0%, transparent 30%)`,
+            top: 0,
+            right: 0,
+            bottom: 0,
+            left: 0,
+            background: "linear-gradient(135deg, rgba(231, 139, 48, 0.12) 0%, rgba(0, 136, 174, 0.2) 100%)",
           }}
         />
 
@@ -138,7 +141,7 @@ export default async function Image({ params }: { params: Promise<{ locale: stri
                   height: 16,
                   borderRadius: 8,
                   background: BRAND,
-                  boxShadow: `0 0 0 6px ${BRAND}22`,
+                  boxShadow: "0px 4px 12px rgba(0, 136, 174, 0.2)",
                 }}
               />
               <span style={{ fontSize: 21, fontWeight: 800, letterSpacing: 1.4, color: BRAND_DARK }}>PACKRON</span>
@@ -148,12 +151,12 @@ export default async function Image({ params }: { params: Promise<{ locale: stri
             <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
               <div
                 style={{
-                  display: "inline-flex",
+                  display: "flex",
                   alignSelf: "flex-start",
                   alignItems: "center",
                   padding: "8px 12px",
                   borderRadius: 999,
-                  background: `${BRAND}15`,
+                  background: "rgba(0, 136, 174, 0.08)",
                   color: BRAND_DARK,
                   fontSize: 16,
                   fontWeight: 700,
@@ -175,12 +178,12 @@ export default async function Image({ params }: { params: Promise<{ locale: stri
                     <span
                       key={`${highlight}-${index}`}
                       style={{
-                        display: "inline-flex",
+                        display: "flex",
                         alignItems: "center",
                         padding: "8px 12px",
                         borderRadius: 999,
-                        background: `${ACCENT}14`,
-                        border: `1px solid ${ACCENT}25`,
+                        background: "rgba(231, 139, 48, 0.08)",
+                        border: "1px solid rgba(231, 139, 48, 0.15)",
                         color: TEXT,
                         fontSize: 18,
                         fontWeight: 600,
@@ -206,7 +209,7 @@ export default async function Image({ params }: { params: Promise<{ locale: stri
             style={{
               width: 430,
               minWidth: 430,
-              background: `linear-gradient(180deg, ${BRAND}06 0%, ${BRAND}0a 100%)`,
+              background: "linear-gradient(180deg, rgba(0, 136, 174, 0.04) 0%, rgba(0, 136, 174, 0.06) 100%)",
               borderLeft: `1px solid ${BORDER}`,
               display: "flex",
               alignItems: "center",

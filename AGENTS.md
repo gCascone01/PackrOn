@@ -412,3 +412,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - A temporary server-side diagnostic is available in `app/api/generate-trip/route.ts` through `lib/gemini-debug.ts`. It activates only when `NODE_ENV === "development"` and `DEBUG_GEMINI === "true"`.
 - When enabled, it logs the exact prompt, raw Gemini response before parsing, parsed JSON, mapped itinerary, and a raw-versus-mapped day summary including mapped substop names and descriptions. Nothing is added to the API response; generation parameters and user-facing behavior are unchanged.
 - Rationale: capture one real request to determine whether under-filled days originate in Gemini or in post-generation transformation. The diagnostic is intentionally local-development-only and does not log API keys or authorization headers.
+
+### Satori-compatible legacy OG image (2026-10-05)
+- `app/[locale]/i/[id]/opengraph-image.tsx` uses only Satori-compatible CSS for generated previews: absolute edges are specified explicitly, flex containers use `display: "flex"`, translucent colors use `rgba()`, shadows avoid spread values, and the decorative overlay uses a single linear gradient.
+- Rationale: unsupported CSS syntax and 8-digit hex colors can make `next/og` rendering fail even when the JSX and TypeScript are valid.
