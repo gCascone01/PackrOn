@@ -260,13 +260,6 @@ export function ResultView({
   return (
     <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6">
       {showHero ? (
-        <div className="mb-3 flex items-center">
-          <Button variant="outline" size="icon-lg" onClick={onBack} aria-label={t("backToConfig")}>
-            <ArrowLeft className="size-4" />
-          </Button>
-        </div>
-      ) : null}
-      {showHero ? (
         <TripHero
           title={liveItinerary.title}
           subtitle={liveItinerary.subtitle}
@@ -283,13 +276,11 @@ export function ResultView({
         />
       ) : null}
 
-      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="mb-6 flex items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          {!showHero ? (
-            <Button variant="outline" size="icon-lg" onClick={onBack} aria-label={t("backToConfig")}>
-              <ArrowLeft className="size-4" />
-            </Button>
-          ) : null}
+          <Button variant="outline" size="icon-lg" onClick={onBack} aria-label={t("backToConfig")}>
+            <ArrowLeft className="size-4" />
+          </Button>
         </div>
         <div className="flex shrink-0 items-center gap-2">
           {onRestart ? (

@@ -72,7 +72,7 @@ export default async function Image({ params }: { params: Promise<{ locale: stri
 
   const allStops = itinerary.days.flatMap((day) => day.stops ?? [])
   const highlights = allStops
-    .filter((stop) => stop.category !== "notte" && stop.category !== "sosta")
+    .filter((stop) => stop.category !== "notte" && stop.category !== "sosta" && stop.category !== "ricarica")
     .slice(0, 3)
     .map((stop) => stop.name)
     .filter(Boolean)

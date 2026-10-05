@@ -103,6 +103,11 @@ if (payload.mode === "city") {
   const routeStyle = (payload.routeTags ?? []).map((tag) => ROUTE_STYLE_EN[tag] ?? tag).join(", ") || "mix"
   const consumption = payload.consumption ?? (vehicle === "electric" ? 18 : 6.5)
   const tolls = payload.avoidTolls ? "avoid motorways and toll roads" : "motorways allowed if convenient"
+  const evRangeRaw = vehicle === "electric" ? Number(payload.evRangeKm) : NaN
+  const evRangeKm = Number.isFinite(evRangeRaw) && evRangeRaw >= 50 && evRangeRaw <= 1500 ? Math.round(evRangeRaw) : null
+  const evChargingLine = evRangeKm
+    ? `Real EV range: ${evRangeKm} km on a full charge. Plan type=ricarica charging stops so that no driving leg between charges exceeds this range (keep a safety margin on long days). Each ricarica stop is a MAIN STOP with real station coordinates (lat/lng), precise start_time/end_time, duration_minutes for the charging session, and a short_description naming the charger power (kW) and network when known; do not use sub_stops for ricarica stops. Prefer fast chargers on transit legs; combine charging with a meal or sightseeing break when convenient. An overnight (notte) stop implies slow destination charging where available.`
+    : ""
 
   return `You are an expert European road-trip planner. Generate a realistic itinerary with coherent distances and driving times.
 Be permissive when interpreting origin and destination names: they might be misspelled. Plan the trip using the corrected names.
@@ -123,7 +128,7 @@ Route style: ${routeStyle}
 Vehicle: ${vehicle}
 Declared consumption: ${consumption} L/100km (or kWh/100km if EV)
 Tolls: ${tolls}
-CRITICAL STRUCTURAL & SCHEDULING RULES:
+${evChargingLine ? `${evChargingLine}\n` : ""}CRITICAL STRUCTURAL & SCHEDULING RULES:
 
 No Hardcoded Dates: Do not add specific calendar dates to the itinerary days; use a relative day structure instead.
 Streamlined Departures: Combine the initial origin departure and the first driving leg into a single, cohesive driving entry (e.g., "Drive from [Origin] to [First Stop]") rather than splitting them into separate micro-steps.

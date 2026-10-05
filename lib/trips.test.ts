@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { isItinerary, isMissingTableError, toSavedTripSummary, validateSaveTripPayload, type SavedTrip } from "./trips"
+import { isItinerary, isMissingTableError, scopeTripForViewer, toSavedTripSummary, validateSaveTripPayload, type SavedTrip } from "./trips"
 import type { Itinerary } from "./types"
 
 function baseItinerary(): Itinerary {
@@ -78,6 +78,34 @@ describe("isMissingTableError", () => {
     expect(isMissingTableError({ message: "Could not save trip" })).toBe(false)
   })
 })
+describe("scopeTripForViewer", () => {
+  const ownedFavorite = (userId: string | null): SavedTrip => ({
+    id: "id-1",
+    user_id: userId,
+    title: "Test trip",
+    mode: "road",
+    origin: "Vienna",
+    data: baseItinerary(),
+    is_favorite: true,
+    created_at: "2026-01-01T00:00:00Z",
+    updated_at: "2026-01-02T00:00:00Z",
+  })
+
+  it("keeps the owner's own favourite flag", () => {
+    expect(scopeTripForViewer(ownedFavorite("user-1"), "user-1").is_favorite).toBe(true)
+  })
+
+  it("hides the flag from logged-out and foreign viewers", () => {
+    expect(scopeTripForViewer(ownedFavorite("user-1"), null).is_favorite).toBe(false)
+    expect(scopeTripForViewer(ownedFavorite("user-1"), "user-2").is_favorite).toBe(false)
+  })
+
+  it("leaves non-favourited rows untouched", () => {
+    const row = { ...ownedFavorite("user-1"), is_favorite: false }
+    expect(scopeTripForViewer(row, "user-2")).toBe(row)
+  })
+})
+
 describe("toSavedTripSummary", () => {
   it("derives day/stop counts without leaking the full payload", () => {
     const itin = baseItinerary()
