@@ -360,7 +360,7 @@ export function ResultView({
               <p role="alert" className="text-xs text-destructive">{autosaveError}</p>
             ) : null}
             {showEditsNotSavedNotice && hasUnsavedEdits ? (
-              <p role="note" className="max-w-64 text-right text-xs text-muted-foreground">{t(user ? "tripEditsNotSaved" : "tripEditsNotSavedGuest")}</p>
+              <p role="note" className="max-w-80 whitespace-pre-line text-right text-xs text-muted-foreground sm:max-w-none">{t(user ? "tripEditsNotSaved" : "tripEditsNotSavedGuest")}</p>
             ) : null}
             {!showHero && shareError ? <p role="alert" className="text-xs text-destructive">{shareError}</p> : null}
           </div>
