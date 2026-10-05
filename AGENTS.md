@@ -85,6 +85,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - Errors displayed in red using existing `text-destructive` styling
 - i18n keys: `originRequired`, `destinationRequired`, `cityRequired` (both locales)
 - Rationale: Immediate inline feedback prevents users from reaching generation with invalid data; keeps them in context of the problematic field
+- The `StepProgress` tabs are clickable buttons (`onSelect` → the configurator's `changeStep`): backward jumps are free, forward jumps run the same step-0 validation as Continue. The active tab stays static.
 
 <### EV consumption units (kWh, not litres)
 - `RoadTripConfigurator` consumption field is vehicle-aware: for `elettrica` the hint switches to `consumptionHintEv` ("kWh per 100 km") and the suffix to "kWh / 100 km"; fuel vehicles keep "L / 100 km". The cost formula (`lib/costs.ts`, `(km/100)*consumption*price`) is unit-agnostic, so only labels change — including `CostSummary`'s formula line (`× … kWh × … €/kWh` for EVs)

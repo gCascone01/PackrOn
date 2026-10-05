@@ -239,7 +239,7 @@ export function RoadTripConfigurator({
 
   return (
     <div className="flex flex-col gap-7">
-      <StepProgress steps={steps} current={step} />
+      <StepProgress steps={steps} current={step} onSelect={changeStep} />
 
       <WizardPreview
         mode="road"
