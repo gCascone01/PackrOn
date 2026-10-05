@@ -21,6 +21,7 @@ export function SavedTripView({ tripId, publicView = false }: { tripId: string; 
   const { addTrip, removeTrip } = useGuestTrips()
   const [itinerary, setItinerary] = useState<Itinerary | null>(null)
   const [tripOwnerId, setTripOwnerId] = useState<string | null>(null)
+  const [isFavorite, setIsFavorite] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [claimIntent, setClaimIntent] = useState(false)
@@ -34,6 +35,7 @@ export function SavedTripView({ tripId, publicView = false }: { tripId: string; 
     if (!configured || (!publicView && !user)) return
     setItinerary(null)
     setTripOwnerId(null)
+    setIsFavorite(false)
     setError(null)
     let cancelled = false
     const load = async () => {
@@ -47,6 +49,7 @@ export function SavedTripView({ tripId, publicView = false }: { tripId: string; 
         if (!cancelled) {
           setItinerary(data.trip.data)
           setTripOwnerId(data.trip.user_id)
+          setIsFavorite(Boolean(data.trip.is_favorite))
         }
       } catch (err) {
         if (!cancelled) setError(err instanceof Error ? err.message : t("tripsLoadFail"))
@@ -174,9 +177,9 @@ export function SavedTripView({ tripId, publicView = false }: { tripId: string; 
         initial={itinerary}
         onBack={() => router.push(publicView ? homeHref : tripsHref)}
         savedId={tripId}
+        initialIsFavorite={isFavorite}
         shareUrl={localizedPath(locale, `/trip/${encodeURIComponent(tripId)}`)}
-        showSaveButton={!publicView || Boolean(user)}
-        allowDelete={!publicView}
+        showFavoriteButton={!publicView || Boolean(user)}
       />
       {publicView && !user && tripOwnerId === null ? (
         <div className="fixed bottom-5 left-1/2 z-50 flex w-max max-w-[calc(100vw_-_2rem)] -translate-x-1/2 items-center justify-between gap-3 rounded-full border border-border bg-background/90 px-4 py-3 shadow-2xl backdrop-blur-md sm:bottom-8 sm:gap-4 sm:px-6">

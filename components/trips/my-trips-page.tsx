@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { Car, Footprints, Loader2, MapPin, Plus, Trash2 } from "lucide-react"
+import { Car, Footprints, Loader2, MapPin, Plus, Star, Trash2 } from "lucide-react"
 import { SiteHeader } from "@/components/site-header"
 import { AuthDialog } from "@/components/auth/auth-dialog"
 import { useAuth } from "@/components/auth/auth-provider"
@@ -19,6 +19,7 @@ export function MyTripsPage() {
   const [trips, setTrips] = useState<SavedTripSummary[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [favId, setFavId] = useState<string | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
 
   useEffect(() => {
@@ -47,6 +48,87 @@ export function MyTripsPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authLoading, configured, user])
+
+  const toggleFavorite = async (id: string, value: boolean) => {
+    setFavId(id)
+    setError(null)
+    setTrips((prev) => (prev ? prev.map((trip) => (trip.id === id ? { ...trip, is_favorite: value } : trip)) : prev))
+    try {
+      const res = await fetch(`/api/trips/${encodeURIComponent(id)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ is_favorite: value }),
+      })
+      if (!res.ok) {
+        const data = (await res.json().catch(() => null)) as { error?: string } | null
+        throw new Error(data?.error === "setup_required" ? t("tripsSetupRequired") : t("tripFavoriteFail"))
+      }
+    } catch (err) {
+      setTrips((prev) => (prev ? prev.map((trip) => (trip.id === id ? { ...trip, is_favorite: !value } : trip)) : prev))
+      setError(err instanceof Error ? err.message : t("tripFavoriteFail"))
+    } finally {
+      setFavId(null)
+    }
+  }
+
+  const renderTripCard = (trip: SavedTripSummary) => (
+    <li key={trip.id} className="flex flex-col gap-3 rounded-3xl border border-border bg-card p-5 shadow-sm">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="truncate font-display text-lg font-bold text-foreground">{trip.title}</p>
+          <p className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+            {trip.mode === "road" ? <Car className="size-3.5" /> : <Footprints className="size-3.5" />}
+            {t("daysCount", { n: trip.days_count })} · {t("stopsCount", { n: trip.stops_count })}
+          </p>
+          {trip.origin ? (
+            <p className="mt-1 flex items-center gap-1.5 truncate text-xs text-muted-foreground">
+              <MapPin className="size-3.5 shrink-0" /> {trip.origin}
+            </p>
+          ) : null}
+        </div>
+        <div className="flex shrink-0 items-center gap-1">
+          <button
+            type="button"
+            disabled={favId === trip.id}
+            onClick={() => toggleFavorite(trip.id, !trip.is_favorite)}
+            aria-label={trip.is_favorite ? t("tripFavorited") : t("tripFavorite")}
+            title={trip.is_favorite ? t("tripFavorited") : t("tripFavorite")}
+            aria-pressed={trip.is_favorite}
+            className={`inline-flex size-8 items-center justify-center rounded-full transition disabled:opacity-50 ${
+              trip.is_favorite
+                ? "text-amber-500 hover:bg-amber-500/10"
+                : "text-muted-foreground hover:bg-muted hover:text-foreground"
+            }`}
+          >
+            {favId === trip.id ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <Star className={`size-4 ${trip.is_favorite ? "fill-current" : ""}`} />
+            )}
+          </button>
+          <button
+            type="button"
+            disabled={deletingId === trip.id}
+            onClick={() => remove(trip.id)}
+            aria-label={t("tripsDelete")}
+            title={t("tripsDelete")}
+            className="inline-flex size-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
+          >
+            {deletingId === trip.id ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
+          </button>
+        </div>
+      </div>
+      <Link
+        href={localizedPath(locale, `/trips/${trip.id}`)}
+        className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg bg-secondary px-3 text-sm font-medium text-secondary-foreground transition hover:bg-secondary/80"
+      >
+        {t("tripsOpen")}
+      </Link>
+    </li>
+  )
+
+  const favorites = trips?.filter((trip) => trip.is_favorite) ?? []
+  const rest = trips?.filter((trip) => !trip.is_favorite) ?? []
 
   const remove = async (id: string) => {
     if (!window.confirm(t("tripsDeleteConfirm"))) return
@@ -105,42 +187,28 @@ export function MyTripsPage() {
             </Button>
           </div>
         ) : (
-          <ul className="mt-8 grid gap-4 sm:grid-cols-2">
-            {trips.map((trip) => (
-              <li key={trip.id} className="flex flex-col gap-3 rounded-3xl border border-border bg-card p-5 shadow-sm">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="truncate font-display text-lg font-bold text-foreground">{trip.title}</p>
-                    <p className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
-                      {trip.mode === "road" ? <Car className="size-3.5" /> : <Footprints className="size-3.5" />}
-                      {t("daysCount", { n: trip.days_count })} · {t("stopsCount", { n: trip.stops_count })}
-                    </p>
-                    {trip.origin ? (
-                      <p className="mt-1 flex items-center gap-1.5 truncate text-xs text-muted-foreground">
-                        <MapPin className="size-3.5 shrink-0" /> {trip.origin}
-                      </p>
-                    ) : null}
-                  </div>
-                  <button
-                    type="button"
-                    disabled={deletingId === trip.id}
-                    onClick={() => remove(trip.id)}
-                    aria-label={t("tripsDelete")}
-                    title={t("tripsDelete")}
-                    className="inline-flex size-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
-                  >
-                    {deletingId === trip.id ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
-                  </button>
-                </div>
-                <Link
-                  href={localizedPath(locale, `/trips/${trip.id}`)}
-                  className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg bg-secondary px-3 text-sm font-medium text-secondary-foreground transition hover:bg-secondary/80"
-                >
-                  {t("tripsOpen")}
-                </Link>
-              </li>
-            ))}
-          </ul>
+          <>
+            {favorites.length > 0 ? (
+              <section aria-label={t("tripsFavorites")}>
+                <h2 className="mt-8 flex items-center gap-2 font-display text-lg font-bold text-foreground">
+                  <Star className="size-4 fill-current text-amber-500" /> {t("tripsFavorites")}
+                </h2>
+                <ul className="mt-4 grid gap-4 sm:grid-cols-2">
+                  {favorites.map(renderTripCard)}
+                </ul>
+              </section>
+            ) : null}
+            {rest.length > 0 ? (
+              <section aria-label={t("tripsAll")}>
+                {favorites.length > 0 ? (
+                  <h2 className="mt-8 font-display text-lg font-bold text-foreground">{t("tripsAll")}</h2>
+                ) : null}
+                <ul className="mt-4 grid gap-4 sm:grid-cols-2">
+                  {rest.map(renderTripCard)}
+                </ul>
+              </section>
+            ) : null}
+          </>
         )}
       </main>
     </div>

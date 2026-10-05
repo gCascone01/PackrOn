@@ -88,12 +88,28 @@ describe("toSavedTripSummary", () => {
       mode: itin.mode,
       origin: itin.origin,
       data: itin,
+      is_favorite: true,
       created_at: "2026-01-01T00:00:00Z",
       updated_at: "2026-01-02T00:00:00Z",
     }
     const summary = toSavedTripSummary(row)
-    expect(summary).toMatchObject({ id: "id-1", days_count: 1, stops_count: 1 })
+    expect(summary).toMatchObject({ id: "id-1", days_count: 1, stops_count: 1, is_favorite: true })
     expect(summary).not.toHaveProperty("data")
     expect(summary).not.toHaveProperty("user_id")
+  })
+
+  it("defaults is_favorite to false for pre-migration rows", () => {
+    const itin = baseItinerary()
+    const row = {
+      id: "id-2",
+      user_id: "user-1",
+      title: itin.title,
+      mode: itin.mode,
+      origin: itin.origin,
+      data: itin,
+      created_at: "2026-01-01T00:00:00Z",
+      updated_at: "2026-01-02T00:00:00Z",
+    } as SavedTrip
+    expect(toSavedTripSummary(row).is_favorite).toBe(false)
   })
 })

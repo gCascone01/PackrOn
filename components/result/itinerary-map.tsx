@@ -274,7 +274,7 @@ export function ItineraryMap({
             className: "packron-marker",
             html: `<div class="packron-marker-pin" style="${
               active ? "background:oklch(0.72 0.15 60);transform:rotate(-45deg) scale(1.2);" : ""
-            }"><span>${index + 1}</span></div>`,
+            }"><span>${s.seq}</span></div>`,
             iconSize: [30, 30],
             iconAnchor: [15, 30],
           })
@@ -286,7 +286,7 @@ export function ItineraryMap({
         zIndexOffset: isHeroEndpoint ? 1000 : 0,
       }).addTo(layer)
       if (!heroMap) {
-        marker.bindTooltip(`${index + 1}. ${s.name}`, { direction: "top", offset: [0, -28] })
+        marker.bindTooltip(`${s.seq}. ${s.name}`, { direction: "top", offset: [0, -28] })
         marker.on("click", () => selectRef.current(s.id))
       }
     })
