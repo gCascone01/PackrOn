@@ -153,6 +153,10 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - i18n keys: `altsHintPlaceholder`, `altsHintApply` (both locales)
 - Rationale: the 3 generic alternatives often miss the user's actual need; a free-text preference steers Gemini without new screens or persistent state (hint is per-card local state, cleared on replace via remount — same pattern as `alts`)
 
+### Nav launcher Apple logo (2026-10)
+- The Apple Maps button in `components/result/nav-launcher.tsx` uses an inline `AppleLogo` SVG (Font Awesome `fa-apple` path, CC BY 4.0, attributed in a code comment) instead of Lucide's `Apple` icon, which is a fruit — not the Apple logo.
+- Rationale: brand buttons should show brand marks; Lucide has no Apple Inc. logo.
+
 ### Stop photos (Wikipedia, lazy-loaded with description)
 - `/api/describe-stop` also returns `image: { url, title, pageUrl } | null` via new `lib/stop-image.ts`, fetched in parallel with the Gemini description
 - Source is the Wikipedia Action API (`pageimages` + `info`), keyless and freely licensed: coordinate `geosearch` (2km radius, locale wiki then English fallback) → text search by stop name as fallback; never throws, 6s timeout, `null` when nothing found so the modal degrades to text-only
