@@ -78,6 +78,84 @@ export function sanitizeWaypoints(waypoints: readonly (string | null | undefined
   return out
 }
 
+function isValidCoord(lat: unknown, lng: unknown): lat is number {
+  return (
+    typeof lat === "number" &&
+    typeof lng === "number" &&
+    Number.isFinite(lat) &&
+    Number.isFinite(lng) &&
+    Math.abs(lat) <= 90 &&
+    Math.abs(lng) <= 180
+  )
+}
+
+function fmtCoord(lat: number, lng: number): string {
+  return `${Number(lat.toFixed(5))},${Number(lng.toFixed(5))}`
+}
+
+/** Even downsampling that always keeps the first and last items. */
+function downsample<T>(items: T[], max: number): T[] {
+  if (max <= 0) return []
+  if (items.length <= max) return [...items]
+  if (max === 1) return [items[items.length - 1]]
+  const out: T[] = []
+  for (let i = 0; i < max; i++) {
+    out.push(items[Math.round((i * (items.length - 1)) / (max - 1))])
+  }
+  return out
+}
+
+export interface TollWaypointDay {
+  stops: Array<{ lat: number | null; lng: number | null }>
+}
+
+/**
+ * Waypoint skeleton for the toll lookup, built from the itinerary's own
+ * coordinates: origin + each day's last located stop (+ origin again for
+ * loops), downsampled to the 10-waypoint API limit.
+ *
+ * Coordinates never fail geocoding — unlike free-text names (vague
+ * destination descriptions) or flowery day titles ("Rientro panoramico a
+ * Vienna"), either of which 422s the entire request and silently drops the
+ * estimate back to "See alerts". Falls back to origin/destination names
+ * when fewer than 2 coordinate points exist.
+ */
+export function buildTollWaypoints(args: {
+  origin?: { lat: number; lng: number } | null
+  originName?: string | null
+  destinationName?: string | null
+  days: TollWaypointDay[]
+  loop: boolean
+}): string[] {
+  const points: string[] = []
+  const push = (p: string) => {
+    if (points.length === 0 || points[points.length - 1].toLowerCase() !== p.toLowerCase()) {
+      points.push(p)
+    }
+  }
+
+  const origin =
+    args.origin && isValidCoord(args.origin.lat, args.origin.lng)
+      ? fmtCoord(args.origin.lat, args.origin.lng)
+      : null
+  if (origin) push(origin)
+
+  const dayEnds: string[] = []
+  for (const day of args.days) {
+    const located = (day.stops ?? []).filter((s) => isValidCoord(s.lat, s.lng))
+    if (located.length > 0) {
+      const last = located[located.length - 1]
+      dayEnds.push(fmtCoord(last.lat as number, last.lng as number))
+    }
+  }
+  const budget = 10 - points.length - (args.loop && origin ? 1 : 0)
+  for (const end of downsample(dayEnds, Math.max(0, budget))) push(end)
+  if (args.loop && origin) push(origin)
+
+  if (points.length >= 2) return points.slice(0, 10)
+  return sanitizeWaypoints([args.originName, args.destinationName])
+}
+
 /**
  * Live toll total for a waypoint route in EUR. Never throws.
  * Returns null when the API is unreachable or has no usable data.

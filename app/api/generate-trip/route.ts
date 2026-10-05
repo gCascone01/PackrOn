@@ -8,7 +8,7 @@ import type { GenerateTripPayload } from "@/lib/types"
 import { translate, type Locale, type MessageKey } from "@/lib/i18n"
 import { validateLocations } from "@/lib/geocode"
 import { getEnergyPrice } from "@/lib/energy-prices"
-import { getRouteTolls, vehicleClassForTolls } from "@/lib/tolls"
+import { buildTollWaypoints, getRouteTolls, vehicleClassForTolls } from "@/lib/tolls"
 import { createClient } from "@/lib/supabase/server"
 import { isSupabaseConfigured } from "@/lib/supabase/config"
 import { isMissingTableError } from "@/lib/trips"
@@ -72,9 +72,9 @@ export async function POST(request: Request) {
 
   // The energy lookup starts before generation so its latency hides inside
   // the slow Gemini call. The toll lookup runs after mapping instead: it
-  // routes through Gemini's concrete day titles (real places), which prices
-  // far more accurately than the user's free-text destination ("Tuscany and
-  // Umbria..." geocodes poorly and underprices the route). Both never throw.
+  // routes through the itinerary's own stop coordinates, which never fail
+  // geocoding — unlike free-text names or flowery day titles, either of
+  // which 422s the whole toll request. Both never throw.
   const energyPromise = getEnergyPrice(validation.countryCode, payload.vehicle ?? "diesel")
 
   try {
@@ -134,10 +134,16 @@ export async function POST(request: Request) {
         itinerary.tollAvoided = true
         itinerary.tollTotalEur = 0
       } else {
-        const origin = payload.origin?.trim()
-        const dayTitles = (parsed as GeminiTrip).days.map((d) => d.title)
-        const waypoints = [...(origin ? [origin] : []), ...dayTitles]
-        if (payload.loop && origin) waypoints.push(origin)
+        const waypoints = buildTollWaypoints({
+          origin:
+            itinerary.originLat != null && itinerary.originLng != null
+              ? { lat: itinerary.originLat, lng: itinerary.originLng }
+              : null,
+          originName: payload.origin,
+          destinationName: payload.destination,
+          days: itinerary.days,
+          loop: payload.loop ?? false,
+        })
         const tolls = await getRouteTolls(
           waypoints,
           vehicleClassForTolls(payload.vehicle ?? "diesel"),
@@ -146,6 +152,10 @@ export async function POST(request: Request) {
           itinerary.tollTotalEur = tolls.totalEur
           itinerary.tollCountries = tolls.countries
           itinerary.tollSource = tolls.source
+        } else {
+          console.warn("[generate-trip] toll lookup returned no estimate", {
+            waypointCount: waypoints.length,
+          })
         }
       }
     }
