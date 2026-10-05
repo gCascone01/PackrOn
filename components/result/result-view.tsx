@@ -8,6 +8,7 @@ import { totalDistanceKm } from "@/lib/costs"
 import { copyText } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { FavoriteTripButton } from "@/components/auth/favorite-trip-button"
+import { SaveCopyButton } from "@/components/auth/save-copy-button"
 import { useAuth } from "@/components/auth/auth-provider"
 import { Timeline } from "./timeline"
 import { CostSummary } from "./cost-summary"
@@ -31,6 +32,8 @@ export function ResultView({
   shareUrl,
   showHero = true,
   showFavoriteButton = true,
+  showSaveCopyButton = false,
+  onSaveCopy,
 }: {
   initial: Itinerary
   onBack: () => void
@@ -42,6 +45,10 @@ export function ResultView({
   shareUrl?: string
   showHero?: boolean
   showFavoriteButton?: boolean
+  /** Foreign-owned row: offer "save an owned copy" instead of the toggle. */
+  showSaveCopyButton?: boolean
+  /** Fired with the new row id once the copy exists. */
+  onSaveCopy?: (id: string) => void
 }) {
   const { t, locale } = useI18n()
   const { user, configured } = useAuth()
@@ -297,6 +304,9 @@ export function ResultView({
                   initialIsFavorite={initialIsFavorite}
                   onClaimed={() => setClaimTick((n) => n + 1)}
                 />
+              ) : null}
+              {showSaveCopyButton && onSaveCopy ? (
+                <SaveCopyButton itinerary={liveItinerary} onSaved={onSaveCopy} />
               ) : null}
               {!showHero ? (
                 <Button variant="secondary" size="lg" className="shrink-0" onClick={() => void shareCurrentPage()}>

@@ -39,7 +39,9 @@ export async function GET() {
 
 /**
  * POST /api/trips — save an itinerary to the logged-in user's account.
- * Body: { itinerary: Itinerary }. user_id is forced from the session.
+ * Body: { itinerary: Itinerary, is_favorite?: boolean }. user_id is forced
+ * from the session. `is_favorite` exists for "save a copy" flows (e.g.
+ * favouriting someone else's shared trip creates an owned copy).
  */
 export async function POST(request: Request) {
   if (!isSupabaseConfigured()) {
@@ -63,6 +65,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: validated.error }, { status: 400 })
   }
   const { itinerary } = validated
+  const isFavorite = body !== null && typeof body === "object" && (body as { is_favorite?: unknown }).is_favorite === true
 
   const { data, error } = await supabase
     .from("saved_trips")
@@ -72,6 +75,7 @@ export async function POST(request: Request) {
       mode: itinerary.mode,
       origin: typeof itinerary.origin === "string" ? itinerary.origin.slice(0, 200) : "",
       data: itinerary,
+      is_favorite: isFavorite,
     })
     .select("id")
     .single()
