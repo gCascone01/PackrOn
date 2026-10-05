@@ -37,7 +37,8 @@ const VEHICLE_FROM_LABEL: Record<string, VehicleType> = {
   Motorcycle: "moto",
 }
 
-const DEFAULT_FUEL_PRICE: Record<VehicleType, number> = {
+/** Built-in fallback prices (EUR/L or EUR/kWh) when live APIs are unreachable. */
+export const DEFAULT_FUEL_PRICE: Record<VehicleType, number> = {
   benzina: 1.8,
   diesel: 1.72,
   elettrica: 0.4,
@@ -55,12 +56,26 @@ function padTime(totalMinutes: number): string {
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`
 }
 
-export function vehicleFromPayload(payload: GenerateTripPayload): Vehicle {
+export function vehicleFromPayload(
+  payload: GenerateTripPayload,
+  priceOverride?: { priceEur: number; countryCode?: string; source?: string; fallback?: boolean },
+): Vehicle {
   const type = VEHICLE_FROM_LABEL[payload.vehicle ?? ""] ?? "diesel"
+  if (priceOverride && Number.isFinite(priceOverride.priceEur) && priceOverride.priceEur > 0) {
+    return {
+      type,
+      consumption: Number.isFinite(payload.consumption) ? Number(payload.consumption) : type === "elettrica" ? 18 : 6.5,
+      fuelPrice: priceOverride.priceEur,
+      ...(priceOverride.countryCode ? { fuelCountryCode: priceOverride.countryCode } : {}),
+      ...(priceOverride.source ? { fuelPriceSource: priceOverride.source } : {}),
+      ...(priceOverride.fallback != null ? { fuelPriceFallback: priceOverride.fallback } : {}),
+    }
+  }
   return {
     type,
     consumption: Number.isFinite(payload.consumption) ? Number(payload.consumption) : type === "elettrica" ? 18 : 6.5,
     fuelPrice: DEFAULT_FUEL_PRICE[type],
+    fuelPriceFallback: true,
   }
 }
 
@@ -81,7 +96,11 @@ export function isGeminiTrip(value: unknown): value is GeminiTrip {
   )
 }
 
-export function mapGeminiTrip(raw: GeminiTrip, payload: GenerateTripPayload): Itinerary {
+export function mapGeminiTrip(
+  raw: GeminiTrip,
+  payload: GenerateTripPayload,
+  priceOverride?: { priceEur: number; countryCode?: string; source?: string; fallback?: boolean },
+): Itinerary {
   idCounter = 0
   const origin = payload.mode === "city" ? (payload.city ?? "") : (payload.origin ?? "")
   const dayCount = raw.days.length || 1
@@ -144,7 +163,7 @@ export function mapGeminiTrip(raw: GeminiTrip, payload: GenerateTripPayload): It
     originLat: raw.origin_lat,
     originLng: raw.origin_lng,
     loop: payload.loop ?? false,
-    vehicle: vehicleFromPayload(payload),
+    vehicle: vehicleFromPayload(payload, priceOverride),
     days,
     tollNotices: (raw.toll_and_vignette_alerts ?? []).map((label, i) => ({
       id: `toll-${i}`,

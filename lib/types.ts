@@ -61,6 +61,12 @@ export interface Vehicle {
   consumption: number
   /** Fuel price per liter (or per kWh) in EUR */
   fuelPrice: number
+  /** ISO 3166-1 alpha-2 country the price applies to (when live). */
+  fuelCountryCode?: string
+  /** Provenance label for the price (e.g. "OpenVan · EU Oil Bulletin"). */
+  fuelPriceSource?: string
+  /** True when fuelPrice is the built-in fallback, not a live API value. */
+  fuelPriceFallback?: boolean
 }
 
 export interface TollNotice {

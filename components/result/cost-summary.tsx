@@ -43,6 +43,16 @@ export function CostSummary({ itinerary }: { itinerary: Itinerary }) {
       <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
         {t(estimateKey, { consumption, unit: energyUnit, price: formatEur(fuelPrice, locale) })}
       </p>
+      {itinerary.vehicle.fuelCountryCode && itinerary.vehicle.fuelPriceSource && !itinerary.vehicle.fuelPriceFallback ? (
+        <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+          {t("fuelPriceLive", {
+            country: itinerary.vehicle.fuelCountryCode,
+            price: formatEur(fuelPrice, locale),
+            unit: energyUnit,
+            source: itinerary.vehicle.fuelPriceSource,
+          })}
+        </p>
+      ) : null}
 
       {itinerary.tollNotices.length > 0 && (
         <div className="mt-4 flex flex-col gap-2">

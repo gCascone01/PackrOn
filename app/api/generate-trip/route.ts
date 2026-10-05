@@ -7,6 +7,7 @@ import { isGeminiTrip, mapGeminiTrip } from "@/lib/map-gemini-itinerary"
 import type { GenerateTripPayload } from "@/lib/types"
 import { translate, type Locale, type MessageKey } from "@/lib/i18n"
 import { validateLocations } from "@/lib/geocode"
+import { getEnergyPrice } from "@/lib/energy-prices"
 import { createClient } from "@/lib/supabase/server"
 import { isSupabaseConfigured } from "@/lib/supabase/config"
 import { isMissingTableError } from "@/lib/trips"
@@ -109,7 +110,15 @@ export async function POST(request: Request) {
       return apiError(locale, "apiBadSchema", 502)
     }
 
-    const itinerary = mapGeminiTrip(parsed as GeminiTrip, payload)
+    // Country-dependent live energy price (fuel or household electricity
+    // for EVs). Never blocks generation: falls back to built-in defaults.
+    const energy = await getEnergyPrice(validation.countryCode, payload.vehicle ?? "diesel")
+    const itinerary = mapGeminiTrip(parsed as GeminiTrip, payload, {
+      priceEur: energy.priceEur,
+      countryCode: energy.countryCode ?? undefined,
+      source: energy.source,
+      fallback: energy.fallback,
+    })
     if (debugEnabled) logGeminiMappedItinerary(itinerary, parsed as GeminiTrip)
 
     const supabase = await createClient()
