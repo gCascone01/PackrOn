@@ -34,6 +34,7 @@ export function ResultView({
   showFavoriteButton = true,
   showSaveCopyButton = false,
   onSaveCopy,
+  showEditsNotSavedNotice = false,
 }: {
   initial: Itinerary
   onBack: () => void
@@ -49,6 +50,8 @@ export function ResultView({
   showSaveCopyButton?: boolean
   /** Fired with the new row id once the copy exists. */
   onSaveCopy?: (id: string) => void
+  /** Foreign-owned row: warn that local edits can't be persisted. */
+  showEditsNotSavedNotice?: boolean
 }) {
   const { t, locale } = useI18n()
   const { user, configured } = useAuth()
@@ -76,11 +79,14 @@ export function ResultView({
   const [autosaveError, setAutosaveError] = useState<string | null>(null)
   const [claimTick, setClaimTick] = useState(0)
   const baselineRef = useRef<string>(JSON.stringify(initial))
+  /** Local edits diverging from the last persisted snapshot. */
+  const [hasUnsavedEdits, setHasUnsavedEdits] = useState(false)
 
   useEffect(() => {
     if (!savedId || !configured) return
     const current = JSON.stringify(itinerary)
     if (current === baselineRef.current) return
+    setHasUnsavedEdits(true)
     setAutosave("saving")
     setAutosaveError(null)
     const timer = window.setTimeout(() => {
@@ -100,6 +106,7 @@ export function ResultView({
             throw new Error(data?.error === "setup_required" ? t("tripsSetupRequired") : t("tripAutosaveFail"))
           }
           baselineRef.current = current
+          setHasUnsavedEdits(false)
           setAutosave("saved")
           window.setTimeout(() => setAutosave((s) => (s === "saved" ? "idle" : s)), 2500)
         } catch (err) {
@@ -327,6 +334,9 @@ export function ResultView({
             ) : null}
             {autosave === "error" && autosaveError ? (
               <p role="alert" className="text-xs text-destructive">{autosaveError}</p>
+            ) : null}
+            {showEditsNotSavedNotice && hasUnsavedEdits ? (
+              <p role="note" className="max-w-64 text-right text-xs text-muted-foreground">{t("tripEditsNotSaved")}</p>
             ) : null}
             {!showHero && shareError ? <p role="alert" className="text-xs text-destructive">{shareError}</p> : null}
           </div>
