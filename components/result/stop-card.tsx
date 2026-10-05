@@ -422,6 +422,7 @@ export function StopCard({
             </Button> : null}
           </div>
 
+          <div className="mt-3 flex flex-wrap items-center gap-2">
             {!isDriveStop ? <Button
               type="button"
               variant="outline"
@@ -448,6 +449,7 @@ export function StopCard({
               <Trash2 className="size-3.5" />
               {t("remove")}
             </Button>
+          </div>
 
           {(loadingAlts || alts) && (
             <div className="mt-3 rounded-xl border border-border bg-muted/50 p-3">
