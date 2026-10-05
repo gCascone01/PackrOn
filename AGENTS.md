@@ -74,6 +74,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - `isTooFar` is checked **before** origin/destination: the apiTooFar message itself mentions "origin and destination" and would otherwise match the wrong category
 - Unknown errors render **title only** — the old fallback re-rendered the same `error` string as the body, which is why title and description were often identical
 - Non-JSON API responses (e.g. a platform HTML timeout page on very long generations) are caught client-side via a content-type check + `res.json()` try/catch and surfaced as the localized `apiUnexpected` message — never a raw `Unexpected token '<'` SyntaxError
+- Model overload (Gemini HTTP 503 / `UNAVAILABLE` "high demand" blob) is detected server-side by `isOverloadedError()` (`lib/gemini.ts`, tested in `lib/gemini.test.ts`): `POST /api/generate-trip` answers 503 with the localized `apiOverloaded` message instead of leaking the raw SDK JSON to the UI, and `ErrorExplanation` matches `sovraccarico`/`overloaded` to show `errorOverloadedExplanation` + retry tips (wait a minute, keep inputs, retry later)
 - i18n keys for: impossible trip, invalid origin/destination/city, too far
 - Each error has explanation + 3 actionable tips
 - Rationale: Raw error messages like "I couldn't generate" are useless; users need to know *why* and *what to do*

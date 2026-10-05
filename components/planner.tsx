@@ -24,6 +24,7 @@ function ErrorExplanation({ error, t }: { error: string; t: (key: MessageKey, va
   // (e.g. "City 'Xyz' not found"), so match case-insensitively —
   // otherwise the category is missed and the fallback repeats the title.
   const lower = error.toLowerCase()
+  const isOverloaded = lower.includes("sovraccarico") || lower.includes("overloaded")
   const isImpossibleTrip = lower.includes("flight") || lower.includes("intercontinental") || lower.includes("volo")
   const isTooFar = lower.includes("too great") || lower.includes("troppo grande") || lower.includes("supera il limite")
   const isInvalidOrigin = lower.includes("origin") || lower.includes("origine") || lower.includes("partenza")
@@ -31,6 +32,7 @@ function ErrorExplanation({ error, t }: { error: string; t: (key: MessageKey, va
   const isInvalidCity = lower.includes("city") || lower.includes("città")
 
   const getIcon = () => {
+    if (isOverloaded) return <AlertCircle className="size-4" />
     if (isImpossibleTrip) return <Plane className="size-4" />
     if (isTooFar) return <AlertCircle className="size-4" />
     if (isInvalidOrigin || isInvalidDestination || isInvalidCity) return <MapPin className="size-4" />
@@ -39,6 +41,20 @@ function ErrorExplanation({ error, t }: { error: string; t: (key: MessageKey, va
 
   const getExplanation = () => {
     const tk = (k: string) => t(k as MessageKey)
+    if (isOverloaded) {
+      return (
+        <>
+          <p className="text-sm leading-relaxed">
+            {tk("errorOverloadedExplanation")}
+          </p>
+          <ul className="mt-3 space-y-2 text-sm">
+            <li className="flex items-start gap-2"><span className="flex size-1.5 shrink-0 mt-1.5 rounded-full bg-destructive" />{tk("errorOverloadedTip1")}</li>
+            <li className="flex items-start gap-2"><span className="flex size-1.5 shrink-0 mt-1.5 rounded-full bg-destructive" />{tk("errorOverloadedTip2")}</li>
+            <li className="flex items-start gap-2"><span className="flex size-1.5 shrink-0 mt-1.5 rounded-full bg-destructive" />{tk("errorOverloadedTip3")}</li>
+          </ul>
+        </>
+      )
+    }
     if (isImpossibleTrip) {
       return (
         <>

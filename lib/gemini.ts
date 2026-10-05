@@ -34,6 +34,39 @@ export async function generateJson(
   })
 }
 
+/**
+ * Detects a model-overload failure (HTTP 503 / UNAVAILABLE): the request is
+ * valid, the model is just saturated. The raw SDK error is a JSON blob like
+ * `{"error":{"code":503,"message":"...high demand...","status":"UNAVAILABLE"}}`,
+ * which is useless to users — routes map it to a friendly retry message.
+ */
+export function isOverloadedError(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false
+  const record = error as Record<string, unknown>
+  const candidates: unknown[] = [record.status, record.code, record.message]
+  const nested = record.error
+  if (nested && typeof nested === "object") {
+    const inner = nested as Record<string, unknown>
+    candidates.push(inner.status, inner.code, inner.message)
+  }
+  for (const candidate of candidates) {
+    if (typeof candidate === "number" && candidate === 503) return true
+    if (typeof candidate === "string") {
+      const text = candidate.toLowerCase()
+      if (
+        text.includes("unavailable") ||
+        text.includes("overload") ||
+        text.includes("high demand") ||
+        text.includes("try again later") ||
+        /\b503\b/.test(text)
+      ) {
+        return true
+      }
+    }
+  }
+  return false
+}
+
 export async function generateJsonWithFallback(prompt: string, locale: Locale, schema?: Schema) {
   const apiKey = process.env.GEMINI_API_KEY
   if (!apiKey) {

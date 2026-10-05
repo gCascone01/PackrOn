@@ -1,6 +1,6 @@
 import { randomUUID } from "crypto"
 import { NextResponse } from "next/server"
-import { generateJsonWithFallback, parseJsonPayload } from "@/lib/gemini"
+import { generateJsonWithFallback, isOverloadedError, parseJsonPayload } from "@/lib/gemini"
 import { GEMINI_TRIP_SCHEMA, type GeminiTrip } from "@/lib/gemini-schema"
 import { buildTripPrompt } from "@/lib/gemini-prompt"
 import { isGeminiTrip, mapGeminiTrip } from "@/lib/map-gemini-itinerary"
@@ -204,6 +204,11 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ id })
   } catch (error) {
+    // The model is saturated, not the request wrong: answer 503 with a
+    // retry-oriented message instead of leaking the raw SDK JSON blob.
+    if (isOverloadedError(error)) {
+      return NextResponse.json({ error: translate(locale, "apiOverloaded") }, { status: 503 })
+    }
     const message = error instanceof Error && error.message !== "MISSING_KEY"
       ? error.message
       : translate(locale, error instanceof Error && error.message === "MISSING_KEY" ? "apiMissingKey" : "apiGeneric")
