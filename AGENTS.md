@@ -107,6 +107,11 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - i18n keys: `crewHint` (both locales)
 - Rationale: contradictory combos like Solo + Couple reached Gemini verbatim in the crew line; the constraint belongs in the UI, not the prompt
 
+### Planner draft persistence (localStorage, 2026-10)
+- The original "Back preserves inputs" fix (form state lifted to `Planner`) only worked while `ResultView` rendered inline: since unified trip storage, generation does `router.push(/{locale}/trip/{id})`, unmounting `Planner` and destroying its `useState` — so Back from a trip page mounted a fresh blank form.
+- `Planner` now persists `{ mode, roadForm, cityForm, roadStep, cityStep }` to `packron-planner-draft` in localStorage on every change and rehydrates in a mount `useEffect`. Rehydration must stay in the effect (not the `useState` initializer) to avoid a server/client hydration mismatch; a `rehydratedRef` guard stops the first persist run from clobbering a stored draft with defaults. Drafts are sanitized field-by-field (`sanitizeDraft`) so corrupt/foreign data falls back to `DEFAULT_*`.
+- Rationale: React state cannot survive cross-page navigation; localStorage is the same pattern as `packron-guest-trips`/`packron-theme`, and it also restores drafts after a full reload.
+
 ### Back preserves inputs, Restart resets (form state lifted to Planner)
 - `RoadTripConfigurator` / `CityTripConfigurator` are fully controlled: `value: RoadFormValue/CityFormValue`, `onChange`, `step`, `onStepChange`
 - `Planner` owns `roadForm`, `cityForm`, `roadStep`, `cityStep`, `mode` — configurators no longer `useState` form fields, so unmounting on result view does not lose data

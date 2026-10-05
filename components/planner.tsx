@@ -3,12 +3,12 @@
 import Image from "next/image"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import type { GenerateTripPayload, TripMode } from "@/lib/types"
 import { SiteHeader } from "./site-header"
 import { ModeSelector } from "./mode-selector"
-import { DEFAULT_ROAD_FORM, RoadTripConfigurator } from "./road-trip-configurator"
-import { DEFAULT_CITY_FORM, CityTripConfigurator } from "./city-trip-configurator"
+import { DEFAULT_ROAD_FORM, RoadTripConfigurator, type RoadFormValue } from "./road-trip-configurator"
+import { DEFAULT_CITY_FORM, CityTripConfigurator, type CityFormValue } from "./city-trip-configurator"
 import { GeneratingSkeleton } from "./generating-skeleton"
 import { MouseDistanceCounter } from "./mouse-distance-counter"
 import { Fuel, MapPinned, Route, AlertCircle, MapPin, Plane } from "lucide-react"
@@ -132,6 +132,59 @@ function ErrorExplanation({ error, t }: { error: string; t: (key: MessageKey, va
   )
 }
 
+const PLANNER_DRAFT_KEY = "packron-planner-draft"
+
+interface PlannerDraft {
+  mode: TripMode
+  roadForm: RoadFormValue
+  cityForm: CityFormValue
+  roadStep: number
+  cityStep: number
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null
+}
+
+function sanitizeDraft(raw: unknown): Partial<PlannerDraft> | null {
+  if (!isRecord(raw)) return null
+  const draft: Partial<PlannerDraft> = {}
+  if (raw.mode === "road" || raw.mode === "city") draft.mode = raw.mode
+  if (isRecord(raw.roadForm)) {
+    draft.roadForm = {
+      origin: typeof raw.roadForm.origin === "string" ? raw.roadForm.origin : DEFAULT_ROAD_FORM.origin,
+      destination: typeof raw.roadForm.destination === "string" ? raw.roadForm.destination : DEFAULT_ROAD_FORM.destination,
+      loop: typeof raw.roadForm.loop === "boolean" ? raw.roadForm.loop : DEFAULT_ROAD_FORM.loop,
+      days: typeof raw.roadForm.days === "number" && raw.roadForm.days >= 2 && raw.roadForm.days <= 30
+        ? Math.round(raw.roadForm.days)
+        : DEFAULT_ROAD_FORM.days,
+      routeTags: Array.isArray(raw.roadForm.routeTags) ? raw.roadForm.routeTags.filter((v): v is string => typeof v === "string") : DEFAULT_ROAD_FORM.routeTags,
+      pace: typeof raw.roadForm.pace === "string" ? raw.roadForm.pace : DEFAULT_ROAD_FORM.pace,
+      basecamp: typeof raw.roadForm.basecamp === "boolean" ? raw.roadForm.basecamp : DEFAULT_ROAD_FORM.basecamp,
+      crew: Array.isArray(raw.roadForm.crew) ? raw.roadForm.crew.filter((v): v is string => typeof v === "string") : DEFAULT_ROAD_FORM.crew,
+      vehicle: raw.roadForm.vehicle === "benzina" || raw.roadForm.vehicle === "diesel" || raw.roadForm.vehicle === "elettrica" || raw.roadForm.vehicle === "camper" || raw.roadForm.vehicle === "moto"
+        ? raw.roadForm.vehicle
+        : DEFAULT_ROAD_FORM.vehicle,
+      consumption: typeof raw.roadForm.consumption === "string" ? raw.roadForm.consumption : DEFAULT_ROAD_FORM.consumption,
+      avoidTolls: typeof raw.roadForm.avoidTolls === "boolean" ? raw.roadForm.avoidTolls : DEFAULT_ROAD_FORM.avoidTolls,
+    }
+  }
+  if (isRecord(raw.cityForm)) {
+    draft.cityForm = {
+      city: typeof raw.cityForm.city === "string" ? raw.cityForm.city : DEFAULT_CITY_FORM.city,
+      days: typeof raw.cityForm.days === "number" && raw.cityForm.days >= 1 && raw.cityForm.days <= 30
+        ? Math.round(raw.cityForm.days)
+        : DEFAULT_CITY_FORM.days,
+      interests: Array.isArray(raw.cityForm.interests) ? raw.cityForm.interests.filter((v): v is string => typeof v === "string") : DEFAULT_CITY_FORM.interests,
+      pace: typeof raw.cityForm.pace === "string" ? raw.cityForm.pace : DEFAULT_CITY_FORM.pace,
+      notes: typeof raw.cityForm.notes === "string" ? raw.cityForm.notes : DEFAULT_CITY_FORM.notes,
+    }
+  }
+  if (typeof raw.roadStep === "number" && raw.roadStep >= 0 && raw.roadStep <= 2) draft.roadStep = Math.round(raw.roadStep)
+  if (typeof raw.cityStep === "number" && raw.cityStep >= 0 && raw.cityStep <= 1) draft.cityStep = Math.round(raw.cityStep)
+  return draft
+}
+
 export function Planner() {
   const { t, locale } = useI18n()
   const router = useRouter()
@@ -146,6 +199,41 @@ export function Planner() {
   const [generationKey, setGenerationKey] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const wizardCardRef = useRef<HTMLDivElement>(null)
+  const rehydratedRef = useRef(false)
+
+  // Generation navigates to /trip/[id] (unmounting Planner), so drafts are
+  // persisted to localStorage: Back from a trip restores the inputs instead
+  // of a fresh blank form. Rehydrate in an effect (not the useState
+  // initializer) to avoid a server/client hydration mismatch.
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(PLANNER_DRAFT_KEY)
+      if (raw) {
+        const draft = sanitizeDraft(JSON.parse(raw))
+        if (draft?.mode) setMode(draft.mode)
+        if (draft?.roadForm) setRoadForm(draft.roadForm)
+        if (draft?.cityForm) setCityForm(draft.cityForm)
+        if (draft?.roadStep !== undefined) setRoadStep(draft.roadStep)
+        if (draft?.cityStep !== undefined) setCityStep(draft.cityStep)
+      }
+    } catch {
+      // Corrupt draft or blocked storage — fall back to defaults.
+    } finally {
+      rehydratedRef.current = true
+    }
+  }, [])
+
+  // Persist on every change, but never before rehydration (the first run
+  // would otherwise clobber a stored draft with defaults).
+  useEffect(() => {
+    if (!rehydratedRef.current) return
+    try {
+      const draft: PlannerDraft = { mode, roadForm, cityForm, roadStep, cityStep }
+      window.localStorage.setItem(PLANNER_DRAFT_KEY, JSON.stringify(draft))
+    } catch {
+      // Quota/private mode — the planner works without persistence.
+    }
+  }, [mode, roadForm, cityForm, roadStep, cityStep])
 
   const features: Array<{ icon: typeof Route; title: MessageKey; text: MessageKey }> = [
     { icon: Route, title: "featureRouteTitle", text: "featureRouteText" },
