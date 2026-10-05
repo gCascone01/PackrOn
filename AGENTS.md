@@ -154,8 +154,8 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - Rationale: the 3 generic alternatives often miss the user's actual need; a free-text preference steers Gemini without new screens or persistent state (hint is per-card local state, cleared on replace via remount — same pattern as `alts`)
 
 ### Nav launcher Apple logo (2026-10)
-- The Apple Maps button in `components/result/nav-launcher.tsx` uses an inline `AppleLogo` SVG (Font Awesome `fa-apple` path, CC BY 4.0, attributed in a code comment) instead of Lucide's `Apple` icon, which is a fruit — not the Apple logo.
-- Rationale: brand buttons should show brand marks; Lucide has no Apple Inc. logo.
+- All three nav-launcher buttons in `components/result/nav-launcher.tsx` use inline single-color brand SVGs: `AppleLogo` (Font Awesome `fa-apple` path, CC BY 4.0, attributed in a code comment — Lucide's `Apple` icon is a fruit, not the Apple logo), plus `GoogleMapsLogo` and `WazeLogo` (Simple Icons paths, CC0). Mixing Lucide outline icons with a solid Apple glyph looked inconsistent, so every button now shows its real brand mark in `currentColor`.
+- Rationale: brand buttons should show brand marks; Lucide has no brand logos, only generic outline icons.
 
 ### Stop photos (Wikipedia, lazy-loaded with description)
 - `/api/describe-stop` also returns `image: { url, title, pageUrl } | null` via new `lib/stop-image.ts`, fetched in parallel with the Gemini description
