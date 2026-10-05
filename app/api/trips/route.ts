@@ -19,7 +19,9 @@ export async function GET() {
 
   const { data, error } = await supabase
     .from("saved_trips")
-    .select("id,user_id,title,mode,origin,data,created_at,updated_at")
+    // Select * so rows written before the is_favorite migration (which
+    // lack the column) still read — toSavedTripSummary defaults it false.
+    .select("*")
     .eq("user_id", user.id)
     .order("updated_at", { ascending: false })
     .limit(100)

@@ -10,6 +10,7 @@ create policy "saved_trips_select_own"
   using (auth.uid() = user_id);
 
 drop policy if exists "saved_trips_insert_own" on public.saved_trips;
+drop policy if exists "saved_trips_insert_guest_or_own" on public.saved_trips;
 create policy "saved_trips_insert_guest_or_own"
   on public.saved_trips for insert
   to anon, authenticated
@@ -19,6 +20,7 @@ create policy "saved_trips_insert_guest_or_own"
   );
 
 drop policy if exists "saved_trips_update_own" on public.saved_trips;
+drop policy if exists "saved_trips_update_claim_or_own" on public.saved_trips;
 create policy "saved_trips_update_claim_or_own"
   on public.saved_trips for update
   to authenticated

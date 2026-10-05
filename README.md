@@ -85,7 +85,7 @@ API:
 - `POST /api/describe-stop` — lazy description + Wikipedia photo
 - `GET /api/reverse-geocode` — Nominatim, then BigDataCloud
 - `GET /api/trips`, `POST /api/trips` — list / save (auth required)
-- `GET /api/trips/[id]` — public trip read; `PUT` / `DELETE` remain owner-only
+- `GET /api/trips/[id]` — public trip read; `PUT` (auto-save edits) / `PATCH` (favourite flag) / `DELETE` remain owner-only
 - `POST /api/trips/claim` — attach a guest trip to the authenticated user
 - `DELETE /api/account` — delete own account (confirmation by typing username)
 - `GET /auth/callback` — Supabase PKCE code exchange (not locale-prefixed)
@@ -93,6 +93,7 @@ API:
 ## Sharing vs saved trips
 
 - Every generated itinerary is inserted into `saved_trips`; authenticated generations include the server-derived user ID and guest generations keep `user_id` null. The trip UUID route is the same public URL used by the share action.
+- Edits in the trip view auto-save over the same row; the star button only toggles the `is_favorite` flag (run `supabase/migrations/20261005000000_trip_favorites.sql`). My Trips lists every computed trip, with favourites in a separate top section.
 - Guest trip IDs are also retained in browser local storage for the Recent Trips list. The guest can claim an orphaned row by creating an account while viewing it; the claim endpoint accepts only null-owner rows and derives ownership from the session.
 
 ## Key files

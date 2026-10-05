@@ -80,6 +80,51 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
 }
 
 /**
+ * PATCH /api/trips/[id] — toggle the favourite flag (owner only, via RLS).
+ * Body: { is_favorite: boolean }. Guest (null-owner) rows must be claimed
+ * first via POST /api/trips/claim; the update policy rejects the PATCH
+ * otherwise.
+ */
+export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  if (!isSupabaseConfigured()) {
+    return NextResponse.json({ error: "Auth not configured" }, { status: 503 })
+  }
+  const { id } = await params
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return unauthorized()
+
+  let body: unknown
+  try {
+    body = await request.json()
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 })
+  }
+  const isFavorite = body && typeof body === "object" ? (body as { is_favorite?: unknown }).is_favorite : undefined
+  if (typeof isFavorite !== "boolean") {
+    return NextResponse.json({ error: "Invalid is_favorite flag." }, { status: 400 })
+  }
+
+  const { data, error } = await supabase
+    .from("saved_trips")
+    .update({ is_favorite: isFavorite })
+    .eq("id", id)
+    .select("id,is_favorite")
+    .single()
+
+  if (error || !data) {
+    if (error) console.error("[trips] favorite update failed:", error)
+    if (error && isMissingTableError(error)) {
+      return NextResponse.json({ error: "setup_required" }, { status: 503 })
+    }
+    return NextResponse.json({ error: "Not found" }, { status: 404 })
+  }
+  return NextResponse.json({ id: (data as { id: string }).id, is_favorite: (data as { is_favorite: boolean }).is_favorite })
+}
+
+/**
  * DELETE /api/trips/[id] — delete a saved trip (owner only, via RLS).
  */
 export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {

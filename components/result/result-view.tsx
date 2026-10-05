@@ -1,19 +1,20 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import dynamic from "next/dynamic"
 import type { Itinerary, Stop } from "@/lib/types"
 import { withLiveDistances } from "@/lib/geo"
 import { totalDistanceKm } from "@/lib/costs"
 import { copyText } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import { SaveTripButton } from "@/components/auth/save-trip-button"
+import { FavoriteTripButton } from "@/components/auth/favorite-trip-button"
+import { useAuth } from "@/components/auth/auth-provider"
 import { Timeline } from "./timeline"
 import { CostSummary } from "./cost-summary"
 import { NavLauncher } from "./nav-launcher"
 import { TripHero } from "./trip-hero"
 import type { MapStop, OriginPoint } from "./itinerary-map"
-import { ArrowLeft, Check, Copy, List, Map as MapIcon, RotateCcw, Share2, Undo2 } from "lucide-react"
+import { ArrowLeft, Check, Copy, List, Loader2, Map as MapIcon, RotateCcw, Share2, Undo2 } from "lucide-react"
 import { useI18n } from "@/components/locale-provider"
 
 const ItineraryMap = dynamic(() => import("./itinerary-map").then((m) => m.ItineraryMap), {
@@ -26,24 +27,25 @@ export function ResultView({
   onBack,
   onRestart,
   savedId,
+  initialIsFavorite = false,
   shareUrl,
   showHero = true,
-  showSaveButton = true,
-  allowDelete = true,
+  showFavoriteButton = true,
 }: {
   initial: Itinerary
   onBack: () => void
   onRestart?: () => void
-  /** Server id when this view shows a trip loaded from the account. */
+  /** Row id of this trip. Always set for generated trips (auto-saved at
+   *  generation time); undefined for non-persisted previews (examples). */
   savedId?: string | null
+  initialIsFavorite?: boolean
   shareUrl?: string
   showHero?: boolean
-  showSaveButton?: boolean
-  allowDelete?: boolean
+  showFavoriteButton?: boolean
 }) {
   const { t, locale } = useI18n()
+  const { user, configured } = useAuth()
   const [itinerary, setItinerary] = useState<Itinerary>(initial)
-  const [initialSnapshot] = useState(() => JSON.stringify(initial))
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [mobileTab, setMobileTab] = useState<"timeline" | "map">("timeline")
   const [copied, setCopied] = useState(false)
@@ -58,6 +60,50 @@ export function ResultView({
     const timer = window.setTimeout(() => setLastReplaced(null), 8000)
     return () => window.clearTimeout(timer)
   }, [lastReplaced])
+
+  // Auto-save: trips are persisted at generation time, so reorder / remove /
+  // replace edits are PUT back over the same row (debounced). Guest orphans
+  // and signed-out viewers get 401/404 and stay quiet — the next edit, the
+  // post-login flush, or the post-claim flush retries.
+  const [autosave, setAutosave] = useState<"idle" | "saving" | "saved" | "error">("idle")
+  const [autosaveError, setAutosaveError] = useState<string | null>(null)
+  const [claimTick, setClaimTick] = useState(0)
+  const baselineRef = useRef<string>(JSON.stringify(initial))
+
+  useEffect(() => {
+    if (!savedId || !configured) return
+    const current = JSON.stringify(itinerary)
+    if (current === baselineRef.current) return
+    setAutosave("saving")
+    setAutosaveError(null)
+    const timer = window.setTimeout(() => {
+      void (async () => {
+        try {
+          const res = await fetch(`/api/trips/${encodeURIComponent(savedId)}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ itinerary }),
+          })
+          if (!res.ok) {
+            if (res.status === 401 || res.status === 404) {
+              setAutosave("idle")
+              return
+            }
+            const data = (await res.json().catch(() => null)) as { error?: string } | null
+            throw new Error(data?.error === "setup_required" ? t("tripsSetupRequired") : t("tripAutosaveFail"))
+          }
+          baselineRef.current = current
+          setAutosave("saved")
+          window.setTimeout(() => setAutosave((s) => (s === "saved" ? "idle" : s)), 2500)
+        } catch (err) {
+          setAutosave("error")
+          setAutosaveError(err instanceof Error ? err.message : t("tripAutosaveFail"))
+        }
+      })()
+    }, 800)
+    return () => window.clearTimeout(timer)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [itinerary, savedId, configured, user?.id, claimTick])
 
   const shareCurrentPage = async () => {
     setShareError(null)
@@ -254,12 +300,11 @@ export function ResultView({
           ) : null}
           <div className="flex shrink-0 flex-col items-end gap-1.5">
             <div className="flex items-center gap-2">
-              {showSaveButton ? (
-                <SaveTripButton
-                  itinerary={itinerary}
-                  savedId={savedId}
-                  initialSnapshot={initialSnapshot}
-                  allowDelete={allowDelete}
+              {showFavoriteButton ? (
+                <FavoriteTripButton
+                  tripId={savedId}
+                  initialIsFavorite={initialIsFavorite}
+                  onClaimed={() => setClaimTick((n) => n + 1)}
                 />
               ) : null}
               {!showHero ? (
@@ -269,6 +314,19 @@ export function ResultView({
                 </Button>
               ) : null}
             </div>
+            {autosave === "saving" ? (
+              <p role="status" className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Loader2 className="size-3.5 animate-spin" /> {t("tripAutosaving")}
+              </p>
+            ) : null}
+            {autosave === "saved" ? (
+              <p role="status" className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Check className="size-3.5 text-brand" /> {t("tripAutosaved")}
+              </p>
+            ) : null}
+            {autosave === "error" && autosaveError ? (
+              <p role="alert" className="text-xs text-destructive">{autosaveError}</p>
+            ) : null}
             {!showHero && shareError ? <p role="alert" className="text-xs text-destructive">{shareError}</p> : null}
           </div>
         </div>

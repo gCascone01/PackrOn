@@ -22,6 +22,7 @@ export interface SavedTrip {
   mode: TripMode
   origin: string
   data: Itinerary
+  is_favorite: boolean
   created_at: string
   updated_at: string
 }
@@ -32,6 +33,7 @@ export interface SavedTripSummary {
   title: string
   mode: TripMode
   origin: string
+  is_favorite: boolean
   created_at: string
   updated_at: string
   days_count: number
@@ -51,6 +53,7 @@ export function toSavedTripSummary(row: SavedTrip): SavedTripSummary {
     title: row.title,
     mode: row.mode,
     origin: row.origin,
+    is_favorite: row.is_favorite ?? false,
     created_at: row.created_at,
     updated_at: row.updated_at,
     days_count: row.data.days.length,
