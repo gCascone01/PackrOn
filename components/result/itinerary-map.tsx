@@ -47,6 +47,7 @@ export function ItineraryMap({
   selectRef.current = onSelect
 
   const [routeGeometries, setRouteGeometries] = useState<[number, number][] | null>(null)
+  const lastRouteQueryRef = useRef<string | null>(null)
 
   // Fetch real routes from OSRM
   useEffect(() => {
@@ -77,6 +78,11 @@ export function ItineraryMap({
 
       const profile = mode === "road" ? "driving" : "foot"
       const coordinateString = points.map((p) => `${p.lng},${p.lat}`).join(";")
+      const queryKey = `${profile}|${coordinateString}`
+      // The parent rebuilds `stops` on every render, which re-runs this
+      // effect with identical coordinates — skip the redundant request.
+      if (lastRouteQueryRef.current === queryKey) return
+      lastRouteQueryRef.current = queryKey
       const url = `https://router.project-osrm.org/route/v1/${profile}/${coordinateString}?overview=full&geometries=geojson`
 
       try {
@@ -101,8 +107,15 @@ export function ItineraryMap({
           if (!cancelled) setRouteGeometries(null)
         }
       } catch (error) {
-        console.warn("Failed to fetch real route from OSRM, falling back to straight lines.", error)
-        if (!cancelled) setRouteGeometries(null)
+        // Cleanup aborts the in-flight request on re-run/unmount — that
+        // cancellation is expected, not a routing failure, so stay silent.
+        if (cancelled) return
+        if (error instanceof DOMException && error.name === "AbortError") {
+          console.warn("OSRM route request timed out, falling back to straight lines.")
+        } else {
+          console.warn("Failed to fetch real route from OSRM, falling back to straight lines.", error)
+        }
+        setRouteGeometries(null)
       } finally {
         clearTimeout(timeoutId)
       }
