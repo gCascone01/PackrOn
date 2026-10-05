@@ -78,6 +78,18 @@ export interface TollNotice {
   kind: "vignette" | "toll"
 }
 
+/** One priced component of the live toll total (OpenVan route item). */
+export interface TollBreakdownLine {
+  /** `perKm`: aggregated gated motorways of one country; `charge`: tunnel/gate/ferry/vignette. */
+  kind: "perKm" | "charge"
+  country: string
+  /** Display label (API English, e.g. "Mont Blanc Tunnel", "Vignette · 1-day"). */
+  label: string
+  /** Tolled km, for `perKm` lines only. */
+  km: number | null
+  amountEur: number
+}
+
 export interface Itinerary {
   mode: TripMode
   title: string
@@ -97,6 +109,8 @@ export interface Itinerary {
   tollCountries?: string[]
   /** Provenance label for the toll estimate (e.g. "OpenVan"). */
   tollSource?: string
+  /** Priced components behind `tollTotalEur` — the receipt for the total. */
+  tollBreakdown?: TollBreakdownLine[]
   /** True when the user asked to avoid toll roads (estimate is €0 by choice). */
   tollAvoided?: boolean
 }

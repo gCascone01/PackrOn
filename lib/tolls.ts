@@ -8,6 +8,8 @@
  * falls back to the informational Gemini alerts ("See alerts", €0).
  */
 
+import type { TollBreakdownLine } from "./types"
+
 export type TollVehicleClass = "car" | "van"
 
 export interface RouteTollEstimate {
@@ -15,6 +17,8 @@ export interface RouteTollEstimate {
   countries: string[]
   /** Provenance label for the UI (notes partial coverage when present). */
   source: string
+  /** Priced components behind the total (per-country motorways + charges). */
+  lines: TollBreakdownLine[]
 }
 
 const TOLLS_ROUTE_API = "https://openvan.camp/api/tolls/route"
@@ -44,6 +48,72 @@ type TollsRouteResponse = {
   unknown_countries?: unknown
 }
 
+const MAX_BREAKDOWN_LINES = 10
+
+function round2(n: number): number {
+  return Math.round(n * 100) / 100
+}
+
+function chargeLabel(type: unknown, meta: { name?: unknown; valid_days?: unknown }): string {
+  if (typeof meta.name === "string" && meta.name.trim()) return meta.name.trim().slice(0, 80)
+  if (type === "vignette") {
+    const days = typeof meta.valid_days === "number" && Number.isFinite(meta.valid_days)
+      ? Math.max(1, Math.round(meta.valid_days))
+      : 1
+    return days > 1 ? `Vignette · ${days}-day` : "Vignette · 1-day"
+  }
+  return typeof type === "string" && type.trim() ? type.trim().slice(0, 40) : "Toll"
+}
+
+/**
+ * Turn the API's per-section items into priced receipt lines: gated
+ * per-km sections aggregated by country, tunnels/gates/ferries/vignettes as
+ * individual charges (highest first). Zero-amount and malformed items are
+ * skipped; the list is capped so one noisy route can't flood the UI.
+ */
+export function parseTollLines(json: unknown): TollBreakdownLine[] {
+  const items = (json as { items?: unknown } | null)?.items
+  if (!Array.isArray(items)) return []
+  const perKm = new Map<string, { km: number; amount: number }>()
+  const charges: TollBreakdownLine[] = []
+  for (const raw of items) {
+    if (!raw || typeof raw !== "object") continue
+    const item = raw as { type?: unknown; country?: unknown; amount_eur?: unknown; meta?: unknown }
+    if (typeof item.amount_eur !== "number" || !Number.isFinite(item.amount_eur)) continue
+    if (item.amount_eur <= 0 || item.amount_eur > 2000) continue
+    const country = typeof item.country === "string" && item.country.trim()
+      ? item.country.trim().toUpperCase().slice(0, 4)
+      : null
+    if (!country) continue
+    const meta = (item.meta ?? {}) as { km?: unknown; name?: unknown; valid_days?: unknown }
+    if (item.type === "per_km") {
+      const km = typeof meta.km === "number" && Number.isFinite(meta.km) && meta.km > 0 ? meta.km : 0
+      const agg = perKm.get(country) ?? { km: 0, amount: 0 }
+      agg.km += km
+      agg.amount += item.amount_eur
+      perKm.set(country, agg)
+    } else {
+      charges.push({
+        kind: "charge",
+        country,
+        label: chargeLabel(item.type, meta),
+        km: null,
+        amountEur: round2(item.amount_eur),
+      })
+    }
+  }
+  const lines: TollBreakdownLine[] = [...perKm].map(([country, agg]) => ({
+    kind: "perKm" as const,
+    country,
+    label: country,
+    km: Math.round(agg.km),
+    amountEur: round2(agg.amount),
+  }))
+  charges.sort((a, b) => b.amountEur - a.amountEur)
+  lines.push(...charges.slice(0, Math.max(0, MAX_BREAKDOWN_LINES - lines.length)))
+  return lines
+}
+
 /** Validate an API payload and extract the estimate; null when unusable. */
 export function parseRouteTolls(json: unknown): RouteTollEstimate | null {
   if (!json || typeof json !== "object") return null
@@ -59,6 +129,7 @@ export function parseRouteTolls(json: unknown): RouteTollEstimate | null {
     totalEur: total,
     countries,
     source: partial ? "OpenVan · partial coverage" : "OpenVan",
+    lines: parseTollLines(json),
   }
 }
 

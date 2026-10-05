@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { buildTollWaypoints, clearTollCache, getRouteTolls, parseRouteTolls, sanitizeWaypoints, vehicleClassForTolls } from "./tolls"
+import { buildTollWaypoints, clearTollCache, getRouteTolls, parseRouteTolls, parseTollLines, sanitizeWaypoints, vehicleClassForTolls } from "./tolls"
 
 afterEach(() => {
   clearTollCache()
@@ -16,11 +16,66 @@ describe("vehicleClassForTolls", () => {
   })
 })
 
+describe("parseTollLines", () => {
+  const romeParis = {
+    total_eur: 172.21,
+    route_countries: ["IT", "FR"],
+    partial: false,
+    items: [
+      { type: "object", country: "FR", amount_eur: 55.5, meta: { name: "Mont Blanc Tunnel", kind: "tunnel" } },
+      { type: "per_km", country: "IT", amount_eur: 48.81, meta: { km: 542.3 } },
+      { type: "per_km", country: "IT", amount_eur: 10.93, meta: { km: 121.4 } },
+      { type: "per_km", country: "FR", amount_eur: 31.12, meta: { km: 327.5 } },
+    ],
+  }
+
+  it("aggregates per-km sections by country and keeps charges separate", () => {
+    expect(parseTollLines(romeParis)).toEqual([
+      { kind: "perKm", country: "IT", label: "IT", km: 664, amountEur: 59.74 },
+      { kind: "perKm", country: "FR", label: "FR", km: 328, amountEur: 31.12 },
+      { kind: "charge", country: "FR", label: "Mont Blanc Tunnel", km: null, amountEur: 55.5 },
+    ])
+  })
+
+  it("labels vignettes with their validity", () => {
+    expect(
+      parseTollLines({ items: [{ type: "vignette", country: "AT", amount_eur: 12.8, meta: { period: "10d", valid_days: 10 } }] }),
+    ).toEqual([{ kind: "charge", country: "AT", label: "Vignette · 10-day", km: null, amountEur: 12.8 }])
+  })
+
+  it("skips zero, negative, absurd, and malformed items", () => {
+    expect(
+      parseTollLines({
+        items: [
+          { type: "per_km", country: "IT", amount_eur: 0, meta: { km: 10 } },
+          { type: "object", country: "FR", amount_eur: -3, meta: { name: "X" } },
+          { type: "object", country: "FR", amount_eur: 9999, meta: { name: "Y" } },
+          { type: "object", country: "", amount_eur: 5, meta: { name: "Z" } },
+          null,
+          "garbage",
+        ],
+      }),
+    ).toEqual([])
+    expect(parseTollLines({})).toEqual([])
+    expect(parseTollLines(null)).toEqual([])
+  })
+
+  it("caps the line count on noisy routes", () => {
+    const items = Array.from({ length: 30 }, (_, i) => ({
+      type: "object",
+      country: "IT",
+      amount_eur: i + 1,
+      meta: { name: `Gate ${i}` },
+    }))
+    expect(parseTollLines({ items })).toHaveLength(10)
+  })
+})
+
 describe("parseRouteTolls", () => {
   it("extracts the total and countries", () => {
     expect(
       parseRouteTolls({ total_eur: 172.21, route_countries: ["IT", "FR"], partial: false }),
-    ).toEqual({ totalEur: 172.21, countries: ["IT", "FR"], source: "OpenVan" })
+    ).toEqual({ totalEur: 172.21, countries: ["IT", "FR"], source: "OpenVan", lines: [] })
   })
 
   it("flags partial coverage from the partial flag or unknown countries", () => {

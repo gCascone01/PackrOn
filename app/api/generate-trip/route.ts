@@ -152,6 +152,7 @@ export async function POST(request: Request) {
           itinerary.tollTotalEur = tolls.totalEur
           itinerary.tollCountries = tolls.countries
           itinerary.tollSource = tolls.source
+          itinerary.tollBreakdown = tolls.lines
         } else {
           console.warn("[generate-trip] toll lookup returned no estimate", {
             waypointCount: waypoints.length,
