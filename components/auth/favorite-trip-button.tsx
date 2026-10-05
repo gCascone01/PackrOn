@@ -82,10 +82,16 @@ export function FavoriteTripButton({
     try {
       await patchFavorite(id, value)
     } catch (err) {
-      // Orphan row: claim it for this user, then retry once.
+      // Orphan row: claim it for this user, then retry once. A row owned
+      // by someone else stays 404 — surface the friendly message, never
+      // the raw NOT_FOUND sentinel.
       if (err instanceof Error && err.message === "NOT_FOUND") {
         await claim(id)
-        await patchFavorite(id, value)
+        try {
+          await patchFavorite(id, value)
+        } catch {
+          throw new Error(t("tripFavoriteFail"))
+        }
         return
       }
       throw err
