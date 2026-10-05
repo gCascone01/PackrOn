@@ -89,7 +89,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 <### EV consumption units (kWh, not litres)
 - `RoadTripConfigurator` consumption field is vehicle-aware: for `elettrica` the hint switches to `consumptionHintEv` ("kWh per 100 km") and the suffix to "kWh / 100 km"; fuel vehicles keep "L / 100 km". The cost formula (`lib/costs.ts`, `(km/100)*consumption*price`) is unit-agnostic, so only labels change — including `CostSummary`'s formula line (`× … kWh × … €/kWh` for EVs)
-- EV defaults: selecting `elettrica` with the fossil default (or empty) still in the field prefills "18"; submit falls back to 18 for EVs vs 6.5 otherwise (mirrors `vehicleFromPayload` in `lib/map-gemini-itinerary.ts`, which the old `|| 6.5` fallback was overriding). Prefill is one-directional on purpose — switching back to a fuel vehicle never clobbers a possibly intentional value
+- EV defaults: the consumption default swaps in both directions while the field is still automatic (`6.5` ↔ `18` on vehicle switch); a manually typed value is always respected and never clobbered. Automatic-ness is tracked by a `consumptionAuto` ref (cleared on manual edit) combined with a value check against both defaults, so rehydrated drafts with custom values are also preserved. Submit falls back to 18 for EVs vs 6.5 otherwise (mirrors `vehicleFromPayload` in `lib/map-gemini-itinerary.ts`, which the old `|| 6.5` fallback was overriding)
 - i18n keys: `consumptionHintEv` (both locales)
 - Rationale: asking "litres per 100 km" for an electric car is nonsense input that also poisons the cost estimate; the unit must follow the selected vehicle
 
