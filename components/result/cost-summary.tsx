@@ -15,9 +15,11 @@ export function CostSummary({ itinerary }: { itinerary: Itinerary }) {
   const isEv = itinerary.vehicle.type === "elettrica"
   const energyUnit = isEv ? "kWh" : "L"
   const fuelLabel = itinerary.estimatedFuelCostRange || formatEur(fuel, locale)
-  const totalLabel = itinerary.estimatedFuelCostRange
-    ? itinerary.estimatedFuelCostRange
-    : formatEur(computedTotal, locale)
+  // The total is always the computed fuel + tolls sum. Gemini's
+  // estimatedFuelCostRange is a fuel-only text range — reusing it here hid
+  // the toll addition entirely (Total showed "120€ - 150€" while tolls sat
+  // in their own row). The range stays visible in the fuel row above.
+  const totalLabel = formatEur(computedTotal, locale)
   const hasLiveTolls = typeof itinerary.tollTotalEur === "number"
   const hasTollAlerts = !hasLiveTolls && tolls <= 0 && itinerary.tollNotices.length > 0
   const tollRoute = (itinerary.tollCountries ?? []).join(" → ")
