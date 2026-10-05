@@ -18,6 +18,7 @@ export const STOP_TYPE_TO_CATEGORY: Record<GeminiStopType, StopCategory> = {
   panoramica: "panorama",
   pasto: "food",
   museo: "cultura",
+  ricarica: "ricarica",
   notte: "notte",
 }
 
@@ -84,9 +85,11 @@ function padTime(totalMinutes: number): string {
 
 export function vehicleFromPayload(
   payload: GenerateTripPayload,
-  priceOverride?: { priceEur: number; countryCode?: string; source?: string; fallback?: boolean },
+  priceOverride?: { priceEur: number; countryCode?: string; source?: string; fallback?: boolean; custom?: boolean },
 ): Vehicle {
   const type = VEHICLE_FROM_LABEL[payload.vehicle ?? ""] ?? "diesel"
+  const rangeRaw = Number(payload.evRangeKm)
+  const rangeKm = Number.isFinite(rangeRaw) && rangeRaw >= 50 && rangeRaw <= 1500 ? Math.round(rangeRaw) : undefined
   if (priceOverride && Number.isFinite(priceOverride.priceEur) && priceOverride.priceEur > 0) {
     return {
       type,
@@ -95,6 +98,8 @@ export function vehicleFromPayload(
       ...(priceOverride.countryCode ? { fuelCountryCode: priceOverride.countryCode } : {}),
       ...(priceOverride.source ? { fuelPriceSource: priceOverride.source } : {}),
       ...(priceOverride.fallback != null ? { fuelPriceFallback: priceOverride.fallback } : {}),
+      ...(priceOverride.custom ? { fuelPriceCustom: true } : {}),
+      ...(type === "elettrica" && rangeKm ? { rangeKm } : {}),
     }
   }
   return {
@@ -102,6 +107,7 @@ export function vehicleFromPayload(
     consumption: Number.isFinite(payload.consumption) ? Number(payload.consumption) : type === "elettrica" ? 18 : 6.5,
     fuelPrice: DEFAULT_FUEL_PRICE[type],
     fuelPriceFallback: true,
+    ...(type === "elettrica" && rangeKm ? { rangeKm } : {}),
   }
 }
 
@@ -134,7 +140,7 @@ export function mapGeminiTrip(
 
   const days: ItineraryDay[] = raw.days.map((day) => {
     const stops: Stop[] = (day.stops ?? []).map((stop) => {
-      const type = (["drive", "breakfast", "panoramica", "pasto", "museo", "notte"].includes(stop.type)
+      const type = (["drive", "breakfast", "panoramica", "pasto", "museo", "ricarica", "notte"].includes(stop.type)
         ? stop.type
         : "panoramica") as GeminiStopType
       const durationMinutes = Number(stop.duration_minutes)

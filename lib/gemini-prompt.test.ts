@@ -110,6 +110,26 @@ describe("buildTripPrompt", () => {
     expect(prompt).not.toContain("Destinations / areas: Lecce")
   })
 
+  it("adds a charging plan for electric cars with a declared range", () => {
+    const prompt = buildTripPrompt({
+      ...exampleRoadPayload,
+      vehicle: "elettrica",
+      consumption: 18,
+      evRangeKm: 320,
+    })
+
+    expect(prompt).toContain("Vehicle: electric")
+    expect(prompt).toContain("Real EV range: 320 km")
+    expect(prompt).toContain("type=ricarica")
+  })
+
+  it("omits the charging plan without a declared range or for fossil cars", () => {
+    expect(buildTripPrompt(exampleRoadPayload)).not.toContain("type=ricarica")
+    expect(
+      buildTripPrompt({ ...exampleRoadPayload, vehicle: "elettrica", consumption: 18 }),
+    ).not.toContain("type=ricarica")
+  })
+
   it("keeps the city-trip prompt separate", () => {
     const cityPrompt = buildTripPrompt({
       mode: "city",

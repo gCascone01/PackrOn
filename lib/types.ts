@@ -8,11 +8,12 @@ export type StopCategory =
   | "food"
   | "cultura"
   | "sosta"
+  | "ricarica"
   | "notte"
 
 export type VehicleType = "benzina" | "diesel" | "elettrica" | "camper" | "moto"
 
-export type GeminiStopType = "drive" | "breakfast" | "panoramica" | "pasto" | "museo" | "notte"
+export type GeminiStopType = "drive" | "breakfast" | "panoramica" | "pasto" | "museo" | "ricarica" | "notte"
 
 export interface StopSubstop {
   name: string
@@ -67,6 +68,10 @@ export interface Vehicle {
   fuelPriceSource?: string
   /** True when fuelPrice is the built-in fallback, not a live API value. */
   fuelPriceFallback?: boolean
+  /** True when fuelPrice was typed by the user (e.g. EV charging subscription). */
+  fuelPriceCustom?: boolean
+  /** Real-world EV range in km, when declared by the user. */
+  rangeKm?: number
 }
 
 export interface TollNotice {
@@ -128,6 +133,10 @@ export interface GenerateTripPayload {
   crew?: string[]
   vehicle?: string
   consumption?: number
+  /** User-declared real EV range in km (electric only). */
+  evRangeKm?: number
+  /** User-declared energy price in EUR/kWh (electric only, e.g. charging subscription). */
+  kwhPrice?: number
   avoidTolls?: boolean
   interests?: string[]
   notes?: string
@@ -142,6 +151,7 @@ export const CATEGORY_LABELS: Record<StopCategory, string> = {
   food: "Food",
   cultura: "Cultura",
   sosta: "Sosta",
+  ricarica: "Ricarica",
   notte: "Pernotto",
 }
 
@@ -151,5 +161,6 @@ export const GEMINI_STOP_LABELS: Record<GeminiStopType, string> = {
   panoramica: "Panoramica",
   pasto: "Pasto",
   museo: "Museo",
+  ricarica: "Ricarica",
   notte: "Notte",
 }

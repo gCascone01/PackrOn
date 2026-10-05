@@ -51,6 +51,7 @@ const CATEGORY_TO_TYPE: Record<Stop["category"], GeminiStopType> = {
   natura: "panoramica",
   borgo: "panoramica",
   sosta: "panoramica",
+  ricarica: "ricarica",
 }
 
 export function buildAlternativesPrompt(stop: Stop, locale: Locale, hint?: string): string {

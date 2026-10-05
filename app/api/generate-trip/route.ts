@@ -118,15 +118,31 @@ export async function POST(request: Request) {
       return apiError(locale, "apiBadSchema", 502)
     }
 
-    // Country-dependent live energy price (fuel or household electricity
-    // for EVs). Never blocks generation: falls back to built-in defaults.
-    const energy = await energyPromise
-    const itinerary = mapGeminiTrip(parsed as GeminiTrip, payload, {
-      priceEur: energy.priceEur,
-      countryCode: energy.countryCode ?? undefined,
-      source: energy.source,
-      fallback: energy.fallback,
-    })
+    // Personal EV tariff (e.g. charging subscription) wins over the live
+    // household-electricity lookup: 0.2 vs 0.9 €/kWh is the user's contract,
+    // not a market average. Never blocks generation.
+    const customKwh =
+      payload.vehicle === "elettrica" &&
+      Number.isFinite(payload.kwhPrice) &&
+      (payload.kwhPrice as number) > 0 &&
+      (payload.kwhPrice as number) <= 5
+        ? (payload.kwhPrice as number)
+        : null
+    const priceOverride =
+      customKwh != null
+        ? {
+            priceEur: customKwh,
+            source: translate(locale, "kwhPriceCustomSource"),
+            fallback: false,
+            custom: true,
+          }
+        : await energyPromise.then((energy) => ({
+            priceEur: energy.priceEur,
+            countryCode: energy.countryCode ?? undefined,
+            source: energy.source,
+            fallback: energy.fallback,
+          }))
+    const itinerary = mapGeminiTrip(parsed as GeminiTrip, payload, priceOverride)
     if (payload.mode === "road") {
       if (payload.avoidTolls) {
         // The route is planned to avoid toll roads — €0 by choice, not by

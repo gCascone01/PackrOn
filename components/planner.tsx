@@ -174,6 +174,8 @@ function sanitizeDraft(raw: unknown): PlannerDraft {
         ? raw.roadForm.vehicle
         : DEFAULT_ROAD_FORM.vehicle,
       consumption: typeof raw.roadForm.consumption === "string" ? raw.roadForm.consumption : DEFAULT_ROAD_FORM.consumption,
+      evRange: typeof raw.roadForm.evRange === "string" ? raw.roadForm.evRange : DEFAULT_ROAD_FORM.evRange,
+      kwhPrice: typeof raw.roadForm.kwhPrice === "string" ? raw.roadForm.kwhPrice : DEFAULT_ROAD_FORM.kwhPrice,
       avoidTolls: typeof raw.roadForm.avoidTolls === "boolean" ? raw.roadForm.avoidTolls : DEFAULT_ROAD_FORM.avoidTolls,
     }
   }

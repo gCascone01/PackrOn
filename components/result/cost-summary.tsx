@@ -62,7 +62,14 @@ export function CostSummary({ itinerary }: { itinerary: Itinerary }) {
       {itinerary.tollAvoided ? (
         <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{t("tollAvoided")}</p>
       ) : null}
-      {itinerary.vehicle.fuelCountryCode && itinerary.vehicle.fuelPriceSource && !itinerary.vehicle.fuelPriceFallback ? (
+      {itinerary.vehicle.fuelPriceCustom ? (
+        <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+          {t("fuelPriceCustom", {
+            price: formatEur(fuelPrice, locale),
+            unit: energyUnit,
+          })}
+        </p>
+      ) : itinerary.vehicle.fuelCountryCode && itinerary.vehicle.fuelPriceSource && !itinerary.vehicle.fuelPriceFallback ? (
         <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
           {t("fuelPriceLive", {
             country: itinerary.vehicle.fuelCountryCode,
