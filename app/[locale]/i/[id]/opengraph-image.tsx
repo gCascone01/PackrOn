@@ -2,6 +2,7 @@ import { ImageResponse } from "next/og"
 import type { Itinerary } from "@/lib/types"
 import { normalizeCoordinates } from "@/lib/map-svg"
 import { formatKm, totalDistanceKm } from "@/lib/costs"
+import { withLiveDistances } from "@/lib/geo"
 import { isLocale } from "@/lib/i18n"
 import { createClient } from "@/lib/supabase/server"
 import { isItinerary } from "@/lib/trips"
@@ -95,7 +96,16 @@ export default async function Image({ params }: { params: Promise<{ locale: stri
 
   const modeLabel = itinerary.mode === "road" ? "Road trip" : "City trip"
   const daysLabel = `${itinerary.days.length} ${itinerary.days.length === 1 ? "day" : "days"}`
-  const distanceLabel = formatKm(totalDistanceKm(itinerary), locale)
+  // Stored rows keep distanceKm: 0 (city prompt forces total_km_estimated = 0),
+  // so derive live distances from stop coordinates exactly like ResultView —
+  // otherwise every city preview renders "0 km". Origin leg is road-only.
+  const liveDays = withLiveDistances(
+    itinerary.days,
+    itinerary.mode === "road" && typeof itinerary.originLat === "number" && typeof itinerary.originLng === "number"
+      ? { lat: itinerary.originLat, lng: itinerary.originLng }
+      : undefined,
+  )
+  const distanceLabel = formatKm(totalDistanceKm({ ...itinerary, days: liveDays }), locale)
 
   return new ImageResponse(
     (
