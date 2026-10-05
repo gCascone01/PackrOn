@@ -146,9 +146,16 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null
 }
 
-function sanitizeDraft(raw: unknown): Partial<PlannerDraft> | null {
-  if (!isRecord(raw)) return null
-  const draft: Partial<PlannerDraft> = {}
+function sanitizeDraft(raw: unknown): PlannerDraft {
+  const fallback: PlannerDraft = {
+    mode: "road",
+    roadForm: DEFAULT_ROAD_FORM,
+    cityForm: DEFAULT_CITY_FORM,
+    roadStep: 0,
+    cityStep: 0,
+  }
+  if (!isRecord(raw)) return fallback
+  const draft: PlannerDraft = { ...fallback }
   if (raw.mode === "road" || raw.mode === "city") draft.mode = raw.mode
   if (isRecord(raw.roadForm)) {
     draft.roadForm = {
@@ -199,41 +206,70 @@ export function Planner() {
   const [generationKey, setGenerationKey] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const wizardCardRef = useRef<HTMLDivElement>(null)
-  const rehydratedRef = useRef(false)
+  const draftRef = useRef<PlannerDraft>({
+    mode: "road",
+    roadForm: DEFAULT_ROAD_FORM,
+    cityForm: DEFAULT_CITY_FORM,
+    roadStep: 0,
+    cityStep: 0,
+  })
+  const didLoadDraftRef = useRef(false)
 
   // Generation navigates to /trip/[id] (unmounting Planner), so drafts are
   // persisted to localStorage: Back from a trip restores the inputs instead
   // of a fresh blank form. Rehydrate in an effect (not the useState
   // initializer) to avoid a server/client hydration mismatch.
   useEffect(() => {
+    if (didLoadDraftRef.current) return
+    didLoadDraftRef.current = true
     try {
       const raw = window.localStorage.getItem(PLANNER_DRAFT_KEY)
-      if (raw) {
-        const draft = sanitizeDraft(JSON.parse(raw))
-        if (draft?.mode) setMode(draft.mode)
-        if (draft?.roadForm) setRoadForm(draft.roadForm)
-        if (draft?.cityForm) setCityForm(draft.cityForm)
-        if (draft?.roadStep !== undefined) setRoadStep(draft.roadStep)
-        if (draft?.cityStep !== undefined) setCityStep(draft.cityStep)
-      }
+      if (!raw) return
+      const draft = sanitizeDraft(JSON.parse(raw))
+      draftRef.current = draft
+      setMode(draft.mode)
+      setRoadForm(draft.roadForm)
+      setCityForm(draft.cityForm)
+      setRoadStep(draft.roadStep)
+      setCityStep(draft.cityStep)
     } catch {
       // Corrupt draft or blocked storage — fall back to defaults.
-    } finally {
-      rehydratedRef.current = true
     }
   }, [])
 
-  // Persist on every change, but never before rehydration (the first run
-  // would otherwise clobber a stored draft with defaults).
-  useEffect(() => {
-    if (!rehydratedRef.current) return
+  // Write-through persistence: every user change saves synchronously in the
+  // event handler. There is deliberately NO persist effect — an effect that
+  // writes on mount would store blank defaults before the rehydrated values
+  // land, and dev double-effects would then re-read that clobbered blank
+  // draft (this is what broke the first version of this fix).
+  const persistDraft = (patch: Partial<PlannerDraft>) => {
+    draftRef.current = { ...draftRef.current, ...patch }
     try {
-      const draft: PlannerDraft = { mode, roadForm, cityForm, roadStep, cityStep }
-      window.localStorage.setItem(PLANNER_DRAFT_KEY, JSON.stringify(draft))
+      window.localStorage.setItem(PLANNER_DRAFT_KEY, JSON.stringify(draftRef.current))
     } catch {
       // Quota/private mode — the planner works without persistence.
     }
-  }, [mode, roadForm, cityForm, roadStep, cityStep])
+  }
+  const handleMode = (next: TripMode) => {
+    setMode(next)
+    persistDraft({ mode: next })
+  }
+  const handleRoadForm = (next: RoadFormValue) => {
+    setRoadForm(next)
+    persistDraft({ roadForm: next })
+  }
+  const handleCityForm = (next: CityFormValue) => {
+    setCityForm(next)
+    persistDraft({ cityForm: next })
+  }
+  const handleRoadStep = (next: number) => {
+    setRoadStep(next)
+    persistDraft({ roadStep: next })
+  }
+  const handleCityStep = (next: number) => {
+    setCityStep(next)
+    persistDraft({ cityStep: next })
+  }
 
   const features: Array<{ icon: typeof Route; title: MessageKey; text: MessageKey }> = [
     { icon: Route, title: "featureRouteTitle", text: "featureRouteText" },
@@ -342,9 +378,7 @@ export function Planner() {
                 <div className="mb-8">
                   <ModeSelector
                     mode={mode}
-                    onChange={(nextMode) => {
-                      setMode(nextMode)
-                    }}
+                    onChange={handleMode}
                   />
                 </div>
               ) : null}
@@ -358,18 +392,18 @@ export function Planner() {
                   onGenerate={generate}
                   loading={loading}
                   value={roadForm}
-                  onChange={setRoadForm}
+                  onChange={handleRoadForm}
                   step={roadStep}
-                  onStepChange={setRoadStep}
+                  onStepChange={handleRoadStep}
                 />
               ) : (
                 <CityTripConfigurator
                   onGenerate={generate}
                   loading={loading}
                   value={cityForm}
-                  onChange={setCityForm}
+                  onChange={handleCityForm}
                   step={cityStep}
-                  onStepChange={setCityStep}
+                  onStepChange={handleCityStep}
                 />
               )}
 
