@@ -182,6 +182,13 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - Rationale: Wikipedia page images are real, freely-licensed photos needing no API key; AI-generated imagery would misrepresent real places. Plain `<img>` is used (no `next/image` remote config needed)
 - Tested in `lib/stop-image.test.ts` via pure `pickStopImagePage()` (index-ordered pick, skips pages without thumbnails, canonical-URL fallback)
 
+### Export to PDF (2026-10-05)
+- `components/result/export-pdf-button.tsx` is a client-only "Export PDF" button in the `ResultView` toolbar (shown for every viewer, hero or not). It renders `components/result/trip-pdf-document.tsx` with `@react-pdf/renderer`'s `pdf().toBlob()` and downloads it via an object URL. Both the renderer and the document are **dynamically imported on first click**, so the PDF engine never enters the main bundle or the server render.
+- `TripPdfDocument` is an A4 portrait document that mirrors the on-screen information: brand header, title/subtitle, mode · days · live km · stops (+ vehicle for road), the same deterministic road-only cost rows as `CostSummary` (distance/fuel/tolls/total + the energy-price provenance, live toll route, toll breakdown and alerts), then every day with its visitable stops (drive legs filtered like the timeline), each stop's time window/duration, category, description, parking hint, substops with tour/booking searches, and a `PackrOn · page / total` footer. City trips skip the cost section, matching the UI.
+- It uses `@/lib/i18n`'s `translate()` directly (not the React hook) and reuses the existing cost/stats/category keys; only five new keys were added (`pdfExport`, `pdfExporting`, `pdfExportFail`, `pdfTourSearch`, `pdfBookingSearch`). `lib/trip-pdf.ts#tripPdfFilename()` slugifies the title into `packron-<slug>.pdf` (diacritics stripped, ≤60 chars, `packron-trip.pdf` fallback).
+- Tested: `lib/trip-pdf.test.ts` (slug/fallback/cap) and `lib/trip-pdf-render.test.ts`, which actually renders both mock road and city itineraries through `renderToBuffer` and asserts a real `%PDF-` buffer — so the document can't silently break.
+- Rationale: a printable, offline-capable artefact is the natural "take it with you" output; rendering client-side keeps it free of server timeouts/cold starts and lets guests export shared trips too. (Note: `@react-pdf/renderer` is a sizeable dependency; it is isolated behind the click-time dynamic import for that reason.)
+
 ## Key Files
 
 ### `lib/geocode.ts`

@@ -14,6 +14,7 @@ import { Timeline } from "./timeline"
 import { CostSummary } from "./cost-summary"
 import { NavLauncher } from "./nav-launcher"
 import { TripHero } from "./trip-hero"
+import { ExportPdfButton } from "./export-pdf-button"
 import type { MapStop, OriginPoint } from "./itinerary-map"
 import { ArrowLeft, Check, Copy, List, Loader2, Map as MapIcon, RotateCcw, Share2, Undo2 } from "lucide-react"
 import { useI18n } from "@/components/locale-provider"
@@ -339,6 +340,7 @@ export function ResultView({
               {showSaveCopyButton && onSaveCopy ? (
                 <SaveCopyButton itinerary={liveItinerary} onSaved={onSaveCopy} />
               ) : null}
+              <ExportPdfButton itinerary={liveItinerary} totalKm={totalKm} totalStops={totalStops} />
               {!showHero ? (
                 <Button variant="secondary" size="lg" className="shrink-0" onClick={() => void shareCurrentPage()}>
                   <Share2 className="size-4" />
