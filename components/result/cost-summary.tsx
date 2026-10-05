@@ -18,7 +18,9 @@ export function CostSummary({ itinerary }: { itinerary: Itinerary }) {
   const totalLabel = itinerary.estimatedFuelCostRange
     ? itinerary.estimatedFuelCostRange
     : formatEur(computedTotal, locale)
-  const hasTollAlerts = tolls <= 0 && itinerary.tollNotices.length > 0
+  const hasLiveTolls = typeof itinerary.tollTotalEur === "number"
+  const hasTollAlerts = !hasLiveTolls && tolls <= 0 && itinerary.tollNotices.length > 0
+  const tollRoute = (itinerary.tollCountries ?? []).join(" → ")
   const estimateKey = isEv ? "fuelEstimateEnergy" : "fuelEstimateFuel"
 
   return (
@@ -43,6 +45,20 @@ export function CostSummary({ itinerary }: { itinerary: Itinerary }) {
       <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
         {t(estimateKey, { consumption, unit: energyUnit, price: formatEur(fuelPrice, locale) })}
       </p>
+      {hasLiveTolls && !itinerary.tollAvoided && itinerary.tollSource ? (
+        <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+          {tollRoute
+            ? t("tollEstimateLive", {
+                route: tollRoute,
+                price: formatEur(tolls, locale),
+                source: itinerary.tollSource,
+              })
+            : t("tollEstimateLiveNoRoute", { price: formatEur(tolls, locale), source: itinerary.tollSource })}
+        </p>
+      ) : null}
+      {itinerary.tollAvoided ? (
+        <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{t("tollAvoided")}</p>
+      ) : null}
       {itinerary.vehicle.fuelCountryCode && itinerary.vehicle.fuelPriceSource && !itinerary.vehicle.fuelPriceFallback ? (
         <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
           {t("fuelPriceLive", {

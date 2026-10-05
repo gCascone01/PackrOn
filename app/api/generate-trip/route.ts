@@ -8,6 +8,7 @@ import type { GenerateTripPayload } from "@/lib/types"
 import { translate, type Locale, type MessageKey } from "@/lib/i18n"
 import { validateLocations } from "@/lib/geocode"
 import { getEnergyPrice } from "@/lib/energy-prices"
+import { getRouteTolls, vehicleClassForTolls } from "@/lib/tolls"
 import { createClient } from "@/lib/supabase/server"
 import { isSupabaseConfigured } from "@/lib/supabase/config"
 import { isMissingTableError } from "@/lib/trips"
@@ -69,6 +70,14 @@ export async function POST(request: Request) {
     return apiError(locale, validation.errorKey!, 400)
   }
 
+  // Live price lookups start before generation so their latency hides
+  // inside the slow Gemini call. Both never throw (null on failure).
+  const energyPromise = getEnergyPrice(validation.countryCode, payload.vehicle ?? "diesel")
+  const tollsPromise =
+    payload.mode === "road" && !payload.avoidTolls && payload.origin?.trim() && payload.destination?.trim()
+      ? getRouteTolls(payload.origin, payload.destination, vehicleClassForTolls(payload.vehicle ?? "diesel"))
+      : Promise.resolve(null)
+
   try {
     const prompt = buildTripPrompt(payload)
     const debugEnabled = isGeminiDebugEnabled()
@@ -112,13 +121,25 @@ export async function POST(request: Request) {
 
     // Country-dependent live energy price (fuel or household electricity
     // for EVs). Never blocks generation: falls back to built-in defaults.
-    const energy = await getEnergyPrice(validation.countryCode, payload.vehicle ?? "diesel")
+    const [energy, tolls] = await Promise.all([energyPromise, tollsPromise])
     const itinerary = mapGeminiTrip(parsed as GeminiTrip, payload, {
       priceEur: energy.priceEur,
       countryCode: energy.countryCode ?? undefined,
       source: energy.source,
       fallback: energy.fallback,
     })
+    if (payload.mode === "road") {
+      if (payload.avoidTolls) {
+        // The route is planned to avoid toll roads — €0 by choice, not by
+        // missing data. Gemini alerts still list anything unavoidable.
+        itinerary.tollAvoided = true
+        itinerary.tollTotalEur = 0
+      } else if (tolls) {
+        itinerary.tollTotalEur = tolls.totalEur
+        itinerary.tollCountries = tolls.countries
+        itinerary.tollSource = tolls.source
+      }
+    }
     if (debugEnabled) logGeminiMappedItinerary(itinerary, parsed as GeminiTrip)
 
     const supabase = await createClient()

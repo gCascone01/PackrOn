@@ -91,6 +91,14 @@ export interface Itinerary {
   tollNotices: TollNotice[]
   totalKmEstimated?: number
   estimatedFuelCostRange?: string
+  /** Live motorway toll total in EUR (OpenVan route estimate). Absent = unknown. */
+  tollTotalEur?: number
+  /** ISO country codes the toll estimate covers, e.g. ["IT", "FR"]. */
+  tollCountries?: string[]
+  /** Provenance label for the toll estimate (e.g. "OpenVan"). */
+  tollSource?: string
+  /** True when the user asked to avoid toll roads (estimate is €0 by choice). */
+  tollAvoided?: boolean
 }
 
 export interface GenerateTripPayload {
