@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { isActionableTollAlert, mapGeminiTrip } from "./map-gemini-itinerary"
+import { isActionableTollAlert, mapGeminiTrip, vehicleFromPayload } from "./map-gemini-itinerary"
 import { GEMINI_TRIP_SCHEMA, type GeminiTrip } from "./gemini-schema"
 import type { GenerateTripPayload } from "./types"
 
@@ -231,6 +231,51 @@ describe("mapGeminiTrip", () => {
     expect(itinerary.tollNotices.map((n) => n.label)).toEqual([
       "Vignette required in Austria (10 days, €12.80)",
     ])
+  })
+
+  it("maps a ricarica charging stop to the charging category with its coordinates", () => {
+    const chargingTrip: GeminiTrip = {
+      ...trip,
+      days: [{
+        ...trip.days[0],
+        stops: [{
+          name: "Ionity Affi fast charge",
+          type: "ricarica",
+          lat: 45.55,
+          lng: 10.77,
+          start_time: "11:00",
+          end_time: "11:35",
+          duration_minutes: 35,
+          short_description: "150 kW fast charger, coffee break while charging.",
+          sub_stops: [],
+        }],
+      }],
+    }
+
+    const [charging] = mapGeminiTrip(chargingTrip, payload).days[0].stops
+
+    expect(charging).toMatchObject({
+      kind: "ricarica",
+      category: "ricarica",
+      lat: 45.55,
+      lng: 10.77,
+      time: "11:00",
+      endTime: "11:35",
+    })
+  })
+
+  it("stamps a personal kWh tariff and the declared EV range on the vehicle", () => {
+    const vehicle = vehicleFromPayload(
+      { ...payload, vehicle: "elettrica", consumption: 18, evRangeKm: 320 },
+      { priceEur: 0.2, source: "Tariffa personale", fallback: false, custom: true },
+    )
+
+    expect(vehicle).toMatchObject({
+      type: "elettrica",
+      fuelPrice: 0.2,
+      fuelPriceCustom: true,
+      rangeKm: 320,
+    })
   })
 
   it("adds the city when a lodging result has no explicit booking query", () => {

@@ -12,6 +12,7 @@ import {
   ParkingCircle,
   UtensilsCrossed,
   Castle,
+  Zap,
   type LucideIcon,
 } from "lucide-react"
 import { useI18n } from "@/components/locale-provider"
@@ -24,6 +25,7 @@ const META: Record<StopCategory, { icon: LucideIcon; className: string }> = {
   food: { icon: UtensilsCrossed, className: "bg-rose-50 text-rose-700 dark:bg-rose-400/20 dark:text-rose-200" },
   cultura: { icon: Landmark, className: "bg-violet-50 text-violet-700 dark:bg-violet-400/20 dark:text-violet-200" },
   sosta: { icon: ParkingCircle, className: "bg-slate-100 text-slate-600 dark:bg-slate-400/20 dark:text-slate-200" },
+  ricarica: { icon: Zap, className: "bg-emerald-50 text-emerald-700 dark:bg-emerald-400/20 dark:text-emerald-200" },
   notte: { icon: Moon, className: "bg-indigo-50 text-indigo-700 dark:bg-indigo-400/20 dark:text-indigo-200" },
 }
 

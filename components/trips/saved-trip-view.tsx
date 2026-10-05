@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
-import { Loader2 } from "lucide-react"
+import { Loader2, X } from "lucide-react"
 import { SiteHeader } from "@/components/site-header"
 import { ResultView } from "@/components/result/result-view"
 import { AuthDialog } from "@/components/auth/auth-dialog"
@@ -26,6 +26,23 @@ export function SavedTripView({ tripId, publicView = false }: { tripId: string; 
   const [dialogOpen, setDialogOpen] = useState(false)
   const [claimIntent, setClaimIntent] = useState(false)
   const claimAttempted = useRef(false)
+  // The guest signup pill floats over the map/nav area — dismissable per
+  // tab session (lazy initializer is SSR-safe: no window on the server).
+  const [bannerDismissed, setBannerDismissed] = useState(() => {
+    try {
+      return typeof window !== "undefined" && window.sessionStorage.getItem("packron-guest-banner-dismissed") === "1"
+    } catch {
+      return false
+    }
+  })
+  const dismissBanner = () => {
+    setBannerDismissed(true)
+    try {
+      window.sessionStorage.setItem("packron-guest-banner-dismissed", "1")
+    } catch {
+      // Private mode — in-memory dismissal is enough.
+    }
+  }
 
   const homeHref = localizedPath(locale, "/")
   const tripsHref = localizedPath(locale, "/trips")
@@ -179,12 +196,31 @@ export function SavedTripView({ tripId, publicView = false }: { tripId: string; 
         savedId={tripId}
         initialIsFavorite={isFavorite}
         shareUrl={localizedPath(locale, `/trip/${encodeURIComponent(tripId)}`)}
-        showFavoriteButton={!publicView || Boolean(user)}
+        // A foreign-owned row can never be favourited (PATCH is owner-only):
+        // offer "save an owned copy" instead of the toggle. Orphans stay
+        // toggleable — the button claims them on first tap.
+        showFavoriteButton={(!publicView || Boolean(user)) && (tripOwnerId === null || tripOwnerId === user?.id)}
+        showSaveCopyButton={tripOwnerId !== null && tripOwnerId !== user?.id && Boolean(user)}
+        onSaveCopy={(id) => router.push(localizedPath(locale, `/trips/${encodeURIComponent(id)}`))}
+        // Foreign-owned rows reject PUT for everyone but the owner: warn on
+        // edits even when logged out (the guest text points at signup, which
+        // leads to the save-copy flow above once a session exists).
+        showEditsNotSavedNotice={tripOwnerId !== null && tripOwnerId !== user?.id}
       />
-      {publicView && !user && tripOwnerId === null ? (
+      {/* Signup banner for every logged-out public viewer: orphans get claimed
+        after signup, foreign-owned trips get the save-copy flow instead. */}
+      {publicView && !user && !bannerDismissed ? (
         <div className="fixed bottom-5 left-1/2 z-50 flex w-max max-w-[calc(100vw_-_2rem)] -translate-x-1/2 items-center justify-between gap-3 rounded-full border border-border bg-background/90 px-4 py-3 shadow-2xl backdrop-blur-md sm:bottom-8 sm:gap-4 sm:px-6">
           <p className="min-w-0 text-xs font-medium text-foreground sm:text-sm">{t("guestTripBanner")}</p>
           <Button size="sm" className="shrink-0" onClick={() => setDialogOpen(true)}>{t("authSignup")}</Button>
+          <button
+            type="button"
+            onClick={dismissBanner}
+            aria-label={t("close")}
+            className="flex size-7 shrink-0 items-center justify-center rounded-full text-muted-foreground transition hover:bg-muted hover:text-foreground"
+          >
+            <X className="size-4" />
+          </button>
         </div>
       ) : null}
     </div>

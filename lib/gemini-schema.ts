@@ -115,8 +115,8 @@ export const GEMINI_TRIP_SCHEMA: Schema = {
                 name: { type: Type.STRING },
                 type: {
                   type: Type.STRING,
-                  enum: ["drive", "breakfast", "panoramica", "pasto", "museo", "notte"],
-                  description: "Main stop type: drive, breakfast, pasto (lunch/dinner), panoramica, museo, or notte",
+                  enum: ["drive", "breakfast", "panoramica", "pasto", "museo", "ricarica", "notte"],
+                  description: "Main stop type: drive, breakfast, pasto (lunch/dinner), panoramica, museo, ricarica (EV charging stop with real station coords), or notte",
                 },
                 lat: { type: Type.NUMBER, nullable: true, description: "Real latitude for located main stops; omit or set null for drive entries" },
                 lng: { type: Type.NUMBER, nullable: true, description: "Real longitude for located main stops; omit or set null for drive entries" },
@@ -188,7 +188,7 @@ export const GEMINI_TRIP_SCHEMA: Schema = {
 
 export interface GeminiStop {
   name: string
-  type: "drive" | "breakfast" | "panoramica" | "pasto" | "museo" | "notte"
+  type: "drive" | "breakfast" | "panoramica" | "pasto" | "museo" | "ricarica" | "notte"
   lat?: number | null
   lng?: number | null
   start_time: string

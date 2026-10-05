@@ -86,7 +86,7 @@ function isMeaningfulStop(stop: Stop): boolean {
     return false
   }
 
-  if (stop.category === "sosta") return false
+  if (stop.category === "sosta" || stop.category === "ricarica") return false
 
   if (stop.category === "panorama" || stop.category === "cultura" || stop.category === "natura" || stop.category === "borgo" || stop.category === "citta") {
     return true

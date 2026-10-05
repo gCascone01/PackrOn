@@ -8,6 +8,7 @@ import { totalDistanceKm } from "@/lib/costs"
 import { copyText } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { FavoriteTripButton } from "@/components/auth/favorite-trip-button"
+import { SaveCopyButton } from "@/components/auth/save-copy-button"
 import { useAuth } from "@/components/auth/auth-provider"
 import { Timeline } from "./timeline"
 import { CostSummary } from "./cost-summary"
@@ -31,6 +32,9 @@ export function ResultView({
   shareUrl,
   showHero = true,
   showFavoriteButton = true,
+  showSaveCopyButton = false,
+  onSaveCopy,
+  showEditsNotSavedNotice = false,
 }: {
   initial: Itinerary
   onBack: () => void
@@ -42,6 +46,12 @@ export function ResultView({
   shareUrl?: string
   showHero?: boolean
   showFavoriteButton?: boolean
+  /** Foreign-owned row: offer "save an owned copy" instead of the toggle. */
+  showSaveCopyButton?: boolean
+  /** Fired with the new row id once the copy exists. */
+  onSaveCopy?: (id: string) => void
+  /** Foreign-owned row: warn that local edits can't be persisted. */
+  showEditsNotSavedNotice?: boolean
 }) {
   const { t, locale } = useI18n()
   const { user, configured } = useAuth()
@@ -69,11 +79,22 @@ export function ResultView({
   const [autosaveError, setAutosaveError] = useState<string | null>(null)
   const [claimTick, setClaimTick] = useState(0)
   const baselineRef = useRef<string>(JSON.stringify(initial))
+  /** Local edits diverging from the last persisted snapshot. */
+  const [hasUnsavedEdits, setHasUnsavedEdits] = useState(false)
 
   useEffect(() => {
     if (!savedId || !configured) return
     const current = JSON.stringify(itinerary)
-    if (current === baselineRef.current) return
+    if (current === baselineRef.current) {
+      // Back to the persisted snapshot (e.g. undo): clear the divergence flag.
+      setHasUnsavedEdits(false)
+      return
+    }
+    setHasUnsavedEdits(true)
+    // Foreign-owned rows reject PUT (owner-only RLS → 404), so never flash
+    // "Saving…" for a request that cannot succeed — the edits-not-saved
+    // notice covers this case instead.
+    if (showEditsNotSavedNotice) return
     setAutosave("saving")
     setAutosaveError(null)
     const timer = window.setTimeout(() => {
@@ -93,6 +114,7 @@ export function ResultView({
             throw new Error(data?.error === "setup_required" ? t("tripsSetupRequired") : t("tripAutosaveFail"))
           }
           baselineRef.current = current
+          setHasUnsavedEdits(false)
           setAutosave("saved")
           window.setTimeout(() => setAutosave((s) => (s === "saved" ? "idle" : s)), 2500)
         } catch (err) {
@@ -103,7 +125,7 @@ export function ResultView({
     }, 800)
     return () => window.clearTimeout(timer)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [itinerary, savedId, configured, user?.id, claimTick])
+  }, [itinerary, savedId, configured, user?.id, claimTick, showEditsNotSavedNotice])
 
   const shareCurrentPage = async () => {
     setShareError(null)
@@ -147,6 +169,11 @@ export function ResultView({
     let seq = 1
     for (const day of liveItinerary.days) {
       for (const stop of day.stops) {
+        // Drive legs are hidden from the timeline (Gemini emits them only
+        // for some legs), so they get no display number either — list, map
+        // pins, and the hero count share one continuous numbering over
+        // visitable stops only.
+        if (stop.kind === "drive") continue
         map.set(stop.id, seq)
         stops.push({ ...stop, seq, dayNumber: day.dayNumber })
         seq++
@@ -271,13 +298,6 @@ export function ResultView({
   return (
     <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6">
       {showHero ? (
-        <div className="mb-3 flex items-center">
-          <Button variant="outline" size="icon-lg" onClick={onBack} aria-label={t("backToConfig")}>
-            <ArrowLeft className="size-4" />
-          </Button>
-        </div>
-      ) : null}
-      {showHero ? (
         <TripHero
           title={liveItinerary.title}
           subtitle={liveItinerary.subtitle}
@@ -294,13 +314,11 @@ export function ResultView({
         />
       ) : null}
 
-      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="mb-6 flex items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          {!showHero ? (
-            <Button variant="outline" size="icon-lg" onClick={onBack} aria-label={t("backToConfig")}>
-              <ArrowLeft className="size-4" />
-            </Button>
-          ) : null}
+          <Button variant="outline" size="icon-lg" onClick={onBack} aria-label={t("backToConfig")}>
+            <ArrowLeft className="size-4" />
+          </Button>
         </div>
         <div className="flex shrink-0 items-center gap-2">
           {onRestart ? (
@@ -317,6 +335,9 @@ export function ResultView({
                   initialIsFavorite={initialIsFavorite}
                   onClaimed={() => setClaimTick((n) => n + 1)}
                 />
+              ) : null}
+              {showSaveCopyButton && onSaveCopy ? (
+                <SaveCopyButton itinerary={liveItinerary} onSaved={onSaveCopy} />
               ) : null}
               {!showHero ? (
                 <Button variant="secondary" size="lg" className="shrink-0" onClick={() => void shareCurrentPage()}>
@@ -337,6 +358,9 @@ export function ResultView({
             ) : null}
             {autosave === "error" && autosaveError ? (
               <p role="alert" className="text-xs text-destructive">{autosaveError}</p>
+            ) : null}
+            {showEditsNotSavedNotice && hasUnsavedEdits ? (
+              <p role="note" className="max-w-64 text-right text-xs text-muted-foreground">{t(user ? "tripEditsNotSaved" : "tripEditsNotSavedGuest")}</p>
             ) : null}
             {!showHero && shareError ? <p role="alert" className="text-xs text-destructive">{shareError}</p> : null}
           </div>

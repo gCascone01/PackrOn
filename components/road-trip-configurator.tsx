@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button"
 import type { GenerateTripPayload, VehicleType } from "@/lib/types"
 import {
   ArrowRight,
+  BatteryCharging,
   BedDouble,
   CalendarDays,
   CarFront,
@@ -33,6 +34,7 @@ import {
   Scale,
   Sparkles,
   Users,
+  Zap,
 } from "lucide-react"
 import { useI18n } from "@/components/locale-provider"
 import type { MessageKey } from "@/lib/i18n"
@@ -71,6 +73,10 @@ export type RoadFormValue = {
   crew: string[]
   vehicle: VehicleType
   consumption: string
+  /** Real EV range in km (electric only, optional). */
+  evRange: string
+  /** Personal energy price in EUR/kWh (electric only, optional — e.g. charging subscription). */
+  kwhPrice: string
   avoidTolls: boolean
 }
 
@@ -85,6 +91,8 @@ export const DEFAULT_ROAD_FORM: RoadFormValue = {
   crew: ["couple"],
   vehicle: "diesel",
   consumption: "6.5",
+  evRange: "",
+  kwhPrice: "",
   avoidTolls: false,
 }
 
@@ -107,7 +115,7 @@ export function RoadTripConfigurator({
   onStepChange?: (step: number) => void
 }) {
   const { t, locale } = useI18n()
-  const { origin, destination, loop, days, routeTags, pace, basecamp, crew, vehicle, consumption, avoidTolls } = value
+  const { origin, destination, loop, days, routeTags, pace, basecamp, crew, vehicle, consumption, evRange, kwhPrice, avoidTolls } = value
   const patch = (p: Partial<RoadFormValue>) => onChange({ ...value, ...p })
   const setOrigin = (origin: string) => patch({ origin })
   const setDestination = (destination: string) => patch({ destination })
@@ -139,6 +147,8 @@ export function RoadTripConfigurator({
     consumptionAuto.current = false
     patch({ consumption })
   }
+  const setEvRange = (evRange: string) => patch({ evRange })
+  const setKwhPrice = (kwhPrice: string) => patch({ kwhPrice })
   const setAvoidTolls = (avoidTolls: boolean) => patch({ avoidTolls })
   const [locating, setLocating] = useState(false)
   const [locationError, setLocationError] = useState<string | null>(null)
@@ -231,6 +241,8 @@ export function RoadTripConfigurator({
 
   const submit = () => {
     if (!canGenerate) return
+    const evRangeKm = vehicle === "elettrica" ? Number.parseFloat(evRange) : NaN
+    const customKwh = vehicle === "elettrica" ? Number.parseFloat((kwhPrice ?? "").replace(",", ".")) : NaN
     onGenerate({
       mode: "road",
       origin: origin.trim(),
@@ -243,6 +255,8 @@ export function RoadTripConfigurator({
       crew,
       vehicle,
       consumption: Number.parseFloat(consumption) || (vehicle === "elettrica" ? 18 : 6.5),
+      ...(Number.isFinite(evRangeKm) && evRangeKm > 0 ? { evRangeKm: Math.round(evRangeKm) } : {}),
+      ...(Number.isFinite(customKwh) && customKwh > 0 ? { kwhPrice: customKwh } : {}),
       avoidTolls,
     })
   }
@@ -419,6 +433,43 @@ export function RoadTripConfigurator({
               </p>
             ) : null}
           </Field>
+
+          {vehicle === "elettrica" ? (
+            <>
+              <Field label={t("evRange")} hint={t("evRangeHint")} icon={<BatteryCharging className="size-4" />}>
+                <div className="flex items-center gap-2">
+                  <TextInput
+                    type="number"
+                    step="10"
+                    min="50"
+                    className="max-w-[140px]"
+                    value={evRange}
+                    onChange={(e) => setEvRange(e.target.value)}
+                    placeholder={t("evRangePlaceholder")}
+                  />
+                  <span className="text-sm text-muted-foreground">km</span>
+                </div>
+              </Field>
+
+              <Field label={t("kwhPrice")} hint={t("kwhPriceHint")} icon={<Zap className="size-4" />}>
+                <div className="flex items-center gap-2">
+                  <TextInput
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    className="max-w-[140px]"
+                    value={kwhPrice}
+                    onChange={(e) => setKwhPrice(e.target.value)}
+                    placeholder={t("kwhPricePlaceholder")}
+                  />
+                  <span className="text-sm text-muted-foreground">€ / kWh</span>
+                </div>
+                {kwhPrice.trim() ? (
+                  <p className="text-xs text-muted-foreground">{t("kwhPriceCustomNote")}</p>
+                ) : null}
+              </Field>
+            </>
+          ) : null}
 
           <Field label={t("tolls")} icon={<ReceiptText className="size-4" />}>
             <Toggle checked={avoidTolls} onChange={setAvoidTolls} label={t("avoidTolls")} />

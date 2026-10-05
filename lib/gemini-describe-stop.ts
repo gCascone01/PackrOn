@@ -25,6 +25,7 @@ export function buildDescribeStopPrompt(stop: Stop, locale: Locale): string {
         food: "restaurant/food spot",
         cultura: "cultural site",
         sosta: "break stop",
+        ricarica: "EV charging stop",
         notte: "overnight stay",
       }
     : {
@@ -35,6 +36,7 @@ export function buildDescribeStopPrompt(stop: Stop, locale: Locale): string {
         food: "ristorante/luogo food",
         cultura: "sito culturale",
         sosta: "sosta",
+        ricarica: "sosta di ricarica",
         notte: "pernottamento",
       }
 

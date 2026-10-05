@@ -1,6 +1,6 @@
 import { randomUUID } from "crypto"
 import { NextResponse } from "next/server"
-import { generateJsonWithFallback, parseJsonPayload } from "@/lib/gemini"
+import { generateJsonWithFallback, isOverloadedError, parseJsonPayload } from "@/lib/gemini"
 import { GEMINI_TRIP_SCHEMA, type GeminiTrip } from "@/lib/gemini-schema"
 import { buildTripPrompt } from "@/lib/gemini-prompt"
 import { isGeminiTrip, mapGeminiTrip } from "@/lib/map-gemini-itinerary"
@@ -118,15 +118,31 @@ export async function POST(request: Request) {
       return apiError(locale, "apiBadSchema", 502)
     }
 
-    // Country-dependent live energy price (fuel or household electricity
-    // for EVs). Never blocks generation: falls back to built-in defaults.
-    const energy = await energyPromise
-    const itinerary = mapGeminiTrip(parsed as GeminiTrip, payload, {
-      priceEur: energy.priceEur,
-      countryCode: energy.countryCode ?? undefined,
-      source: energy.source,
-      fallback: energy.fallback,
-    })
+    // Personal EV tariff (e.g. charging subscription) wins over the live
+    // household-electricity lookup: 0.2 vs 0.9 €/kWh is the user's contract,
+    // not a market average. Never blocks generation.
+    const customKwh =
+      payload.vehicle === "elettrica" &&
+      Number.isFinite(payload.kwhPrice) &&
+      (payload.kwhPrice as number) > 0 &&
+      (payload.kwhPrice as number) <= 5
+        ? (payload.kwhPrice as number)
+        : null
+    const priceOverride =
+      customKwh != null
+        ? {
+            priceEur: customKwh,
+            source: translate(locale, "kwhPriceCustomSource"),
+            fallback: false,
+            custom: true,
+          }
+        : await energyPromise.then((energy) => ({
+            priceEur: energy.priceEur,
+            countryCode: energy.countryCode ?? undefined,
+            source: energy.source,
+            fallback: energy.fallback,
+          }))
+    const itinerary = mapGeminiTrip(parsed as GeminiTrip, payload, priceOverride)
     if (payload.mode === "road") {
       if (payload.avoidTolls) {
         // The route is planned to avoid toll roads — €0 by choice, not by
@@ -188,6 +204,11 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ id })
   } catch (error) {
+    // The model is saturated, not the request wrong: answer 503 with a
+    // retry-oriented message instead of leaking the raw SDK JSON blob.
+    if (isOverloadedError(error)) {
+      return NextResponse.json({ error: translate(locale, "apiOverloaded") }, { status: 503 })
+    }
     const message = error instanceof Error && error.message !== "MISSING_KEY"
       ? error.message
       : translate(locale, error instanceof Error && error.message === "MISSING_KEY" ? "apiMissingKey" : "apiGeneric")

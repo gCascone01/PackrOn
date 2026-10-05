@@ -1,11 +1,34 @@
 import { ImageResponse } from "next/og"
 import type { Itinerary } from "@/lib/types"
 import { normalizeCoordinates } from "@/lib/map-svg"
+import { buildStaticMapUrl } from "@/lib/static-map"
 import { formatKm, totalDistanceKm } from "@/lib/costs"
 import { withLiveDistances } from "@/lib/geo"
 import { isLocale } from "@/lib/i18n"
 import { createClient } from "@/lib/supabase/server"
 import { isItinerary } from "@/lib/trips"
+
+/**
+ * Real-map background, pre-fetched server-side so the render never depends
+ * on a third party at image time. Any failure (no points, unusable URL,
+ * timeout, bad payload) resolves to null and the card falls back to the
+ * abstract route panel below.
+ */
+async function fetchMapImage(points: Array<{ lat: number; lng: number }>): Promise<string | null> {
+  const url = buildStaticMapUrl(points)
+  if (!url) return null
+  try {
+    const res = await fetch(url, { signal: AbortSignal.timeout(6000), cache: "no-store" })
+    if (!res.ok) return null
+    const buffer = await res.arrayBuffer()
+    if (!buffer.byteLength || buffer.byteLength > 400_000) return null
+    const mime = res.headers.get("content-type")?.split(";")[0]?.trim() || "image/png"
+    if (!mime.startsWith("image/")) return null
+    return `data:${mime};base64,${Buffer.from(buffer).toString("base64")}`
+  } catch {
+    return null
+  }
+}
 
 export const dynamic = "force-dynamic"
 export const alt = "PackrOn itinerary preview"
@@ -73,7 +96,7 @@ export default async function Image({ params }: { params: Promise<{ locale: stri
 
   const allStops = itinerary.days.flatMap((day) => day.stops ?? [])
   const highlights = allStops
-    .filter((stop) => stop.category !== "notte" && stop.category !== "sosta")
+    .filter((stop) => stop.category !== "notte" && stop.category !== "sosta" && stop.category !== "ricarica")
     .slice(0, 3)
     .map((stop) => stop.name)
     .filter(Boolean)
@@ -93,6 +116,7 @@ export default async function Image({ params }: { params: Promise<{ locale: stri
 
   const projected = points.length > 0 ? normalizeCoordinates(points, 360, 360, 26) : []
   const pathD = projected.length > 1 ? `M ${projected.map((point) => `${point.x},${point.y}`).join(" L ")}` : ""
+  const mapImg = await fetchMapImage(points)
 
   const modeLabel = itinerary.mode === "road" ? "Road trip" : "City trip"
   const daysLabel = `${itinerary.days.length} ${itinerary.days.length === 1 ? "day" : "days"}`
@@ -124,8 +148,11 @@ export default async function Image({ params }: { params: Promise<{ locale: stri
         <div
           style={{
             position: "absolute",
-            inset: 0,
-            background: `radial-gradient(circle at top right, ${ACCENT}22 0%, transparent 32%), radial-gradient(circle at bottom left, ${BRAND}33 0%, transparent 30%)`,
+            top: 0,
+            right: 0,
+            bottom: 0,
+            left: 0,
+            background: "linear-gradient(135deg, rgba(231, 139, 48, 0.12) 0%, rgba(0, 136, 174, 0.2) 100%)",
           }}
         />
 
@@ -150,7 +177,7 @@ export default async function Image({ params }: { params: Promise<{ locale: stri
                   height: 16,
                   borderRadius: 8,
                   background: BRAND,
-                  boxShadow: `0 0 0 6px ${BRAND}22`,
+                  boxShadow: "0px 4px 12px rgba(0, 136, 174, 0.2)",
                 }}
               />
               <span style={{ fontSize: 21, fontWeight: 800, letterSpacing: 1.4, color: BRAND_DARK }}>PACKRON</span>
@@ -160,12 +187,12 @@ export default async function Image({ params }: { params: Promise<{ locale: stri
             <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
               <div
                 style={{
-                  display: "inline-flex",
+                  display: "flex",
                   alignSelf: "flex-start",
                   alignItems: "center",
                   padding: "8px 12px",
                   borderRadius: 999,
-                  background: `${BRAND}15`,
+                  background: "rgba(0, 136, 174, 0.08)",
                   color: BRAND_DARK,
                   fontSize: 16,
                   fontWeight: 700,
@@ -187,12 +214,12 @@ export default async function Image({ params }: { params: Promise<{ locale: stri
                     <span
                       key={`${highlight}-${index}`}
                       style={{
-                        display: "inline-flex",
+                        display: "flex",
                         alignItems: "center",
                         padding: "8px 12px",
                         borderRadius: 999,
-                        background: `${ACCENT}14`,
-                        border: `1px solid ${ACCENT}25`,
+                        background: "rgba(231, 139, 48, 0.08)",
+                        border: "1px solid rgba(231, 139, 48, 0.15)",
                         color: TEXT,
                         fontSize: 18,
                         fontWeight: 600,
@@ -218,7 +245,7 @@ export default async function Image({ params }: { params: Promise<{ locale: stri
             style={{
               width: 430,
               minWidth: 430,
-              background: `linear-gradient(180deg, ${BRAND}06 0%, ${BRAND}0a 100%)`,
+              background: "linear-gradient(180deg, rgba(0, 136, 174, 0.04) 0%, rgba(0, 136, 174, 0.06) 100%)",
               borderLeft: `1px solid ${BORDER}`,
               display: "flex",
               alignItems: "center",
@@ -226,36 +253,40 @@ export default async function Image({ params }: { params: Promise<{ locale: stri
               padding: 26,
             }}
           >
-            <svg width={360} height={360} viewBox="0 0 360 360" xmlns="http://www.w3.org/2000/svg" style={{ overflow: "hidden", borderRadius: 28 }}>
-              <rect width={360} height={360} rx={28} fill="#f8fbff" />
-              <g opacity={0.25}>
-                <path d="M0 0H360V360H0Z" fill="none" stroke="#dfeaf1" strokeWidth="1" />
-                {[...Array(10)].map((_, index) => (
-                  <line key={`h-${index}`} x1={0} y1={index * 36} x2={360} y2={index * 36} stroke="#dfeaf1" strokeWidth="1" />
-                ))}
-                {[...Array(10)].map((_, index) => (
-                  <line key={`v-${index}`} x1={index * 36} y1={0} x2={index * 36} y2={360} stroke="#dfeaf1" strokeWidth="1" />
-                ))}
-              </g>
+            {mapImg ? (
+              <img src={mapImg} width={378} height={378} style={{ borderRadius: 28 }} />
+            ) : (
+              <svg width={360} height={360} viewBox="0 0 360 360" xmlns="http://www.w3.org/2000/svg" style={{ overflow: "hidden", borderRadius: 28 }}>
+                <rect width={360} height={360} rx={28} fill="#f8fbff" />
+                <g opacity={0.25}>
+                  <path d="M0 0H360V360H0Z" fill="none" stroke="#dfeaf1" strokeWidth="1" />
+                  {[...Array(10)].map((_, index) => (
+                    <line key={`h-${index}`} x1={0} y1={index * 36} x2={360} y2={index * 36} stroke="#dfeaf1" strokeWidth="1" />
+                  ))}
+                  {[...Array(10)].map((_, index) => (
+                    <line key={`v-${index}`} x1={index * 36} y1={0} x2={index * 36} y2={360} stroke="#dfeaf1" strokeWidth="1" />
+                  ))}
+                </g>
 
-              {pathD && (
-                <path d={pathD} fill="none" stroke={ACCENT} strokeWidth="8" strokeLinecap="round" strokeLinejoin="round" />
-              )}
+                {pathD && (
+                  <path d={pathD} fill="none" stroke={ACCENT} strokeWidth="8" strokeLinecap="round" strokeLinejoin="round" />
+                )}
 
-              {projected.map((point, index) => {
-                const isOrigin = index === 0
-                if (isOrigin) {
-                  return (
-                    <g key={`origin-${index}`}>
-                      <rect x={point.x - 7} y={point.y - 7} width={14} height={14} rx={3} fill={BRAND} />
-                      <path d={`M ${point.x - 10} ${point.y + 10} L ${point.x} ${point.y - 12} L ${point.x + 10} ${point.y + 10} Z`} fill={BRAND} opacity={0.15} />
-                    </g>
-                  )
-                }
+                {projected.map((point, index) => {
+                  const isOrigin = index === 0
+                  if (isOrigin) {
+                    return (
+                      <g key={`origin-${index}`}>
+                        <rect x={point.x - 7} y={point.y - 7} width={14} height={14} rx={3} fill={BRAND} />
+                        <path d={`M ${point.x - 10} ${point.y + 10} L ${point.x} ${point.y - 12} L ${point.x + 10} ${point.y + 10} Z`} fill={BRAND} opacity={0.15} />
+                      </g>
+                    )
+                  }
 
-                return <circle key={`stop-${index}`} cx={point.x} cy={point.y} r={6} fill={BRAND} stroke="#ffffff" strokeWidth={3} />
-              })}
-            </svg>
+                  return <circle key={`stop-${index}`} cx={point.x} cy={point.y} r={6} fill={BRAND} stroke="#ffffff" strokeWidth={3} />
+                })}
+              </svg>
+            )}
           </div>
         </div>
       </div>

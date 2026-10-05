@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { isSupabaseConfigured } from "@/lib/supabase/config"
-import { isMissingTableError, validateSaveTripPayload, type SavedTrip } from "@/lib/trips"
+import { isMissingTableError, scopeTripForViewer, validateSaveTripPayload, type SavedTrip } from "@/lib/trips"
 
 function unauthorized() {
   return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
@@ -25,7 +25,10 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     }
     return NextResponse.json({ error: "Not found" }, { status: 404 })
   }
-  return NextResponse.json({ trip: data as SavedTrip })
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  return NextResponse.json({ trip: scopeTripForViewer(data as SavedTrip, user?.id ?? null) })
 }
 
 /**

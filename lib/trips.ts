@@ -47,6 +47,21 @@ function countStops(itinerary: Itinerary): number {
   return itinerary.days.reduce((n, d) => n + d.stops.length, 0)
 }
 
+/**
+ * Scope a publicly-loaded trip to the requesting viewer.
+ *
+ * `is_favorite` belongs to the row owner: a foreign viewer must never see
+ * the owner's flag (they saw "Favourited" on shared links and hit NOT_FOUND
+ * trying to toggle it). Owners keep their own flag; everyone else —
+ * logged out, or logged in as a non-owner — gets `false`. Orphan
+ * (null-owner) rows are claimable, so they also read `false` until claimed.
+ */
+export function scopeTripForViewer(trip: SavedTrip, viewerId: string | null): SavedTrip {
+  if (viewerId && trip.user_id === viewerId) return trip
+  if (trip.is_favorite === false) return trip
+  return { ...trip, is_favorite: false }
+}
+
 export function toSavedTripSummary(row: SavedTrip): SavedTripSummary {
   return {
     id: row.id,
