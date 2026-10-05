@@ -81,8 +81,11 @@ export function ItineraryMap({
       const queryKey = `${profile}|${coordinateString}`
       // The parent rebuilds `stops` on every render, which re-runs this
       // effect with identical coordinates — skip the redundant request.
+      // The key is recorded only when a fetch actually completes: recording
+      // it upfront broke everything under dev double-effects (the first
+      // fetch is aborted by cleanup, the second pass then mistakes the key
+      // for "already loaded" and straight lines stay forever).
       if (lastRouteQueryRef.current === queryKey) return
-      lastRouteQueryRef.current = queryKey
       const url = `https://router.project-osrm.org/route/v1/${profile}/${coordinateString}?overview=full&geometries=geojson`
 
       try {
@@ -94,22 +97,26 @@ export function ItineraryMap({
         if (data.code !== "Ok") {
           throw new Error(`OSRM API not OK: ${data.code}`)
         }
-        
+
+        if (cancelled) return
+        lastRouteQueryRef.current = queryKey
         if (data.routes && data.routes.length > 0) {
           const geojson = data.routes[0].geometry
           if (geojson && geojson.type === "LineString" && geojson.coordinates) {
             const coords: [number, number][] = geojson.coordinates.map((c: [number, number]) => [c[1], c[0]])
-            if (!cancelled) setRouteGeometries(coords)
+            setRouteGeometries(coords)
           } else {
-            if (!cancelled) setRouteGeometries(null)
+            setRouteGeometries(null)
           }
         } else {
-          if (!cancelled) setRouteGeometries(null)
+          setRouteGeometries(null)
         }
       } catch (error) {
         // Cleanup aborts the in-flight request on re-run/unmount — that
-        // cancellation is expected, not a routing failure, so stay silent.
+        // cancellation is expected, not a routing failure, so stay silent
+        // and let the next effect run retry (the key stays unrecorded).
         if (cancelled) return
+        lastRouteQueryRef.current = queryKey
         if (error instanceof DOMException && error.name === "AbortError") {
           console.warn("OSRM route request timed out, falling back to straight lines.")
         } else {
