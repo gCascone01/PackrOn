@@ -19,7 +19,7 @@ AI travel planner for **road trips** and **city trips**. Fill in a short wizard,
 - **City trips**: walkable/public-transport itineraries within a single city.
 - **Editable results**: reorder/remove stops (distances recompute live), replace a stop from 3 Gemini alternatives with undo toast + pinnable previous choice.
 - **Lazy stop details**: on-demand description (Gemini) + real photo (Wikipedia, freely licensed) in a modal.
-- **Export to PDF**: a printable, offline A4 itinerary (black & white route map, days, stops, substops, costs, toll breakdown) generated client-side with `@react-pdf/renderer`, saved as `PackrOn - <Title>.pdf`.
+- **Export to PDF**: a printable, offline A4 itinerary (days, stops, substops, costs, toll breakdown, plus a black & white route map with territory outlines + numbered stops for road trips) generated client-side with `@react-pdf/renderer`, saved as `PackrOn - <Title>.pdf`.
 - **Sharing**: every generated trip is stored in Supabase and shared with its public UUID route (`/{locale}/trip/{id}`). Guest trips can be claimed by signing up.
 - **Accounts & saved trips**: email/password auth, passkeys (WebAuthn), username profile, saved-trip library with edit-overwrite, account deletion.
 - **SEO**: locale sitemap with hreflang, canonical URLs, Open Graph/Twitter cards, JSON-LD, robots rules.

@@ -16,7 +16,7 @@ import { NavLauncher } from "./nav-launcher"
 import { TripHero } from "./trip-hero"
 import { ExportPdfButton } from "./export-pdf-button"
 import type { MapStop, OriginPoint } from "./itinerary-map"
-import { ArrowLeft, Check, Copy, List, Loader2, Map as MapIcon, RotateCcw, Share2, Undo2 } from "lucide-react"
+import { ArrowLeft, Check, List, Loader2, Map as MapIcon, RotateCcw, Share2, Undo2 } from "lucide-react"
 import { useI18n } from "@/components/locale-provider"
 
 const ItineraryMap = dynamic(() => import("./itinerary-map").then((m) => m.ItineraryMap), {
@@ -54,7 +54,7 @@ export function ResultView({
   /** Foreign-owned row: warn that local edits can't be persisted. */
   showEditsNotSavedNotice?: boolean
 }) {
-  const { t, locale } = useI18n()
+  const { t } = useI18n()
   const { user, configured } = useAuth()
   const [itinerary, setItinerary] = useState<Itinerary>(initial)
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -213,6 +213,30 @@ export function ResultView({
     }))
   }
 
+  /** Tap-friendly reorder for touch: swap with the adjacent visitable stop.
+   *  Drive legs are hidden from the timeline, so stepping over them keeps
+   *  the visible order predictable (raw-index ±1 could swap with an
+   *  invisible drive row and appear to do nothing). */
+  const moveStop = (dayId: string, stopId: string, direction: -1 | 1) => {
+    setItinerary((prev) => ({
+      ...prev,
+      days: prev.days.map((d) => {
+        if (d.id !== dayId) return d
+        const visibleIds = d.stops.filter((s) => s.kind !== "drive").map((s) => s.id)
+        const pos = visibleIds.indexOf(stopId)
+        const neighbor = visibleIds[pos + direction]
+        if (pos === -1 || !neighbor) return d
+        const stops = [...d.stops]
+        const from = stops.findIndex((s) => s.id === stopId)
+        const to = stops.findIndex((s) => s.id === neighbor)
+        if (from === -1 || to === -1) return d
+        const [moved] = stops.splice(from, 1)
+        stops.splice(to, 0, moved)
+        return { ...d, stops }
+      }),
+    }))
+  }
+
   const removeStop = (dayId: string, stopId: string) => {
     if (selectedId === stopId) setSelectedId(null)
     if (lastReplaced?.stopId === stopId) setLastReplaced(null)
@@ -279,6 +303,7 @@ export function ResultView({
         seqOf={(id) => seqMap.get(id) ?? 0}
         onSelect={setSelectedId}
         onReorder={reorder}
+        onMove={moveStop}
         onRemove={removeStop}
         onReplace={replaceStop}
         prevByStopId={prevByStopId}

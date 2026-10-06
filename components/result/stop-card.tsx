@@ -6,7 +6,7 @@ import type { Stop } from "@/lib/types"
 import { CategoryBadge } from "@/components/category-badge"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
-import { BedDouble, Camera, Car, Church, Clock, FileText, Footprints, GripVertical, Hourglass, Landmark, MapPin, ParkingSquare, RefreshCw, Search, Ticket, Trash2, UtensilsCrossed, X } from "lucide-react"
+import { BedDouble, Camera, Car, ChevronDown, ChevronUp, Church, Clock, FileText, Footprints, GripVertical, Hourglass, Landmark, MapPin, ParkingSquare, RefreshCw, Search, Ticket, Trash2, UtensilsCrossed, X } from "lucide-react"
 import { bookingSearchUrl, getYourGuideSearchUrl, googleMapsSearchUrl } from "@/lib/affiliate-links"
 import { withPreviousStop } from "@/lib/alternatives"
 import type { StopImage } from "@/lib/stop-image"
@@ -55,6 +55,10 @@ export function StopCard({
   onReplace,
   previousStop,
   dragging,
+  onMoveUp,
+  onMoveDown,
+  canMoveUp,
+  canMoveDown,
   onDragStart,
   onDragEnter,
   onDragEnd,
@@ -70,6 +74,11 @@ export function StopCard({
   /** Stop this one replaced, if any — pinned atop the alternatives for revert. */
   previousStop?: Stop | null
   dragging: boolean
+  /** Tap-friendly reorder (mobile-first alternative to drag & drop). */
+  onMoveUp: () => void
+  onMoveDown: () => void
+  canMoveUp: boolean
+  canMoveDown: boolean
   onDragStart: (e: DragEvent) => void
   onDragEnter: (e: DragEvent) => void
   onDragEnd: (e: DragEvent) => void
@@ -236,15 +245,40 @@ export function StopCard({
         dragging && "opacity-50",
       )}
     >
-      <div className="flex items-start gap-3">
-        <button
-          type="button"
-          aria-label={t("drag")}
-          onClick={(e) => e.stopPropagation()}
-          className="mt-0.5 cursor-grab touch-none text-muted-foreground/60 transition hover:text-foreground active:cursor-grabbing"
-        >
-          <GripVertical className="size-5" />
-        </button>
+      <div className="flex items-start gap-2">
+        {/* Tap-friendly reorder: chevron buttons work on touch where HTML5
+            drag & drop is impractical; the grip handle remains for desktop. */}
+        <div className="flex shrink-0 flex-col items-center gap-0.5" onClick={(e) => e.stopPropagation()}>
+          <button
+            type="button"
+            aria-label={t("moveUp")}
+            title={t("moveUp")}
+            disabled={!canMoveUp}
+            onClick={onMoveUp}
+            className="flex size-9 items-center justify-center rounded-lg text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-muted-foreground"
+          >
+            <ChevronUp className="size-5" />
+          </button>
+          <button
+            type="button"
+            aria-label={t("drag")}
+            title={t("drag")}
+            onClick={(e) => e.stopPropagation()}
+            className="hidden cursor-grab touch-none text-muted-foreground/60 transition hover:text-foreground active:cursor-grabbing sm:block"
+          >
+            <GripVertical className="size-5" />
+          </button>
+          <button
+            type="button"
+            aria-label={t("moveDown")}
+            title={t("moveDown")}
+            disabled={!canMoveDown}
+            onClick={onMoveDown}
+            className="flex size-9 items-center justify-center rounded-lg text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-muted-foreground"
+          >
+            <ChevronDown className="size-5" />
+          </button>
+        </div>
 
         <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-brand text-xs font-bold text-brand-foreground">
           {seq}
