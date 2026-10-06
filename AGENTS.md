@@ -266,6 +266,9 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - All user-facing strings in `lib/i18n.ts` under `messages.it` / `messages.en`
 - `MessageKey` type ensures compile-time safety
 - New keys must be added to both locales
+- Dead keys are removed, not left: `cat*` keys look unused by string search but are reached via the `CATEGORY_KEYS` map — verify indirection before deleting. Genuinely dead keys found and removed 2026-10 (exact `t("…")`/`translate(…, "…")` search): `aiPlanner`, `badge`, `currentLocation`, `quickTips`, `notesPlaceholder` (road free-notes field is gone; city uses `cityNotesPlaceholder`), `copyLink`, `fuelPriceFallback` (fallback renders no provenance line), `authLoginRequired`, `tripSave`, `tripSaved`, `tripsDeleting`. Locales verified at 368/368 parity after removal.
+- Unused-code gate: `npx tsc --noEmit --noUnusedLocals --noUnusedParameters` must be clean (plain `typecheck` doesn't flag them). This caught: dead `padTime()` in `lib/map-gemini-itinerary.ts`, unused `GeminiDescribeStop` import in `describe-stop/route.ts`, unused `Copy` icon + `locale` in `ResultView`.
+- Unused deps are uninstalled, not left: `react-leaflet` was never imported (maps use plain `leaflet` imperatively) — removed 2026-10. `tw-animate-css`/`postcss`/`typescript` only look unused to naive import scans (CSS `@import` / config-file usage) — leave them.
 - Wizard step labels (`roadStep*`, `cityStep*`) are single short words (Route/Style/Vehicle, Destination/Interests — Percorso/Stile/Veicolo, Destinazione/Interessi): the longer "X & Y" labels overflowed the `StepProgress` tabs. The label span also needs `min-w-0` for `truncate` to work inside flex, and connectors hide below `md` to leave room for labels
 
 ## Testing

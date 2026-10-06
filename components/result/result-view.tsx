@@ -16,7 +16,7 @@ import { NavLauncher } from "./nav-launcher"
 import { TripHero } from "./trip-hero"
 import { ExportPdfButton } from "./export-pdf-button"
 import type { MapStop, OriginPoint } from "./itinerary-map"
-import { ArrowLeft, Check, Copy, List, Loader2, Map as MapIcon, RotateCcw, Share2, Undo2 } from "lucide-react"
+import { ArrowLeft, Check, List, Loader2, Map as MapIcon, RotateCcw, Share2, Undo2 } from "lucide-react"
 import { useI18n } from "@/components/locale-provider"
 
 const ItineraryMap = dynamic(() => import("./itinerary-map").then((m) => m.ItineraryMap), {
@@ -54,7 +54,7 @@ export function ResultView({
   /** Foreign-owned row: warn that local edits can't be persisted. */
   showEditsNotSavedNotice?: boolean
 }) {
-  const { t, locale } = useI18n()
+  const { t } = useI18n()
   const { user, configured } = useAuth()
   const [itinerary, setItinerary] = useState<Itinerary>(initial)
   const [selectedId, setSelectedId] = useState<string | null>(null)

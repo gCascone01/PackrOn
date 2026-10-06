@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { generateJsonWithFallback, parseJsonPayload } from "@/lib/gemini"
-import { GEMINI_DESCRIBE_STOP_SCHEMA, isGeminiDescribeStop, type GeminiDescribeStop } from "@/lib/gemini-describe-stop"
+import { GEMINI_DESCRIBE_STOP_SCHEMA, isGeminiDescribeStop } from "@/lib/gemini-describe-stop"
 import { buildDescribeStopPrompt } from "@/lib/gemini-describe-stop"
 import { fetchStopImage } from "@/lib/stop-image"
 import { isLocale, translate, type Locale } from "@/lib/i18n"

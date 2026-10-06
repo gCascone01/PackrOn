@@ -76,13 +76,6 @@ export function isActionableTollAlert(label: string): boolean {
 let idCounter = 0
 const uid = (prefix: string) => `${prefix}-${Date.now().toString(36)}-${(idCounter++).toString(36)}`
 
-function padTime(totalMinutes: number): string {
-  const wrapped = ((totalMinutes % (24 * 60)) + 24 * 60) % (24 * 60)
-  const h = Math.floor(wrapped / 60)
-  const m = wrapped % 60
-  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`
-}
-
 export function vehicleFromPayload(
   payload: GenerateTripPayload,
   priceOverride?: { priceEur: number; countryCode?: string; source?: string; fallback?: boolean; custom?: boolean },
