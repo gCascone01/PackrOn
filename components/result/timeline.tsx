@@ -28,6 +28,7 @@ export function Timeline({
   seqOf,
   onSelect,
   onReorder,
+  onMove,
   onRemove,
   onReplace,
   prevByStopId,
@@ -39,6 +40,7 @@ export function Timeline({
   seqOf: (stopId: string) => number
   onSelect: (id: string) => void
   onReorder: (dayId: string, fromId: string, toId: string) => void
+  onMove: (dayId: string, stopId: string, direction: -1 | 1) => void
   onRemove: (dayId: string, stopId: string) => void
   onReplace: (dayId: string, stopId: string, next: Stop) => void
   /** Previous stop per live stop id, for the revertible alternatives panel. */
@@ -129,6 +131,10 @@ export function Timeline({
                     showParking={mode === "road"}
                     onSelect={() => onSelect(stop.id)}
                     onRemove={() => onRemove(day.id, stop.id)}
+                    onMoveUp={() => onMove(day.id, stop.id, -1)}
+                    onMoveDown={() => onMove(day.id, stop.id, 1)}
+                    canMoveUp={stopIndex > 0}
+                    canMoveDown={stopIndex < visible.length - 1}
                     onReplace={(next) => onReplace(day.id, stop.id, next)}
                     previousStop={prevByStopId?.[stop.id] ?? null}
                     dragging={draggingId === stop.id}

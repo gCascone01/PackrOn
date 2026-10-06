@@ -161,6 +161,12 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - State must live in `ResultView`, NOT `StopCard`: cards remount on every replace (`Timeline` fragments are keyed by `stop.id`), wiping any per-card memory
 - i18n keys: `stopReplaced`, `undo`, `previousStop` (both locales)
 
+### Stop reordering: tap-friendly up/down + desktop drag (2026-10)
+- Every `StopCard` shows `size-9` (36px) chevron up/down buttons in a left control column (`moveUp`/`moveDown` keys, disabled at list ends). Tapping swaps with the adjacent visitable stop via `ResultView.moveStop(dayId, stopId, ±1)` → `Timeline.onMove` — one tap per step, no hold/drag precision needed, works on touch where HTML5 drag & drop is impractical.
+- `moveStop` swaps raw indices of adjacent *visitable* stops (drive legs are hidden, so raw ±1 could hit an invisible row and appear broken). The desktop grip handle remains (`hidden sm:block`) with the existing HTML5 drag path untouched; it no longer uses `touch-none` on mobile so it can't block scrolling.
+- i18n keys: `moveUp`, `moveDown` (both locales).
+- Rationale: hold-to-drag reorder is very impractical on mobile; explicit up/down buttons are the thumb-friendly alternative and double as an accessible keyboard/tap path on desktop.
+
 ### Custom alternative hint ("Change stop" input)
 - Below the 3 alternative rows in `StopCard` there is a clickable text input + Search button (form, Enter submits): users can type something specific (e.g. "with sea view") and regenerate alternatives honoring it
 - `StopCard` keeps local `hint` state and refetches `/api/suggest-stops` with `{ stop, locale, hint }` (trimmed, capped at 200 chars); input/button stopPropagation so typing/clicking never triggers card select; button disabled only when the hint is empty — the input stays usable while Gemini generates, and a new search aborts the in-flight fetch via `AbortController` so a stale response can never overwrite fresher results (aborted responses keep the currently shown state; only the latest request clears `loadingAlts`)
