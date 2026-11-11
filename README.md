@@ -1,113 +1,98 @@
 # PackrOn
 
-AI travel planner for **road trips** and **city trips**. Fill in a short wizard, Gemini returns a full itinerary (stops, times, map coordinates, lodging, fuel/tolls), then you edit, save, and share it.
-
-## Stack
-
-- Next.js 16 (App Router), React 19, TypeScript
-- Tailwind 4 + shadcn (`base-nova`)
-- Leaflet maps (`leaflet` + `react-leaflet`)
-- Google Gemini (`@google/genai`, primary `gemini-3.1-flash-lite` with automatic fallback)
-- Supabase Auth + Postgres (`@supabase/ssr` + `@supabase/supabase-js`) — login, saved trips, passkeys
-- `@react-pdf/renderer` for client-side PDF export (dynamically imported on click)
-- Italian and English via URL prefixes (`/it`, `/en`)
-- Light/dark theme (cookie-persisted, OS-seeded on first visit)
+PackrOn is an AI-powered trip planner for road trips and city trips. It creates editable itineraries with places to visit, maps, and estimated travel costs.
 
 ## Features
 
-- **Road trips**: multi-stop driving itineraries with distances, fuel costs, tolls, overnight stays. Optional "visit origin" toggle includes sightseeing in the origin city.
-- **City trips**: walkable/public-transport itineraries within a single city.
-- **Editable results**: reorder/remove stops (distances recompute live), replace a stop from 3 Gemini alternatives with undo toast + pinnable previous choice.
-- **Lazy stop details**: on-demand description (Gemini) + real photo (Wikipedia, freely licensed) in a modal.
-- **Export to PDF**: a printable, offline A4 itinerary (days, stops, substops, costs, toll breakdown, plus a black & white route map with territory outlines + numbered stops for road trips) generated client-side with `@react-pdf/renderer`, saved as `PackrOn - <Title>.pdf`.
-- **Sharing**: every generated trip is stored in Supabase and shared with its public UUID route (`/{locale}/trip/{id}`). Guest trips can be claimed by signing up.
-- **Accounts & saved trips**: email/password auth, passkeys (WebAuthn), username profile, saved-trip library with edit-overwrite, account deletion.
-- **SEO**: locale sitemap with hreflang, canonical URLs, Open Graph/Twitter cards, JSON-LD, robots rules.
+- Plan multi-stop road trips or city itineraries.
+- Generate and edit itineraries with AI, including stop alternatives and place descriptions.
+- View routes on a map and estimate fuel, toll, and trip costs.
+- Save trips to an account, share public links, and revisit saved trips.
+- Export itineraries as printable PDFs.
+- Use the app in English or Italian, with light and dark themes.
 
-## Local setup
+## Tech stack
+
+- Next.js App Router, React, and TypeScript
+- Tailwind CSS and Leaflet
+- Google Gemini for itinerary generation
+- Supabase Auth and Postgres for accounts and saved trips
+- Vitest for tests
+
+## Getting started
+
+You need Node.js and npm installed.
 
 ```bash
 npm install
 cp .env.example .env.local
-# set GEMINI_API_KEY + Supabase vars (see below)
+```
+
+Add your Gemini and Supabase credentials to `.env.local`, then start the app:
+
+```bash
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000). Middleware redirects `/` to `/it` or `/en` from the `packron-locale` cookie or `Accept-Language`.
+Open [http://localhost:3000](http://localhost:3000). The app redirects to the Italian or English version based on your browser language or saved locale preference.
 
-### Scripts
+### Environment variables
 
-| Command | Purpose |
-|---|---|
-| `npm run dev` | Dev server |
-| `npm run build` | Production build |
-| `npm run typecheck` | `tsc --noEmit` |
-| `npm test` | Unit tests (Vitest) |
-
-### Environment
-
-| Variable | Required | Notes |
+| Variable | Required | Purpose |
 |---|---|---|
-| `GEMINI_API_KEY` | Yes, for generation | Also used for stop alternatives + descriptions |
-| `GEMINI_MODEL` | No | Default `gemini-3.1-flash-lite` (fallback is built-in) |
-| `NEXT_PUBLIC_CARTO_BASEMAPS_KEY` | No | Optional CARTO Voyager tiles; without it, maps use public OpenStreetMap tiles. Restrict the key to your site referrers |
-| `NEXT_PUBLIC_SUPABASE_URL` | Yes, for auth/saved trips | Supabase project URL |
-| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Yes, for auth/saved trips | Public `sb_publishable_…` key (legacy `NEXT_PUBLIC_SUPABASE_ANON_KEY` still works as fallback). Never add a secret/service-role key |
-| `NEXT_PUBLIC_SITE_URL` | Required in prod | Canonical URL used for sitemap, canonical URLs, and social metadata |
-| `NEXT_PUBLIC_BOOKING_AFFILIATE_ID` | No | Omitted from Booking URLs until set to a real aid |
-| `NEXT_PUBLIC_GETYOURGUIDE_PARTNER_ID` | No | Optional `partner_id` on GetYourGuide searches |
-Without the Supabase vars the app still builds and runs, but auth UI explains setup and trip generation/storage returns 503.
+| `GEMINI_API_KEY` | Yes | Generates itineraries, stop alternatives, and descriptions |
+| `NEXT_PUBLIC_SUPABASE_URL` | Yes | Supabase project URL |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Yes | Public Supabase key; the legacy `NEXT_PUBLIC_SUPABASE_ANON_KEY` is also supported |
+| `NEXT_PUBLIC_SITE_URL` | Production | Public site URL used for canonical links and social metadata |
+| `GEMINI_MODEL` | No | Overrides the default Gemini model |
+| `NEXT_PUBLIC_CARTO_BASEMAPS_KEY` | No | Enables CARTO map tiles; OpenStreetMap is used without it |
+| `NEXT_PUBLIC_BOOKING_AFFILIATE_ID` | No | Adds an affiliate ID to Booking.com links |
+| `NEXT_PUBLIC_GETYOURGUIDE_PARTNER_ID` | No | Adds a partner ID to GetYourGuide links |
+
+Supabase is required for trip generation and storage. Never put a Supabase secret or service-role key in the app.
 
 ### Supabase setup
 
-1. Create a project, then run all migrations in the SQL editor (in order):
-   - `supabase/migrations/20260911000000_create_saved_trips.sql` (table + RLS)
-   - `supabase/migrations/20260912000000_delete_own_account.sql` (self-service account deletion)
-   - `supabase/migrations/20261002000000_unify_trip_storage.sql` (guest rows + public trip reads)
-2. Set `NEXT_PUBLIC_SUPABASE_URL` + key, and `NEXT_PUBLIC_SITE_URL` in prod.
-3. Dashboard → Authentication → Providers → Email: disable email confirmation so signup returns an active session immediately. Set the Site URL to the production URL; this app does not send signup confirmation links.
-4. Optional, for passkeys: Authentication → Passkeys → enable, RP display name `PackrOn`, RP ID = bare production domain. RP ID binds credentials, so localhost needs its own RP ID/project for testing.
+Run these migrations in order in the Supabase SQL editor:
 
-## Routes
+1. `supabase/migrations/20260911000000_create_saved_trips.sql`
+2. `supabase/migrations/20260912000000_delete_own_account.sql`
+3. `supabase/migrations/20261002000000_unify_trip_storage.sql`
+4. `supabase/migrations/20261005000000_trip_favorites.sql`
 
-Pages (all under `/it` + `/en`):
+Disable email confirmation in the Supabase Auth settings so signup creates a session immediately. Passkeys are optional and require enabling them in the Supabase dashboard.
 
-- `/` — planner
-- `/how-it-works` — how it works (legacy `/come-funziona` 302-redirects here)
-- `/examples` — example itineraries (legacy `/esempi` 302-redirects here)
-- `/login`, `/signup` — public auth entry points (in sitemap)
-- `/trips`, `/trips/[id]` — private saved-trip library (never indexed)
-- `/trip/[id]` — public itinerary by database UUID (never indexed)
-- `/account` — private profile, passkeys, delete account (never indexed)
+## Useful commands
 
-API:
+| Command | Description |
+|---|---|
+| `npm run dev` | Start the development server |
+| `npm run build` | Create a production build |
+| `npm start` | Run the production build |
+| `npm run typecheck` | Check TypeScript types |
+| `npm test` | Run the test suite |
 
-- `POST /api/generate-trip` — Gemini itinerary (required-fields check only; feasibility via Gemini `impossible_trip` flag)
-- `POST /api/suggest-stops` — three nearby alternatives (Gemini, mock fallback)
-- `POST /api/describe-stop` — lazy description + Wikipedia photo
-- `GET /api/reverse-geocode` — Nominatim, then BigDataCloud
-- `GET /api/trips`, `POST /api/trips` — list / save (auth required)
-- `GET /api/trips/[id]` — public trip read; `PUT` (auto-save edits) / `PATCH` (favourite flag) / `DELETE` remain owner-only
-- `POST /api/trips/claim` — attach a guest trip to the authenticated user
-- `DELETE /api/account` — delete own account (confirmation by typing username)
-- `GET /auth/callback` — Supabase PKCE code exchange (not locale-prefixed)
+## Main routes
 
-## Sharing vs saved trips
+All pages are available under `/en` and `/it`.
 
-- Every generated itinerary is inserted into `saved_trips`; authenticated generations include the server-derived user ID and guest generations keep `user_id` null. The trip UUID route is the same public URL used by the share action.
-- Edits in the trip view auto-save over the same row; the star button only toggles the `is_favorite` flag (run `supabase/migrations/20261005000000_trip_favorites.sql`). My Trips lists every computed trip, with favourites in a separate top section.
-- Guest trip IDs are also retained in browser local storage for the Recent Trips list. The guest can claim an orphaned row by creating an account while viewing it; the claim endpoint accepts only null-owner rows and derives ownership from the session.
+- `/` — trip planner
+- `/how-it-works` — product guide
+- `/examples` — example itineraries
+- `/login` and `/signup` — account access
+- `/trips` and `/trips/[id]` — saved trips
+- `/trip/[id]` — public trip page
+- `/account` — profile and account settings
 
-## Key files
+The legacy `/i/[id]` trip URL redirects to `/trip/[id]`.
 
-- `lib/gemini.ts`, `lib/gemini-prompt.ts`, `lib/gemini-schema.ts` — model call + fallback, prompt rules, response schema
-- `lib/geocode.ts`, `lib/geo.ts` — required-field check, haversine distances, live recompute
-- `lib/trips.ts` — saved-trip validation and row summaries
-- `lib/supabase/` — browser/server clients, session refresh
-- `lib/i18n.ts` — all user-facing strings (`it`/`en`, `MessageKey` type-safe)
-- `components/planner.tsx`, `components/result/` — wizard + editable result view
-- `components/auth/`, `components/trips/` — login, account, saved-trip UI
+## Project structure
 
-Architecture decisions and rationale live in `AGENTS.md` (single source of truth for contributors).
+- `app/` — pages, API routes, and metadata
+- `components/` — planner, trip results, account, and shared UI
+- `hooks/` — React hooks
+- `lib/` — itinerary logic, integrations, and shared utilities
+- `supabase/migrations/` — database migrations
+- `public/` — logos, icons, and social images
 
-`public/logo.png` is part of the repo (it may be hidden from some workspace scans by ignore rules).
+See [AGENTS.md](./AGENTS.md) for architecture decisions and implementation notes.

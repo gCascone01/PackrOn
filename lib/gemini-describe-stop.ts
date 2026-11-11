@@ -65,5 +65,3 @@ export function isGeminiDescribeStop(value: unknown): value is { description: st
   const desc = (value as { description?: unknown }).description
   return typeof desc === "string" && desc.length > 0
 }
-
-export type GeminiDescribeStop = { description: string }

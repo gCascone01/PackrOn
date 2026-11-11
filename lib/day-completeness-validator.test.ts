@@ -112,7 +112,6 @@ describe("day completeness validator", () => {
 
     const result = validateDayCompleteness(day, { tripType: "road", pace: "relaxed", drivingMinutes: 60 })
     expect(result.status).toBe("warning")
-    expect(result.status).not.toBe("incomplete")
   })
 
   it("allows an arrival day to be short and still valid", () => {

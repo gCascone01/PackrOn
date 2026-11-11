@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest"
 import { renderToBuffer, type DocumentProps } from "@react-pdf/renderer"
 import { TripPdfDocument } from "@/components/result/trip-pdf-document"
 import { buildCityTripItinerary, buildRoadTripItinerary } from "@/lib/mock-itinerary"
-import { totalDistanceKm } from "@/lib/costs"
+import { totalDistanceKm } from "@/lib/trip-metrics"
 
 function render(itinerary: ReturnType<typeof buildRoadTripItinerary>, locale: "en" | "it") {
   return renderToBuffer(

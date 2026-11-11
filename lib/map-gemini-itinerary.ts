@@ -9,7 +9,8 @@ import type {
   Vehicle,
   VehicleType,
 } from "./types"
-import { formatDurationMinutes } from "./costs"
+import { FALLBACK_ENERGY_PRICE } from "./energy-prices"
+import { formatDurationMinutes } from "./trip-metrics"
 import { translate } from "./i18n"
 
 export const STOP_TYPE_TO_CATEGORY: Record<GeminiStopType, StopCategory> = {
@@ -36,15 +37,6 @@ const VEHICLE_FROM_LABEL: Record<string, VehicleType> = {
   Petrol: "benzina",
   Electric: "elettrica",
   Motorcycle: "moto",
-}
-
-/** Built-in fallback prices (EUR/L or EUR/kWh) when live APIs are unreachable. */
-export const DEFAULT_FUEL_PRICE: Record<VehicleType, number> = {
-  benzina: 1.8,
-  diesel: 1.72,
-  elettrica: 0.4,
-  camper: 1.85,
-  moto: 1.8,
 }
 
 /**
@@ -98,7 +90,7 @@ export function vehicleFromPayload(
   return {
     type,
     consumption: Number.isFinite(payload.consumption) ? Number(payload.consumption) : type === "elettrica" ? 18 : 6.5,
-    fuelPrice: DEFAULT_FUEL_PRICE[type],
+    fuelPrice: FALLBACK_ENERGY_PRICE[type],
     fuelPriceFallback: true,
     ...(type === "elettrica" && rangeKm ? { rangeKm } : {}),
   }

@@ -2,7 +2,7 @@ import { Type, type Schema } from "@google/genai"
 import type { GeminiStop } from "./gemini-schema"
 import type { GeminiStopType } from "./types"
 import type { Locale } from "./i18n"
-import { formatDurationMinutes } from "./costs"
+import { formatDurationMinutes } from "./trip-metrics"
 import type { Stop } from "./types"
 import { STOP_TYPE_TO_CATEGORY } from "./map-gemini-itinerary"
 
@@ -28,7 +28,7 @@ export const GEMINI_ALTERNATIVES_SCHEMA: Schema = {
           name: { type: Type.STRING },
           type: {
             type: Type.STRING,
-            enum: ["panoramica", "pasto", "museo", "notte"],
+            enum: ["panoramica", "pasto", "museo", "ricarica", "notte"],
           },
           lat: { type: Type.NUMBER },
           lng: { type: Type.NUMBER },
@@ -97,7 +97,7 @@ export function buildAlternativesPrompt(stop: Stop, locale: Locale, hint?: strin
 
 export function mapAlternativeStops(raw: GeminiStop[], current: Stop): Stop[] {
   return raw.slice(0, 3).map((stop, index) => {
-    const type = (["panoramica", "pasto", "museo", "notte"].includes(stop.type)
+    const type = (["panoramica", "pasto", "museo", "ricarica", "notte"].includes(stop.type)
       ? stop.type
       : "panoramica") as GeminiStopType
     const duration = Math.max(15, Number(stop.duration_minutes) || 60)

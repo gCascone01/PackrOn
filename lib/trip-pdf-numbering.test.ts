@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 import { TripPdfDocument } from "@/components/result/trip-pdf-document"
 import { buildCityTripItinerary, buildRoadTripItinerary } from "@/lib/mock-itinerary"
-import { totalDistanceKm } from "@/lib/costs"
+import { totalDistanceKm } from "@/lib/trip-metrics"
 
 function treeOf(itinerary: ReturnType<typeof buildRoadTripItinerary>, locale: "en" | "it"): unknown {
   // TripPdfDocument uses no hooks, so it can be invoked directly to

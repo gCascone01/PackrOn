@@ -200,13 +200,13 @@ type DbNomicsResponse = {
 }
 
 /** Latest non-null observation of a DBnomics series doc. */
-export function latestSeriesValue(period: readonly (string | undefined)[] | undefined, values: readonly (number | null | undefined)[] | undefined): number | null {
+export function latestSeriesValue(values: readonly (number | null | undefined)[] | undefined): number | null {
   if (!values || values.length === 0) return null
   for (let i = values.length - 1; i >= 0; i--) {
     const v = values[i]
     if (typeof v === "number" && Number.isFinite(v) && v > 0) return v
   }
-  return period ? null : null
+  return null
 }
 
 /**
@@ -223,7 +223,7 @@ export async function getElectricityPriceEurPerKwh(
 
   const json = (await fetchJson(DBNOMICS_SERIES(cc))) as DbNomicsResponse | null
   const doc = json?.series?.docs?.[0]
-  const value = latestSeriesValue(doc?.period, doc?.value)
+  const value = latestSeriesValue(doc?.value)
   if (value == null || value <= 0 || value > 2) return null
 
   const result = { priceEur: value, source: "Eurostat nrg_pc_204 · DBnomics" }

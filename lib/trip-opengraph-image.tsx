@@ -1,9 +1,7 @@
 import { ImageResponse } from "next/og"
 import type { Itinerary } from "@/lib/types"
-import { normalizeCoordinates } from "@/lib/map-svg"
-import { buildStaticMapUrl } from "@/lib/static-map"
-import { formatKm, totalDistanceKm } from "@/lib/costs"
-import { withLiveDistances } from "@/lib/geo"
+import { buildStaticMapUrl, normalizeCoordinates } from "@/lib/trip-map-preview"
+import { formatKm, totalDistanceKm, withLiveDistances } from "@/lib/trip-metrics"
 import { isLocale } from "@/lib/i18n"
 import { createClient } from "@/lib/supabase/server"
 import { isItinerary } from "@/lib/trips"
@@ -30,10 +28,7 @@ async function fetchMapImage(points: Array<{ lat: number; lng: number }>): Promi
   }
 }
 
-export const dynamic = "force-dynamic"
-export const alt = "PackrOn itinerary preview"
-export const size = { width: 1200, height: 630 }
-export const contentType = "image/png"
+const size = { width: 1200, height: 630 }
 
 const BRAND = "#0088ae"
 const BRAND_DARK = "#0d5c7a"

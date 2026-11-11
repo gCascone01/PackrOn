@@ -1,4 +1,4 @@
-import TripImage from "../../i/[id]/opengraph-image"
+import TripImage from "@/lib/trip-opengraph-image"
 
 export const dynamic = "force-dynamic"
 export const alt = "PackrOn itinerary preview"

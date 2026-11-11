@@ -3,8 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import dynamic from "next/dynamic"
 import type { Itinerary, Stop } from "@/lib/types"
-import { withLiveDistances } from "@/lib/geo"
-import { totalDistanceKm } from "@/lib/costs"
+import { roadTripOrigin, totalDistanceKm, withLiveDistances } from "@/lib/trip-metrics"
 import { copyText } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { FavoriteTripButton } from "@/components/auth/favorite-trip-button"
@@ -154,12 +153,7 @@ export function ResultView({
       // Origin legs only exist for road trips. City trips explore the city
       // itself, so never add an origin→first-stop distance (it inflates km
       // and backs the house marker).
-      days: withLiveDistances(
-        itinerary.days,
-        itinerary.mode === "road" && itinerary.originLat && itinerary.originLng
-          ? { lat: itinerary.originLat, lng: itinerary.originLng }
-          : undefined,
-      ),
+      days: withLiveDistances(itinerary.days, roadTripOrigin(itinerary)),
     }),
     [itinerary],
   )
@@ -190,11 +184,8 @@ export function ResultView({
   const originPoint = useMemo<OriginPoint | undefined>(() => {
     // Road-only: city itineraries have no departure point, so no house marker
     // — even for legacy rows that stored originLat/Lng before the mapping fix.
-    if (liveItinerary.mode !== "road") return undefined
-    if (liveItinerary.originLat && liveItinerary.originLng) {
-      return { lat: liveItinerary.originLat, lng: liveItinerary.originLng, name: liveItinerary.origin }
-    }
-    return undefined
+    const origin = roadTripOrigin(liveItinerary)
+    return origin ? { ...origin, name: liveItinerary.origin } : undefined
   }, [liveItinerary])
 
   const reorder = (dayId: string, fromId: string, toId: string) => {

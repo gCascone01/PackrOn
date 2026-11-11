@@ -2,6 +2,7 @@ import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
 import { Inter, Plus_Jakarta_Sans } from 'next/font/google'
 import { Providers } from '@/components/providers'
+import { SITE_URL } from '@/lib/site-url'
 import './globals.css'
 
 const inter = Inter({
@@ -15,9 +16,6 @@ const jakarta = Plus_Jakarta_Sans({
   variable: '--font-jakarta',
   display: 'swap',
 })
-
-const SITE_URL =
-  process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, '') ?? 'https://packron.vercel.app'
 
 const SITE_NAME = 'PackrOn'
 const SITE_DESCRIPTION =

@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest"
-import { buildAlternativesPrompt } from "./gemini-alternatives"
+import {
+  buildAlternativesPrompt,
+  GEMINI_ALTERNATIVES_SCHEMA,
+  mapAlternativeStops,
+} from "./gemini-alternatives"
 import type { Stop } from "./types"
 
 const museum: Stop = {
@@ -33,5 +37,29 @@ describe("buildAlternativesPrompt", () => {
     expect(prompt).toContain("ostello")
     expect(prompt).toContain("precedenza")
     expect(prompt).toContain("type=notte")
+  })
+})
+
+describe("EV charging alternatives", () => {
+  it("allows and preserves ricarica alternatives in the Gemini schema and mapper", () => {
+    const schema = GEMINI_ALTERNATIVES_SCHEMA as unknown as {
+      properties: { alternatives: { items: { properties: { type: { enum: string[] } } } } }
+    }
+    expect(schema.properties.alternatives.items.properties.type.enum).toContain("ricarica")
+
+    const chargingStop: Stop = { ...museum, category: "ricarica" }
+    const [alternative] = mapAlternativeStops([{
+      name: "Fast charging station",
+      type: "ricarica",
+      lat: 45.1,
+      lng: 9.1,
+      start_time: "10:00",
+      end_time: "10:30",
+      duration_minutes: 30,
+      short_description: "A fast charging station.",
+      sub_stops: [],
+    }], chargingStop)
+
+    expect(alternative.category).toBe("ricarica")
   })
 })

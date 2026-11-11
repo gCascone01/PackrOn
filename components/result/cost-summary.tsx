@@ -1,7 +1,7 @@
 "use client"
 
 import type { Itinerary } from "@/lib/types"
-import { fuelCost, formatEur, formatKm, tollsCost, totalCost, totalDistanceKm } from "@/lib/costs"
+import { fuelCost, formatEur, formatKm, tollsCost, totalCost, totalDistanceKm } from "@/lib/trip-metrics"
 import { AlertTriangle, Fuel, Receipt, Route, Ticket } from "lucide-react"
 import { useI18n } from "@/components/locale-provider"
 
