@@ -11,7 +11,7 @@ import { getEnergyPrice } from "@/lib/energy-prices"
 import { buildTollWaypoints, getRouteTolls, vehicleClassForTolls } from "@/lib/tolls"
 import { createClient } from "@/lib/supabase/server"
 import { isSupabaseConfigured } from "@/lib/supabase/config"
-import { isMissingTableError } from "@/lib/trips"
+import { isMissingTableError, MAX_SAVED_TITLE_LENGTH } from "@/lib/trips"
 import {
   createGeminiDebugId,
   isGeminiDebugEnabled,
@@ -188,7 +188,7 @@ export async function POST(request: Request) {
       .insert({
         id,
         user_id: user?.id ?? null,
-        title: itinerary.title.trim().slice(0, 160),
+        title: itinerary.title.trim().slice(0, MAX_SAVED_TITLE_LENGTH),
         mode: itinerary.mode,
         origin: itinerary.origin.slice(0, 200),
         data: itinerary,

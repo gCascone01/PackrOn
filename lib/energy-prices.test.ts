@@ -44,9 +44,9 @@ describe("energy-prices pure helpers", () => {
   })
 
   it("takes the latest non-null series observation", () => {
-    expect(latestSeriesValue(["2024-S1", "2024-S2"], [0.3, null])).toBe(0.3)
-    expect(latestSeriesValue(["2024-S1", "2024-S2"], [0.3, 0.32])).toBe(0.32)
-    expect(latestSeriesValue([], [])).toBeNull()
+    expect(latestSeriesValue([0.3, null])).toBe(0.3)
+    expect(latestSeriesValue([0.3, 0.32])).toBe(0.32)
+    expect(latestSeriesValue([])).toBeNull()
   })
 })
 

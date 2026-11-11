@@ -1,11 +1,10 @@
 import type { Locale, MessageKey } from "./i18n"
 import type { GenerateTripPayload } from "./types"
-import { haversineKmCoords } from "./geo"
+import { haversineKmCoords } from "./trip-metrics"
 
 export interface GeocodeResult {
   lat: number
   lng: number
-  displayName: string
   /** ISO 3166-1 alpha-2 country code (uppercase) when Nominatim provides it. */
   countryCode?: string
 }
@@ -37,7 +36,6 @@ export async function geocodeLocation(
   const data = (await res.json()) as Array<{
     lat: string
     lon: string
-    display_name: string
     address?: { country_code?: string }
     type?: string
     class?: string
@@ -51,7 +49,6 @@ export async function geocodeLocation(
   return {
     lat: Number(best.lat),
     lng: Number(best.lon),
-    displayName: best.display_name,
     ...(countryCode ? { countryCode } : {}),
   }
 }
@@ -72,14 +69,14 @@ async function safeGeocode(query: string, locale: Locale): Promise<GeocodeResult
 export async function validateLocations(
   payload: GenerateTripPayload,
   locale: Locale
-): Promise<{ valid: boolean; errorKey?: MessageKey; countryCode?: string; coords?: { originLat?: number; originLng?: number; destLat?: number; destLng?: number; cityLat?: number; cityLng?: number } }> {
+): Promise<{ valid: boolean; errorKey?: MessageKey; countryCode?: string }> {
   // Principle: reject if and only if the trip is confidently impossible.
   // A geocode miss proves nothing (free text, typos, obscure places,
   // Nominatim gaps) — in that case Gemini decides via the impossible_trip flag.
   if (payload.mode === "city") {
     if (!payload.city?.trim()) return { valid: false, errorKey: "apiNeedCity" }
     const city = await safeGeocode(payload.city, locale)
-    if (city) return { valid: true, countryCode: city.countryCode, coords: { cityLat: city.lat, cityLng: city.lng } }
+    if (city) return { valid: true, countryCode: city.countryCode }
     return { valid: true }
   }
 
@@ -106,12 +103,6 @@ export async function validateLocations(
     return {
       valid: true,
       countryCode: origin.countryCode,
-      coords: {
-        originLat: origin.lat,
-        originLng: origin.lng,
-        destLat: destination.lat,
-        destLng: destination.lng,
-      },
     }
   }
 

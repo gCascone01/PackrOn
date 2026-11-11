@@ -1,4 +1,5 @@
 import { Type, type Schema } from "@google/genai"
+import type { GeminiStopType } from "./types"
 
 export const GEMINI_TRIP_SCHEMA: Schema = {
   type: Type.OBJECT,
@@ -188,7 +189,7 @@ export const GEMINI_TRIP_SCHEMA: Schema = {
 
 export interface GeminiStop {
   name: string
-  type: "drive" | "breakfast" | "panoramica" | "pasto" | "museo" | "ricarica" | "notte"
+  type: GeminiStopType
   lat?: number | null
   lng?: number | null
   start_time: string

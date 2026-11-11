@@ -7,7 +7,6 @@ type NominatimAddress = {
   municipality?: string
   city_district?: string
   county?: string
-  state?: string
   country?: string
 }
 

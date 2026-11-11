@@ -1,16 +1,8 @@
 /**
- * Real-map background for the social preview image.
- *
- * The OG card used to draw the route as bare lines on an empty grid, which
- * reads as meaningless squiggles. This builds a URL for the keyless
- * mapmap.ai static-map endpoint (rate-limited, OSM attribution baked into
- * the render): real streets/terrain with our stop markers and a branded
- * route overlay, auto-framed on the points. Never throws — returns null
- * when there is nothing mappable or the URL would overflow the service's
- * 8000-byte query cap.
+ * Helpers for the route map used in the trip's social preview.
  */
 
-export interface StaticMapPoint {
+interface StaticMapPoint {
   lat: number
   lng: number
 }
@@ -18,7 +10,7 @@ export interface StaticMapPoint {
 const STATIC_MAP_BASE = "https://mapmap.ai/api/static-map"
 const QUERY_CAP = 8000
 const URL_MARGIN = 1500
-export const STATIC_MAP_MAX_POINTS = 30
+const STATIC_MAP_MAX_POINTS = 30
 
 function isValidPoint(point: StaticMapPoint): boolean {
   return (
@@ -42,12 +34,12 @@ export function buildStaticMapUrl(points: StaticMapPoint[], size = "640x640"): s
   const base = `${STATIC_MAP_BASE}?size=${encodeURIComponent(size)}`
   for (const count of [STATIC_MAP_MAX_POINTS, 15]) {
     const subset = valid.slice(0, count)
-    const markers = subset.map((p) => `${p.lng},${p.lat}`).join(";")
+    const markers = subset.map((point) => `${point.lng},${point.lat}`).join(";")
     let url = `${base}&markers=${encodeURIComponent(markers)}`
     if (subset.length > 1) {
       const geojson = JSON.stringify({
         type: "Feature",
-        geometry: { type: "LineString", coordinates: subset.map((p) => [p.lng, p.lat]) },
+        geometry: { type: "LineString", coordinates: subset.map((point) => [point.lng, point.lat]) },
         properties: { stroke: "#e78b30", "stroke-width": 6 },
       })
       const withPath = `${url}&geojson=${encodeURIComponent(geojson)}`
@@ -56,4 +48,34 @@ export function buildStaticMapUrl(points: StaticMapPoint[], size = "640x640"): s
     if (url.length <= QUERY_CAP - URL_MARGIN) return url
   }
   return null
+}
+
+export function normalizeCoordinates(
+  points: StaticMapPoint[],
+  width = 400,
+  height = 300,
+  padding = 40,
+): Array<{ x: number; y: number }> {
+  if (points.length === 0) return []
+
+  const minLat = Math.min(...points.map((point) => point.lat))
+  const maxLat = Math.max(...points.map((point) => point.lat))
+  const minLng = Math.min(...points.map((point) => point.lng))
+  const maxLng = Math.max(...points.map((point) => point.lng))
+
+  const latDiff = maxLat - minLat || 1
+  const lngDiff = maxLng - minLng || 1
+
+  // Preserve aspect ratio.
+  const scale = Math.min((width - padding * 2) / lngDiff, (height - padding * 2) / latDiff)
+
+  const cx = (minLng + maxLng) / 2
+  const cy = (minLat + maxLat) / 2
+
+  return points.map((point) => {
+    // Longitude maps to X; latitude maps to inverted Y.
+    const x = width / 2 + (point.lng - cx) * scale
+    const y = height / 2 - (point.lat - cy) * scale
+    return { x, y }
+  })
 }

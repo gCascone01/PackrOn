@@ -1,10 +1,17 @@
 "use client"
 
 import { useState } from "react"
-import { Chip, Field, NumberStepper, OptionCard, TextArea, TextInput } from "@/components/form-controls"
-import { StepProgress } from "@/components/step-progress"
+import {
+  Chip,
+  Field,
+  NumberStepper,
+  OptionCard,
+  StepProgress,
+  TextArea,
+  TextInput,
+  WizardPreview,
+} from "@/components/wizard-ui"
 import { TravelThought } from "@/components/travel-thought"
-import { WizardPreview } from "@/components/wizard-preview"
 import { Button } from "@/components/ui/button"
 import type { GenerateTripPayload } from "@/lib/types"
 import { ArrowRight, CalendarDays, Compass, FileText, Gauge, MapPin, Sparkles } from "lucide-react"

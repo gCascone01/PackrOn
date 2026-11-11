@@ -19,11 +19,21 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - The old localized `/i/{id}` path redirects to the matching `/trip/{id}` URL; the compressed itinerary-token route is removed.
 - Rationale: there is one canonical trip page and one UUID across generation, sharing, guest retention, and account claiming.
 
+### Trip metrics consolidation (2026-10)
+- `lib/trip-metrics.ts` groups route-distance calculations, cost estimates, and number formatting that previously lived in `lib/geo.ts` and `lib/costs.ts`; their tests are consolidated in `lib/trip-metrics.test.ts`.
+- `haversineKmCoords()` remains in the shared metrics module and is imported by `lib/geocode.ts`, avoiding a dependency cycle.
+- Rationale: distance and cost utilities are one cohesive trip-metrics domain, and consolidating their small modules reduces fragmentation without changing behavior.
+
+### External link builders (2026-11)
+- `lib/external-links.ts` groups outbound URL builders for map navigation, map search, Booking.com, and GetYourGuide, previously split between `lib/nav-links.ts` and `lib/affiliate-links.ts`.
+- `components/result/nav-launcher.tsx` and `components/result/stop-card.tsx` import from the shared module; URL formats and affiliate environment-variable behavior are unchanged.
+- Rationale: these small pure helpers all construct links to external services, so keeping them together reduces utility-file fragmentation without mixing them with localized app paths.
+
 ### Dynamic social previews (2026-10-02)
 - The dynamic OG image for a public trip lives at `app/[locale]/trip/[id]/opengraph-image.tsx` and uses the same brand palette and route-map composition as the previous shared-trip preview.
 - The social preview uses the PackrOn blue brand color and orange accent color converted from the app’s OKLCH design tokens, while avoiding CSS variable references because `ImageResponse` needs fixed hex values.
 - The 1200×630 preview includes “THE ROAD AHEAD” branding, trip title, mode, day/distance/stop statistics, highlight chips, and a compact route map that starts from the trip origin house marker and follows the itinerary path.
-- The map panel is a real map, not abstract lines: `lib/static-map.ts` builds a URL for the keyless mapmap.ai static-map endpoint (stop markers + brand-orange GeoJSON route, auto-framed, OSM attribution baked in; URL kept under the 8KB query cap by shedding points/path on long trips), and the route pre-fetches it server-side (6s timeout, 400KB cap) embedding it as a data URI. Any failure falls back to the old abstract SVG panel, so the render never breaks (verified live: HTTP 200 PNG with and without the path overlay).
+- The map panel is a real map, not abstract lines: `lib/trip-map-preview.ts` builds a URL for the keyless mapmap.ai static-map endpoint (stop markers + brand-orange GeoJSON route, auto-framed, OSM attribution baked in; URL kept under the 8KB query cap by shedding points/path on long trips), and the route pre-fetches it server-side (6s timeout, 400KB cap) embedding it as a data URI. Any failure falls back to the old abstract SVG panel, so the render never breaks (verified live: HTTP 200 PNG with and without the path overlay).
 - The preview uses the default Node.js runtime and request-time image generation. It calls the UUID-scoped `get_public_trip` Supabase function directly and validates the returned itinerary; query failures, missing rows, and invalid payloads are logged and return a generic branded image.
 - `/trip/[id]/page.tsx` generates localized trip title/description metadata from the same public-trip RPC and explicitly points both `openGraph.images` and `twitter.images` to the dynamic 1200×630 image route.
 - Rationale: chat apps such as WhatsApp only render the social metadata image, so a dynamic OG preview gives a usable card even when the live app page is not rendered inline.
@@ -43,7 +53,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 ### Trip validation (Gemini-only)
 - **Client-side (fast)**: Required field validation only (origin/destination for road trips, city for city trips) — instant feedback for missing fields
-- **Server-side (smart)**: Gemini evaluates trip feasibility with context — handles location existence, edge cases like ferries, specific routes, regional connectivity, intercontinental/ocean crossings. Gemini imposes **no distance limit**; the ~10000km cap is enforced client-side only (`validateLocations` fast path in `lib/geocode.ts`)
+- **API-side (best effort)**: `validateLocations()` geocodes known points to provide the origin country for pricing and rejects only when both road-trip endpoints resolve more than ~10000km apart. A geocode miss is not invalid input. Gemini evaluates all other feasibility with context — location existence, ferries, regional connectivity, intercontinental/ocean crossings — and imposes no distance limit of its own.
 - Rationale: Nominatim geocoding was rigid and couldn't handle fuzzy locations (e.g., "Tuscany" vs specific city); Gemini can interpret natural language locations and make nuanced feasibility decisions (e.g., Italy-Sicily ferry is fine, but Rome-Tokyo isn't)
 
 ### Itinerary types
@@ -65,8 +75,8 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - Hero card uses a responsive 1200:630 desktop aspect ratio with a 7/5 content-to-map grid and a content-driven mobile layout. Its slate/white editorial palette uses the configured brand accent for icons and sign-off; the balanced title uses tight 1.12 leading, and the discreet localized PackrOn creator badge is text-only, with a brand-tinted frame and crisp slate text. The card then uses localized `What to expect` copy and a compact days/distance/stops metric strip below the subtitle; it shows up to the first three days as a vertical timeline with a subtle brand-color trail behind the day dots, followed by a remaining-days count and adventure sign-off. The lower result toolbar does not repeat those metrics. The map wrapper clips overflow, uses bottom-only rounding on mobile, and right-only rounding with no left divider border on desktop.
 - Back always sits in the lower toolbar row, left-aligned opposite the favorite/restart/share actions (single `justify-between` row) — the old standalone Back row above the Hero was removed. With the Hero visible, Share is in the Hero top bar and restart/favorite remain in the lower toolbar; when the Hero is hidden, Share joins them there.
 - Cost Summary uses white bordered stat cards, a light brand-tinted total card, a compact amber toll-alert badge, and localized vehicle-aware estimate microcopy instead of the raw calculation formula.
-- Distance calculation includes origin→first stop for day 1 (`withLiveDistances` in `lib/geo.ts`) — road trips only; city trips pass no origin so no origin leg is added
-- Origin (house marker + origin leg + OSRM origin point + OG origin point) is road-only: `mapGeminiTrip` omits `originLat`/`originLng` for city mode, `ResultView` builds `originPoint` and live distances only when `mode === "road"`, `ItineraryMap` ignores any passed origin via `effectiveOrigin` when `mode !== "road"`, and the OG image prepends the origin point only for road trips. This also covers legacy city rows saved with origin coords.
+- Distance calculation includes origin→first stop for day 1 (`withLiveDistances` in `lib/trip-metrics.ts`) — road trips only; city trips pass no origin so no origin leg is added
+- Origin (house marker + origin leg + OSRM origin point + OG origin point) is road-only: `mapGeminiTrip` omits `originLat`/`originLng` for city mode, `roadTripOrigin()` in `lib/trip-metrics.ts` validates finite coordinates without rejecting valid zero values, `ResultView` uses it for the origin marker and live distances, `ItineraryMap` ignores any passed origin via `effectiveOrigin` when `mode !== "road"`, and the OG image prepends the origin point only for road trips. This also covers legacy city rows saved with origin coords.
 - The OG image derives its km label from `withLiveDistances` (origin only for road) instead of the stored `totalKmEstimated`/`distanceKm`: city rows are saved with `0` in both (city prompt forces `total_km_estimated = 0`, mapping sets `distanceKm: 0`), so reading stored values rendered "0 km" while the app hero showed live walking km. Computing live at render time also keeps the preview correct after stop edits.
 - Rationale: User sees the full route from their actual starting point, not just between stops. City trips have no departure point (the city is the area explored), so a house marker/origin leg on top of the first stop is bogus and inflates walking km.
 
@@ -92,15 +102,16 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - The `StepProgress` tabs are clickable buttons (`onSelect` → the configurator's `changeStep`): backward jumps are free, forward jumps run the same step-0 validation as Continue. The active tab stays static.
 
 <### EV consumption units (kWh, not litres)
-- `RoadTripConfigurator` consumption field is vehicle-aware: for `elettrica` the hint switches to `consumptionHintEv` ("kWh per 100 km") and the suffix to "kWh / 100 km"; fuel vehicles keep "L / 100 km". The cost formula (`lib/costs.ts`, `(km/100)*consumption*price`) is unit-agnostic, so only labels change — including `CostSummary`'s formula line (`× … kWh × … €/kWh` for EVs)
+- `RoadTripConfigurator` consumption field is vehicle-aware: for `elettrica` the hint switches to `consumptionHintEv` ("kWh per 100 km") and the suffix to "kWh / 100 km"; fuel vehicles keep "L / 100 km". The cost formula (`lib/trip-metrics.ts`, `(km/100)*consumption*price`) is unit-agnostic, so only labels change — including `CostSummary`'s formula line (`× … kWh × … €/kWh` for EVs)
 - EV defaults: the consumption default swaps in both directions while the field is still automatic (`6.5` ↔ `18` on vehicle switch); a manually typed value is always respected and never clobbered. Automatic-ness is tracked by a `consumptionAuto` ref (cleared on manual edit) combined with a value check against both defaults, so rehydrated drafts with custom values are also preserved. Submit falls back to 18 for EVs vs 6.5 otherwise (mirrors `vehicleFromPayload` in `lib/map-gemini-itinerary.ts`, which the old `|| 6.5` fallback was overriding)
 - i18n keys: `consumptionHintEv` (both locales)
 - Rationale: asking "litres per 100 km" for an electric car is nonsense input that also poisons the cost estimate; the unit must follow the selected vehicle
 
 ### Country-dependent live energy prices (2026-10)
-- `lib/energy-prices.ts` resolves the unit price per vehicle instead of the old hardcoded `DEFAULT_FUEL_PRICE` table (kept only as offline fallback): motor fuel comes from the keyless OpenVan.camp API (`GET /api/fuel/prices?country={ISO2}`, 169 countries, weekly retail from EU Oil Bulletin/EIA/etc., CC BY 4.0), household electricity for EVs from Eurostat `nrg_pc_204` band DC (2500–4999 kWh, all taxes, EUR/kWh) via the keyless DBnomics mirror (`S.6000.KWH2500-4999.KWH.I_TAX.EUR.{CC}`, ~35 European countries).
+- `lib/energy-prices.ts` resolves the unit price per vehicle; `FALLBACK_ENERGY_PRICE` is the single offline fallback table used by both price lookup and itinerary mapping. Motor fuel comes from the keyless OpenVan.camp API (`GET /api/fuel/prices?country={ISO2}`, 169 countries, weekly retail from EU Oil Bulletin/EIA/etc., CC BY 4.0), household electricity for EVs from Eurostat `nrg_pc_204` band DC (2500–4999 kWh, all taxes, EUR/kWh) via the keyless DBnomics mirror (`S.6000.KWH2500-4999.KWH.I_TAX.EUR.{CC}`, ~35 European countries).
 - Fuel grade follows the vehicle (`benzina`/`moto` → gasoline chain, `diesel`/`camper` → diesel chain, first non-null grade wins); non-EUR currencies convert via OpenVan `/api/currency/rates` (base EUR) and US gallons / imperial gallons convert to litres. Out-of-range values (>10 €/L, >2 €/kWh) are rejected as bad data.
 - Country comes from `geocodeLocation()`'s new `countryCode` (Nominatim `address.country_code`, uppercased), threaded through `validateLocations().countryCode` so `/api/generate-trip` needs no second geocode; `getEnergyPrice()` never throws and returns `{ priceEur, unit, countryCode, source, fallback }` with in-memory TTLs (fuel 6h, rates 24h, electricity 7d — Eurostat is semi-annual).
+- `latestSeriesValue()` reads the newest usable value directly from DBnomics' ordered values array; period labels are not needed for the selection.
 - `vehicleFromPayload(payload, priceOverride)` / `mapGeminiTrip(raw, payload, priceOverride)` stamp `Vehicle.fuelCountryCode/fuelPriceSource/fuelPriceFallback`; `GET /api/energy-prices?origin=…&vehicle=…` (or `?country=…`) exposes the same lookup for the client, which `RoadTripConfigurator` polls debounced to show a live-price hint under consumption, and `CostSummary` shows the provenance line when the price is live.
 - Tested in `lib/energy-prices.test.ts` (grade picking, gallon/currency conversion, Eurostat latest-value, EV routing, never-throws fallback); `npm test` (78 tests), `npm run typecheck`, `npm run build` green.
 - i18n keys: `fuelPriceLive`, `fuelPriceFallback`, `fuelPriceLoading` (both locales).
@@ -109,7 +120,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 ### EV personal tariff + range + charging stops (2026-10)
 - The live Eurostat household price (~0.3–0.4 €/kWh) is wrong for drivers with a charging subscription (e.g. 0.2 vs 0.9 €/kWh): step 2 of `RoadTripConfigurator` shows two extra EV-only fields — `evRange` (real km on a full charge, placeholder 320) and `kwhPrice` (personal €/kWh, accepts comma decimals). Both are optional strings in `RoadFormValue` (persisted in the planner draft via `sanitizeDraft`), parsed at submit into `GenerateTripPayload.evRangeKm` (rounded, only if >0) and `kwhPrice` (>0 only).
 - `/api/generate-trip` prefers the personal tariff when `vehicle === "elettrica"` and `0 < kwhPrice <= 5` (typo guard): it becomes the `priceOverride` with `source = kwhPriceCustomSource` ("Tariffa personale"/"Personal tariff"), `fallback: false`, `custom: true`, bypassing the live lookup. `vehicleFromPayload()` stamps `Vehicle.fuelPriceCustom` + `Vehicle.rangeKm` (range kept only when 50–1500 km, same bounds as the prompt, so typos like 3200 never reach Gemini or storage). `CostSummary` shows `fuelPriceCustom` ("Tariffa personale: €…/kWh") instead of the live-price provenance line; the deterministic `(km/100) × consumption × price` formula is unchanged, so custom tariffs flow through every cost row automatically.
-- Charging stops are a dedicated stop type, not prose: `GeminiStopType`/`StopCategory` gain `ricarica`, the Gemini response schema enum + `mapGeminiTrip()` allow-list accept it, `STOP_TYPE_TO_CATEGORY` maps `ricarica → ricarica`, and `CATEGORY_LABELS`/`CATEGORY_KEYS`/`CategoryBadge` (emerald `Zap` icon + `catRicarica` key, with `dark:` variant) render it. Coords are required (real station location), so Maps/nav buttons, map pins, and descriptions work with no `StopCard` change; `CATEGORY_TO_TYPE` maps it back for alternatives, `gemini-describe-stop.ts` labels it ("EV charging stop"/"sosta di ricarica"), the day-completeness validator treats it as non-meaningful logistics (like `sosta`), and the legacy OG image excludes it from highlight chips.
+- Charging stops are a dedicated stop type, not prose: `GeminiStopType`/`StopCategory` gain `ricarica`, the Gemini response schema enum + `mapGeminiTrip()` allow-list accept it, `STOP_TYPE_TO_CATEGORY` maps `ricarica → ricarica`, and `CATEGORY_LABELS`/`CATEGORY_KEYS`/`CategoryBadge` (emerald `Zap` icon + `catRicarica` key, with `dark:` variant) render it. Coords are required (real station location), so Maps/nav buttons, map pins, and descriptions work with no `StopCard` change; the alternatives schema and mapper preserve `ricarica` when suggesting replacements, `CATEGORY_TO_TYPE` maps it back into prompts, `gemini-describe-stop.ts` labels it ("EV charging stop"/"sosta di ricarica"), the day-completeness validator treats it as non-meaningful logistics (like `sosta`), and the legacy OG image excludes it from highlight chips.
 - The road prompt gains one conditional EV paragraph (only when range is 50–1500 km, so non-EV prompts stay byte-identical and the verbatim `gemini-prompt.test.ts` still passes): "Real EV range: X km… plan `type=ricarica` stops so no leg exceeds it (safety margin), each with real station coords, charge `duration_minutes`, and charger power/network in the description; no sub_stops; prefer fast chargers on transit legs, combine with meals/sightseeing; overnight implies destination charging." Note: this appends to the user-approved road prompt wording (see "Approved Road Prompt") — approved as part of this EV feature request.
 - Tested: `gemini-prompt.test.ts` (EV paragraph present/absent) + `map-gemini-itinerary.test.ts` (ricarica mapping with coords, custom tariff + range stamping); `npm test` (103 tests), `npm run typecheck`, `npm run build` green.
 - i18n keys: `evRange`, `evRangeHint`, `evRangePlaceholder`, `kwhPrice`, `kwhPriceHint`, `kwhPricePlaceholder`, `kwhPriceCustomNote`, `kwhPriceCustomSource`, `fuelPriceCustom`, `catRicarica` (both locales).
@@ -122,7 +133,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - `tollsCost()` prefers `tollTotalEur` when present (old notice-sum as fallback, so pre-existing saved trips are unaffected); `CostSummary` shows the amount + `tollEstimateLive` provenance (`IT → FR: €… · OpenVan`) or `tollAvoided` microcopy, and "See alerts" now appears only when no live data exists. The Trip total row is always the computed fuel + tolls sum — it previously reused Gemini's fuel-only `estimatedFuelCostRange` text, which hid the toll addition. The timeline's "Pedaggi e vignette verificati" pill was removed — it claimed verification that never happened (`transitTolls` i18n key removed with it).
 - `parseTollLines()` turns the API's per-section `items` into priced receipt lines stored as `Itinerary.tollBreakdown`: gated per-km sections aggregated by country (km + amount), tunnels/gates/ferries/vignettes as individual charges (highest first, capped at 10 lines, zero/garbage items skipped). `CostSummary` renders them under `tollBreakdownTitle` above the advisory Gemini alerts, so every euro of the total is traceable. Gemini's own prose alerts cannot be priced 1:1 (they are text, not line items) — the receipt lines are the derivation.
 - Purely-negative Gemini alerts ("No vignettes for passenger cars", "No tolls on this route") are dropped at mapping time by `isActionableTollAlert()` (`lib/map-gemini-itinerary.ts`): an alert must state something to do or pay now that real charges have priced lines. Mixed alerts naming a price ("…tunnel costs €9") are kept via a currency/price hint check (EN + IT patterns).
-- Tested in `lib/tolls.test.ts` (class mapping, parse validation incl. partial/zero/garbage, caching, never-throws, waypoint builder, line parsing/aggregation/cap) + a `tollsCost` preference case in `lib/costs.test.ts` + negative-alert filtering in `lib/map-gemini-itinerary.test.ts`; `npm test` (98 tests), `npm run typecheck`, `npm run build` green.
+- Tested in `lib/tolls.test.ts` (class mapping, parse validation incl. partial/zero/garbage, caching, never-throws, waypoint builder, line parsing/aggregation/cap) + a `tollsCost` preference case in `lib/trip-metrics.test.ts` + negative-alert filtering in `lib/map-gemini-itinerary.test.ts`; `npm test` (98 tests), `npm run typecheck`, `npm run build` green.
 - i18n keys: `tollEstimateLive`, `tollEstimateLiveNoRoute`, `tollAvoided`, `tollBreakdownTitle`, `tollBreakdownPerKm` (both locales).
 - Rationale: a cost summary whose toll line is structurally always €0 trains users to ignore it; a live route-priced total (e.g. Rome→Paris ≈ €172) makes the trip total credible, while the Gemini alerts remain as the qualitative list (vignette duties, tunnel warnings).
 
@@ -202,15 +213,16 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 ## Key Files
 
 ### `lib/geocode.ts`
-- Forward geocoding via Nominatim (OpenStreetMap) — **no longer used for validation**
-- `validateLocations` now only checks required fields exist (no geocoding)
+- Forward geocoding via Nominatim (OpenStreetMap); `validateLocations()` uses resolved coordinates for the >10000km road-trip fast rejection and returns a country code for energy pricing, but does not expose geocoded coordinates to callers
+- Geocoding misses remain best-effort: Gemini decides location feasibility unless both road endpoints resolve beyond the fast-path distance threshold
 
-### `lib/geo.ts`
+### `lib/trip-metrics.ts`
 - `haversineKm`: Great-circle distance between two `Stop` points (×1.35 road factor)
 - `haversineKmCoords`: Great-circle distance between two plain `{lat, lng}` coordinate pairs (for `validateLocations`)
 - `intraDayKm`: Sum of distances between consecutive stops in a day (×1.35 road factor)
 - `originToFirstStopKm`: Distance from origin to first stop
 - `withLiveDistances`: Recomputes day distances dynamically when stops reordered/removed
+- Also contains total-distance, fuel/toll/total-cost, and currency/distance/duration formatting helpers formerly in `lib/costs.ts`; tests live together in `lib/trip-metrics.test.ts`.
 
 ### Gemini API (`lib/gemini.ts`)
 - Calls `ai.models.generateContent()` with `responseMimeType: "application/json"` **plus `responseSchema`** (restored). Rationale: dropping the schema broke valid trips — without enforcement Gemini returned a wrong shape (`itinerary` instead of `days`, missing `lat`/`lng`, wrong stop `type` enum), causing `apiBadSchema` 500s on good requests. The schema keeps valid output well-formed (coordinates, enums, required fields).
@@ -240,6 +252,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 ### `app/api/describe-stop/route.ts`
 - Accepts stop data and locale, returns detailed description
+- Groups prompt, schema, and validator imports from `lib/gemini-describe-stop.ts`; keeps the Wikipedia photo lookup as an independent parallel source
 - Also returns a Wikipedia stop photo (`image`, possibly `null`); both fetched in parallel via `Promise.all`, image failure never blocks the description
 - Falls back gracefully if Gemini unavailable
 
@@ -274,13 +287,14 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 ## Testing
 - Mock itineraries in `lib/mock-itinerary.ts` include `originLat`/`originLng`
 - Verify with `npm run typecheck` + `npm test`. **Do NOT run `npm run build` unless strictly necessary** (e.g. validating production bundling or route output): it is slow and typecheck already covers TypeScript.
-- No test framework configured; manual verification via dev server
+- Tests use Vitest 3: `npm test` runs `vitest run`, and `vitest.config.ts` targets `lib/**/*.test.ts` in Node. No browser/E2E suite is configured, so use dev-server checks for browser-only behavior.
+- Keep test suites colocated by domain; similarly named PDF suites cover distinct helpers and renderer behavior, so shared feature naming alone is not a reason to merge them.
 
 ## SEO (`app/sitemap.ts`, `app/robots.ts`)
 - Sitemap lists the 6 canonical locale URLs: `/{en,it}`, `/{en,it}/how-it-works`, `/{en,it}/examples` — derived from `LOCALES` in `lib/i18n.ts`
 - Legacy slugs `/come-funziona` and `/esempi` are NOT in the sitemap (they 302-redirect in `proxy.ts`); listing redirecting URLs hurts SEO
 - Dynamic trip routes (`/[locale]/trip/[id]`) excluded — itineraries are user-generated and must not be indexed; legacy `/i/{id}` redirects to the current route.
-- Base URL from `NEXT_PUBLIC_SITE_URL` env with fallback to `https://packron.vercel.app` — set the env var when the production domain changes instead of editing code
+- Shared `SITE_URL` in `lib/site-url.ts` resolves `NEXT_PUBLIC_SITE_URL` (fallback `https://packron.vercel.app`) for root metadata, sitemap, and robots — set the env var when the production domain changes instead of editing code
 - Rationale: sitemap must match the real `[locale]` route structure, not the pre-i18n slugs
 - Every sitemap URL carries `alternates.languages` (`en`/`it`/`x-default`, absolute URLs) → Next renders `<xhtml:link hreflang>` entries, mirroring the hreflang link tags in metadata so Google serves the right locale
 
@@ -298,14 +312,16 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 ## Dark Mode
 
 ### Implementation
-- **ThemeProvider** (`components/theme-provider.tsx`): React context managing theme state with two modes — `light`, `dark` (no `system` mode)
+- **ThemeProvider** (`components/theme-provider.tsx`): React context managing one theme state with two modes — `light`, `dark` (no `system` mode or redundant `resolvedTheme` state)
 - **Persisted preference**: Stored in a `packron-theme` cookie (`Path=/`, 1-year `Max-Age`, `SameSite=Lax`), survives page reloads
 - **First-visit init**: With no cookie yet, the theme is resolved once from the OS `prefers-color-scheme` media query and persisted to the cookie immediately; a legacy `localStorage` value (including the old `"system"`) is migrated once, then removed
 - **Providers integration**: ThemeProvider wraps LocaleProvider in `components/providers.tsx`
+- Locale selection persists in the `packron-locale` cookie consumed by `proxy.ts`; no duplicate localStorage value is written.
 - **Toggle UI** (`components/theme-toggle.tsx`): Segmented control with Sun/Moon icons only, accessible labels via i18n
 
 ### CSS Strategy
 - Uses Tailwind v4 + `tw-animate-css` with CSS custom properties defined in `app/globals.css`
+- `font-display` is generated from `--font-display` in `@theme inline`; do not add a separate `@utility font-display`, which duplicates the generated font declaration
 - Light/dark color schemes defined via `:root` and `.dark` selector (lines 53–162)
 - `color-scheme` meta tag set on `:root` and `.dark` for proper form control styling
 - Dark mode surfaces are neutral gray (hue 260, chroma ≤0.01) — NOT blue-slate; bg `0.27`, card/popover `0.31`, secondary/muted `0.33`. Brand blue 224 + orange accent 38 reserved for primary/accent/charts only, so backgrounds don't look "techy"
@@ -342,7 +358,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - Rationale: anything hand-rolled (password hashing, JWT issuance, session cookies, per-user DB filtering) would duplicate — and likely weaken — what Supabase already provides audited and maintained.
 
 ### Key files
-- `lib/supabase/config.ts` — env helpers + `isSupabaseConfigured()`
+- `lib/supabase/config.ts` — env helpers + `isSupabaseConfigured()`; `getSupabasePublishableKey()` prefers the publishable env var and supports the legacy anon key, so the unused deprecated `getSupabaseAnonKey()` wrapper was removed.
 - `lib/supabase/client.ts` — browser client (`createBrowserClient`) with `auth.experimental.passkey` opt-in (required for the passkey API)
 - `lib/passkeys.ts` — `getPasskeyErrorCode()` + `isPasskeyCancelled()` shared helpers (tested in `lib/passkeys.test.ts`)
 - `lib/supabase/server.ts` — server client (Route Handlers/Server Components, cookie-aware)
@@ -355,7 +371,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - `app/api/trips/claim/route.ts` — authenticated claim of a null-owner trip
 - `supabase/migrations/20261002000000_unify_trip_storage.sql` — nullable guest ownership, destination, public reads, and claim RLS. Every policy create is preceded by drops of both the old and the new policy name, so the file is safe to re-run (without that, a second run failed with 42710 `saved_trips_insert_guest_or_own already exists`).
 - `supabase/migrations/20261005000000_trip_favorites.sql` — `is_favorite boolean NOT NULL DEFAULT false` + `(user_id, is_favorite, updated_at)` index. No RLS change (covered by existing policies); `GET /api/trips` selects `*` so pre-migration rows still read (`toSavedTripSummary` defaults the flag to false).
-- `components/auth/auth-provider.tsx` — session context (`AuthProvider` in `components/providers.tsx`)
+- `components/auth/auth-provider.tsx` — auth context (`AuthProvider` in `components/providers.tsx`); exposes only the consumed `user`/`loading`/`configured`/`signOut` values rather than duplicating `session` state or an unused `refresh` method
 - `components/auth/auth-form.tsx` — login/signup tabs, client validation (email regex, min 8 chars), friendly Supabase error mapping
 - `components/auth/auth-dialog.tsx` — modal used by header/save button (Esc + backdrop close, focus-safe). Rendered via `createPortal` to `document.body`: callers live inside filtered ancestors (sticky blurred header) that would otherwise trap `position: fixed` and break viewport centering; `min-h-full` flex wrapper keeps it centered and scrollable on small screens.
 - `components/auth/user-menu.tsx` — header: login button → dialog when logged out; email dropdown (My trips + logout) when logged in. On mobile (`<sm`) the trigger is a circular avatar with the username's uppercase first letter; `sm+` keeps the icon + full name.
@@ -405,6 +421,19 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - `AGENTS.md` remains the single source of truth for architecture decisions and rationale. README links to it instead of duplicating reasoning.
 - Rationale (2026-09 refresh): README had drifted — it still claimed "no authentication", listed removed Italian slugs, and omitted Supabase env vars, trips/account APIs, passkeys, dark mode, and SEO work.
 
+### Repository structure review (2026-11-11)
+- Keep the current root-level Next.js App Router structure: `app/` owns route entry points and metadata, `components/` owns UI grouped by feature (`auth/`, `result/`, `trips/`), `lib/` owns shared domain/integration logic, and `supabase/migrations/` owns database schema changes. `hooks/` currently contains the guest-trip hook; do not move files solely to make every folder look symmetrical.
+- `components/wizard-ui.tsx` centralizes the shared form controls, `StepProgress`, and `WizardPreview` used by both trip configurators. The radar markup belongs inside `GeneratingSkeleton` because it is only used during generation. `TravelThought` stays separate because it is reused by both configurators and the loading view; its localized phrase list lives in that component because it has no other consumer. Keep the road and city configurators separate because their form state and flows are mode-specific. Rationale: this consolidates related UI and single-consumer copy without making the main flow components monolithic.
+- `lib/trip-map-preview.ts` groups `normalizeCoordinates()` and `buildStaticMapUrl()`, which are both used only to render the trip's social-preview map; the associated tests live in `lib/trip-map-preview.test.ts`. Keep trip metrics in `lib/trip-metrics.ts` separate from those preview helpers. Rationale: consolidate two single-consumer preview helpers without coupling them to general itinerary geometry.
+- Tests colocated as `lib/*.test.ts` are intentional, not duplicate implementation files. `package.json` + `package-lock.json` are the active npm manifest/lock pair; `pnpm-workspace.yaml` is a package-manager-specific config, not an alternative lockfile. `CLAUDE.md` delegates to this file and should remain for tool compatibility.
+- `tsconfig.tsbuildinfo` is generated TypeScript incremental state; it is now ignored and removed from tracking (2026-11-11), while `tsconfig.json` and `next-env.d.ts` remain required.
+- `.gitignore` no longer ignores `.data/`: that directory belonged to the removed filesystem share store; local environment files remain ignored.
+- Removed unreferenced `public/placeholder*`, `public/icon.svg`, `public/icon-light-32x32.png`, `public/icon-dark-32x32.png`, and `public/apple-icon.png` (2026-11-11). Current metadata and manifest use the generated favicon, touch-icon, Android icons, and OG image. Keep the two `google*.html` verification files until Search Console ownership confirms which token(s) are still needed.
+- `/i/[id]` is retained as a redirect to `/trip/[id]`; `redirect()` returns HTTP 307, and a production check confirmed the crawler-followed response is HTTP 200 with explicit Open Graph and Twitter metadata pointing to `/trip/[id]/opengraph-image`, which returns a 200 PNG. The legacy `app/[locale]/i/[id]/opengraph-image.tsx` endpoint was removed (2026-11-11); its shared renderer now lives at `lib/trip-opengraph-image.tsx`, imported by the canonical route. Rationale: social crawlers receive the canonical trip's metadata after following the redirect, so the legacy image endpoint is not needed.
+- `/{locale}/how-it-works` and `/{locale}/examples` derive their page title and description from the locale's existing i18n messages; metadata does not hardcode Italian or repeat the brand suffix already provided by the root title template. The legacy `/i/{id}` redirect has no page metadata because the canonical trip route supplies crawler metadata after redirect.
+- The README was rewritten in English (2026-11-11) to match the current stack, features, routes, setup, and migrations. `.env.example` now documents the active configuration and no longer includes the removed filesystem share directory or outdated confirmation-link instructions.
+- Suggested future organization, if the codebase grows: preserve `app/` as the route tree, optionally group shared UI under `components/layout/` and `components/planner/`, and split the large `lib/i18n.ts` message dictionaries by locale while keeping the existing typed translation API. This is a staged refactor, not a prerequisite for the app to run.
+
 ### Historical Phase 5 Gemini prompt calibration (superseded for road trips)
 - `buildTripPrompt()` no longer defines a complete day through fixed stop counts. The former `5-7 meaningful stops` target and `at least 3 stops` minimum were removed because the day-completeness model is contextual, not count-based.
 - City and road prompts now ask Gemini to generate enough meaningful experiences to naturally occupy each day, with realistic `duration_minutes`; substantial experiences may last several hours, but durations must not be inflated to fill time.
@@ -438,6 +467,6 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - When enabled, it logs the exact prompt, raw Gemini response before parsing, parsed JSON, mapped itinerary, and a raw-versus-mapped day summary including mapped substop names and descriptions. Nothing is added to the API response; generation parameters and user-facing behavior are unchanged.
 - Rationale: capture one real request to determine whether under-filled days originate in Gemini or in post-generation transformation. The diagnostic is intentionally local-development-only and does not log API keys or authorization headers.
 
-### Satori-compatible legacy OG image (2026-10-05)
-- `app/[locale]/i/[id]/opengraph-image.tsx` uses only Satori-compatible CSS for generated previews: absolute edges are specified explicitly, flex containers use `display: "flex"`, translucent colors use `rgba()`, shadows avoid spread values, and the decorative overlay uses a single linear gradient.
+### Satori-compatible dynamic OG image (2026-10-05)
+- `lib/trip-opengraph-image.tsx` uses only Satori-compatible CSS for generated previews: absolute edges are specified explicitly, flex containers use `display: "flex"`, translucent colors use `rgba()`, shadows avoid spread values, and the decorative overlay uses a single linear gradient.
 - Rationale: unsupported CSS syntax and 8-digit hex colors can make `next/og` rendering fail even when the JSX and TypeScript are valid.

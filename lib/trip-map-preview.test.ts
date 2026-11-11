@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { buildStaticMapUrl } from "./static-map"
+import { buildStaticMapUrl } from "./trip-map-preview"
 
 const ROME = { lat: 41.9, lng: 12.5 }
 const MILAN = { lat: 45.46, lng: 9.19 }

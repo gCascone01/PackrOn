@@ -28,8 +28,3 @@ export function getSupabaseUrl(): string {
 export function getSupabasePublishableKey(): string {
   return process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
 }
-
-/** @deprecated Use `getSupabasePublishableKey()` — kept for backward compatibility. */
-export function getSupabaseAnonKey(): string {
-  return getSupabasePublishableKey()
-}

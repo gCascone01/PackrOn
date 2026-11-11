@@ -11,7 +11,7 @@ import {
   fuelCost,
   tollsCost,
   totalCost,
-} from "@/lib/costs"
+} from "@/lib/trip-metrics"
 
 const BRAND = "#0088ae"
 const INK = "#0f172a"

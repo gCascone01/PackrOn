@@ -26,7 +26,6 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     document.documentElement.lang = locale
-    window.localStorage.setItem(STORAGE_KEY, locale)
     document.cookie = `${STORAGE_KEY}=${locale}; path=/; max-age=31536000`
   }, [locale])
 
@@ -35,7 +34,6 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
       locale,
       setLocale: (next) => {
         if (next === locale) return
-        window.localStorage.setItem(STORAGE_KEY, next)
         document.cookie = `${STORAGE_KEY}=${next}; path=/; max-age=31536000`
         router.push(swapLocaleInPath(pathname, next))
       },

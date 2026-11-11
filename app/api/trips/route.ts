@@ -1,7 +1,13 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { isSupabaseConfigured } from "@/lib/supabase/config"
-import { isMissingTableError, toSavedTripSummary, validateSaveTripPayload, type SavedTrip } from "@/lib/trips"
+import {
+  isMissingTableError,
+  MAX_SAVED_TITLE_LENGTH,
+  toSavedTripSummary,
+  validateSaveTripPayload,
+  type SavedTrip,
+} from "@/lib/trips"
 
 /**
  * GET /api/trips — list the logged-in user's saved trips (summaries only).
@@ -71,7 +77,7 @@ export async function POST(request: Request) {
     .from("saved_trips")
     .insert({
       user_id: user.id,
-      title: itinerary.title.trim().slice(0, 160),
+      title: itinerary.title.trim().slice(0, MAX_SAVED_TITLE_LENGTH),
       mode: itinerary.mode,
       origin: typeof itinerary.origin === "string" ? itinerary.origin.slice(0, 200) : "",
       data: itinerary,

@@ -1,7 +1,7 @@
 "use client"
 
 import type { Stop } from "@/lib/types"
-import { appleMapsUrl, googleMapsUrl, wazeUrl } from "@/lib/nav-links"
+import { appleMapsUrl, googleMapsUrl, wazeUrl } from "@/lib/external-links"
 import { MapPin } from "lucide-react"
 import { useI18n } from "@/components/locale-provider"
 

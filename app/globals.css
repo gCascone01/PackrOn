@@ -186,10 +186,6 @@
   }
 }
 
-@utility font-display {
-  font-family: var(--font-display);
-}
-
 .hero-stage {
   isolation: isolate;
   overflow: hidden;

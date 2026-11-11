@@ -1,9 +1,19 @@
 "use client"
 
-import { cn } from "@/lib/utils"
-import { Minus, Plus } from "lucide-react"
 import type { ReactNode } from "react"
+import {
+  Building2,
+  CarFront,
+  Check,
+  Compass,
+  Minus,
+  Mountain,
+  Plus,
+  Route,
+  Sparkles,
+} from "lucide-react"
 import { useI18n } from "@/components/locale-provider"
+import { cn } from "@/lib/utils"
 
 export function Field({
   label,
@@ -176,7 +186,7 @@ export function Toggle({
   label,
 }: {
   checked: boolean
-  onChange: (v: boolean) => void
+  onChange: (value: boolean) => void
   label: string
 }) {
   return (
@@ -202,5 +212,148 @@ export function Toggle({
         />
       </span>
     </button>
+  )
+}
+
+export function StepProgress({
+  steps,
+  current,
+  onSelect,
+}: {
+  steps: string[]
+  current: number
+  /** Jump to a step (forward jumps run the same validation as Continue). */
+  onSelect?: (index: number) => void
+}) {
+  return (
+    <ol className="flex items-center rounded-2xl border border-border bg-muted/30 p-2 sm:p-2.5">
+      {steps.map((label, i) => {
+        const done = i < current
+        const active = i === current
+        const clickable = Boolean(onSelect) && !active
+        const content = (
+          <>
+            <div className="flex min-w-0 items-center gap-2">
+              <span
+                className={cn(
+                  "flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-bold transition-all duration-300",
+                  done && "bg-brand text-brand-foreground",
+                  active && "bg-brand text-brand-foreground ring-4 ring-brand/15",
+                  !done && !active && "bg-muted text-muted-foreground",
+                )}
+              >
+                {done ? <Check className="size-3.5" /> : i + 1}
+              </span>
+              <span
+                className={cn(
+                  "hidden min-w-0 truncate text-sm font-medium sm:block",
+                  active && "font-semibold text-foreground",
+                  done && !active && "text-foreground",
+                  !done && !active && "text-muted-foreground",
+                )}
+              >
+                {label}
+              </span>
+            </div>
+            {i < steps.length - 1 ? (
+              <span className="relative mx-2 hidden h-1 flex-1 overflow-hidden rounded-full bg-border md:block" aria-hidden="true">
+                <span className={cn("absolute inset-y-0 left-0 rounded-full bg-brand transition-all duration-500", done ? "w-full" : "w-0")} />
+              </span>
+            ) : null}
+          </>
+        )
+        return (
+          <li
+            key={label}
+            aria-current={active ? "step" : undefined}
+            className={cn(
+              "relative flex min-w-0 flex-1 items-center rounded-xl px-1.5 py-1.5 transition-all duration-300 sm:px-2",
+              active && "bg-card shadow-sm ring-1 ring-brand/15",
+              done && !active && "bg-brand-muted/45",
+            )}
+          >
+            {clickable ? (
+              <button
+                type="button"
+                onClick={() => onSelect?.(i)}
+                aria-label={label}
+                className="flex min-w-0 flex-1 cursor-pointer items-center rounded-lg transition hover:bg-card/70 hover:shadow-sm hover:ring-1 hover:ring-brand/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+              >
+                {content}
+              </button>
+            ) : (
+              content
+            )}
+          </li>
+        )
+      })}
+    </ol>
+  )
+}
+
+export function WizardPreview({
+  mode,
+  title,
+  detail,
+  accent = "brand",
+  icon,
+  meta,
+  label,
+}: {
+  mode: "road" | "city"
+  title: string
+  detail: string
+  accent?: "brand" | "amber" | "green"
+  icon?: ReactNode
+  meta: string
+  label: string
+}) {
+  const Icon = icon ? null : mode === "road" ? CarFront : Building2
+
+  return (
+    <aside
+      aria-label={label}
+      className={cn(
+        "relative overflow-hidden rounded-2xl border p-4 shadow-sm transition-colors duration-500",
+        accent === "amber" && "border-amber-300/60 bg-amber-50/70",
+        accent === "green" && "border-emerald-300/60 bg-emerald-50/70",
+        accent === "brand" && "border-brand/20 bg-brand-muted/45",
+      )}
+    >
+      <div className="relative z-10 flex items-center gap-4">
+        <div
+          className={cn(
+            "relative flex size-14 shrink-0 items-center justify-center rounded-2xl border bg-card shadow-sm transition-all duration-500",
+            accent === "amber" && "border-amber-300 text-amber-700",
+            accent === "green" && "border-emerald-300 text-emerald-700",
+            accent === "brand" && "border-brand/25 text-brand",
+          )}
+        >
+          <span className="absolute inset-1.5 rounded-xl border border-dashed border-current/20" aria-hidden="true" />
+          {icon ?? (Icon ? <Icon className="size-6" /> : null)}
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="mb-1 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+            <Sparkles className="size-3 text-brand" />
+            {label}
+          </div>
+          <div className="truncate text-sm font-semibold text-foreground">{title}</div>
+          <div className="truncate text-xs text-muted-foreground">{detail}</div>
+        </div>
+        <div className="hidden shrink-0 items-center gap-1.5 sm:flex">
+          <Route className="size-4 text-muted-foreground" />
+          <span className="text-xs font-medium text-muted-foreground">{meta}</span>
+        </div>
+      </div>
+      <div className="relative mt-4 h-6" aria-hidden="true">
+        <div className="absolute left-0 right-0 top-3 h-px bg-current/15" />
+        <div className="absolute left-[8%] top-[7px] size-3 rounded-full border-2 border-current bg-card" />
+        <div className="absolute left-[48%] top-[7px] size-3 rounded-full border-2 border-current bg-card" />
+        <div className="absolute right-[8%] top-[7px] size-3 rounded-full border-2 border-current bg-card" />
+        <div className="absolute left-[8%] top-[3px] h-2 w-[40%] rounded-full bg-current/20" />
+      </div>
+      <Mountain className="absolute -bottom-8 -right-2 size-28 rotate-[-8deg] text-current/10" aria-hidden="true" />
+      {mode === "city" ? <Compass className="absolute -right-2 top-3 size-16 text-current/10" aria-hidden="true" /> : null}
+    </aside>
   )
 }

@@ -1,8 +1,6 @@
 import type { MetadataRoute } from 'next'
 import { LOCALES } from '@/lib/i18n'
-
-const SITE_URL =
-  process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, '') ?? 'https://packron.vercel.app'
+import { SITE_URL } from '@/lib/site-url'
 
 export default function sitemap(): MetadataRoute.Sitemap {
   // Public pages only. Account routes, auth callbacks, and trip URLs are excluded.

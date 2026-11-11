@@ -6,7 +6,6 @@ type Theme = "light" | "dark"
 
 type ThemeContextValue = {
   theme: Theme
-  resolvedTheme: "light" | "dark"
   setTheme: (theme: Theme) => void
   mounted: boolean
 }
@@ -34,7 +33,6 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   // Always start with the same value on server and client to avoid
   // hydration mismatches. The real preference is synced in the mount effect below.
   const [theme, setThemeState] = useState<Theme>("light")
-  const [resolvedTheme, setResolvedTheme] = useState<"light" | "dark">("light")
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
@@ -58,30 +56,27 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       window.localStorage.removeItem(STORAGE_KEY)
     }
     setThemeState(initial)
-    setResolvedTheme(initial)
   }, [])
 
   useEffect(() => {
     const root = document.documentElement
     root.classList.remove("light", "dark")
-    root.classList.add(resolvedTheme)
-    root.style.colorScheme = resolvedTheme
-  }, [resolvedTheme])
+    root.classList.add(theme)
+    root.style.colorScheme = theme
+  }, [theme])
 
   const setTheme = (nextTheme: Theme) => {
     setCookie(STORAGE_KEY, nextTheme)
     setThemeState(nextTheme)
-    setResolvedTheme(nextTheme)
   }
 
   const value = useMemo<ThemeContextValue>(
     () => ({
       theme,
-      resolvedTheme,
       setTheme,
       mounted,
     }),
-    [theme, resolvedTheme, mounted]
+    [theme, mounted]
   )
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>

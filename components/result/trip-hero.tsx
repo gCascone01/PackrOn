@@ -3,7 +3,7 @@
 import dynamic from "next/dynamic"
 import { CalendarDays, MapPin, Route, Share2 } from "lucide-react"
 import { useI18n } from "@/components/locale-provider"
-import { formatKm } from "@/lib/costs"
+import { formatKm } from "@/lib/trip-metrics"
 import type { ItineraryDay, TripMode } from "@/lib/types"
 import type { MapStop, OriginPoint } from "./itinerary-map"
 

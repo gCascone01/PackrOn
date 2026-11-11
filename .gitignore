@@ -6,11 +6,12 @@ __v0_jsx-dev-runtime.ts
 .v0-trash/
 .vercel/
 
-# Local share store and env
-.data/
+# Local environment files
 .env*.local
 
 # Common ignores
 node_modules
 .next/
 .DS_Store
+
+tsconfig.tsbuildinfo

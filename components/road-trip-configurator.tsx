@@ -7,13 +7,13 @@ import {
   Field,
   NumberStepper,
   OptionCard,
+  StepProgress,
   TextArea,
   TextInput,
   Toggle,
-} from "@/components/form-controls"
-import { StepProgress } from "@/components/step-progress"
+  WizardPreview,
+} from "@/components/wizard-ui"
 import { TravelThought } from "@/components/travel-thought"
-import { WizardPreview } from "@/components/wizard-preview"
 import { Button } from "@/components/ui/button"
 import type { GenerateTripPayload, VehicleType } from "@/lib/types"
 import {
